@@ -1,0 +1,28 @@
+anotaciones.md
+.venv/
+
+# Entorno virtual
+backend/.venv/
+
+# Variables de entorno
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+
+# Base de datos SQLite
+db.sqlite3
+
+# VS Code
+.vscode/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Node
+frontend/node_modules/
+
+# Angular
+frontend/dist/
