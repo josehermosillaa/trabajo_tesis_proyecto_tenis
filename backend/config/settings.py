@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "corsheaders",
     #myapps
     "authentication",
+    "core",
 ]
 
 MIDDLEWARE = [
@@ -160,8 +161,10 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),#ni tan poco timepo para obligar al usuario a autenticarse constantemente, ni tan largo para verlo comprometido
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), #razonable para el entorno del club
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
 }
 
 #cambiamos el modelo USER
