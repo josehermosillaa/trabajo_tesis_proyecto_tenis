@@ -17,4 +17,11 @@ export class AuthService {
 
   private readonly apiUrl = `${environment.apiUrl}/token`;
 
+  login(credentials: LoginRequest): Observable<TokenResponse> {
+  return this.http.post<TokenResponse>(
+    `${this.apiUrl}/`,
+    credentials
+  );
+}
+
 }
