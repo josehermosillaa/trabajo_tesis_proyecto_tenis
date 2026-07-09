@@ -1,0 +1,78 @@
+<div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light">
+
+  <div class="card shadow p-4" style="max-width: 420px; width: 100%;">
+
+    <div class="text-center mb-4">
+
+      <!-- Logo -->
+      <img
+        src="assets/images/logo.png"
+        alt="Logo Club Estadio Español"
+        class="img-fluid mb-3"
+        style="max-width: 120px;"
+      >
+
+      <h2 class="fw-bold mb-1">
+        Sistema de Gestión
+      </h2>
+
+      <p class="text-muted mb-0">
+        Torneos de Tenis
+      </p>
+
+    </div>
+
+    <form [formGroup]="loginForm">
+
+      <!-- Usuario -->
+      <div class="mb-3">
+
+        <label
+          for="username"
+          class="form-label"
+        >
+          Usuario
+        </label>
+
+        <input
+          id="username"
+          type="text"
+          class="form-control"
+          formControlName="username"
+          placeholder="Ingrese su usuario"
+        >
+
+      </div>
+
+      <!-- Contraseña -->
+      <div class="mb-4">
+
+        <label
+          for="password"
+          class="form-label"
+        >
+          Contraseña
+        </label>
+
+        <input
+          id="password"
+          type="password"
+          class="form-control"
+          formControlName="password"
+          placeholder="Ingrese su contraseña"
+        >
+
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-danger w-100"
+      >
+        Iniciar sesión
+      </button>
+
+    </form>
+
+  </div>
+
+</div>
