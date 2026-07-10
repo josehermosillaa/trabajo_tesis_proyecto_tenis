@@ -40,7 +40,8 @@ export class LoginComponent {
       response.refresh
     );
 
-    console.log('Tokens guardados correctamente');
+    // console.log('Tokens guardados correctamente');
+    this.router.navigate(['/dashboard']);
 
   },
   error: (error) => {
