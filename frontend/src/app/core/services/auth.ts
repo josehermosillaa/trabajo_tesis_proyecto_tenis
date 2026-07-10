@@ -22,6 +22,9 @@ export class AuthService {
     `${this.apiUrl}/`,
     credentials
   );
-}
-
+  
+  }
+  logout(): void {
+    this.tokenService.clearTokens();
+  }
 }
