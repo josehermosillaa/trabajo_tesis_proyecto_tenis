@@ -22,7 +22,7 @@
 
     </div>
 
-    <form [formGroup]="loginForm">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
 
       <!-- Usuario -->
       <div class="mb-3">
