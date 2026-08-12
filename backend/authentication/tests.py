@@ -1,30 +1,33 @@
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
+
+from authentication.models import Role, User
 
 
 class AuthenticationAPITest(TestCase):
 
     def setUp(self):
         self.client = APIClient()
-        self.username = "testuser"
-        self.password = "TestPassword123!"
 
-        User = get_user_model()
+        self.role = Role.objects.create(
+            name="Administrador"
+        )
 
         self.user = User.objects.create_user(
-            username=self.username,
-            password=self.password
+            username="testuser",
+            password="testpassword",
+            email="testuser@tenis.cl",
+            role=self.role,
         )
 
     def test_login_with_valid_credentials(self):
         response = self.client.post(
             "/api/token/",
             {
-                "username": self.username,
-                "password": self.password,
+                "username": "testuser",
+                "password": "testpassword",
             },
-            format="json"
+            format="json",
         )
 
         self.assertEqual(response.status_code, 200)
@@ -35,35 +38,35 @@ class AuthenticationAPITest(TestCase):
         response = self.client.post(
             "/api/token/",
             {
-                "username": self.username,
-                "password": "WrongPassword123!",
+                "username": "testuser",
+                "password": "wrongpassword",
             },
-            format="json"
+            format="json",
         )
 
         self.assertEqual(response.status_code, 401)
 
     def test_refresh_access_token(self):
-        response = self.client.post(
+        login_response = self.client.post(
             "/api/token/",
             {
-                "username": self.username,
-                "password": self.password,
+                "username": "testuser",
+                "password": "testpassword",
             },
-            format="json"
+            format="json",
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(login_response.status_code, 200)
 
-        refresh_token = response.data["refresh"]
+        refresh_token = login_response.data["refresh"]
 
-        refresh_response = self.client.post(
+        response = self.client.post(
             "/api/token/refresh/",
             {
                 "refresh": refresh_token,
             },
-            format="json"
+            format="json",
         )
 
-        self.assertEqual(refresh_response.status_code, 200)
-        self.assertIn("access", refresh_response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
