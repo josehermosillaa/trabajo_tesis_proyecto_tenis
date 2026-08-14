@@ -352,3 +352,52 @@ class Standing(models.Model):
             f"{self.player} - "
             f"{self.competition_category}"
         )
+        
+class AuditLog(models.Model):
+
+    ACTION_CHOICES = [
+        ("CREATE", "Crear"),
+        ("UPDATE", "Actualizar"),
+        ("DELETE", "Eliminar"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+
+    username = models.CharField(
+        max_length=150,
+    )
+
+    user_name = models.CharField(
+        max_length=200,
+    )
+
+    entity_name = models.CharField(
+        max_length=100,
+    )
+
+    entity_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    def __str__(self):
+        return (
+            f"{self.action} - "
+            f"{self.entity_name} - "
+            f"{self.entity_id}"
+        )

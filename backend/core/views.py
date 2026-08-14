@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, viewsets
 
 # from rest_framework.permissions import IsAuthenticated
-
+from core.utils import create_audit_log
 from .models import (
     Category,
     Competition,
@@ -42,7 +42,41 @@ class HealthAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-class PlayerViewSet(viewsets.ModelViewSet):
+
+
+
+class AuditModelViewSet(viewsets.ModelViewSet):
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+
+        create_audit_log(
+            user=self.request.user,
+            action="CREATE",
+            instance=instance,
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+
+        create_audit_log(
+            user=self.request.user,
+            action="UPDATE",
+            instance=instance,
+        )
+
+    def perform_destroy(self, instance):
+        # Guardamos los datos necesarios antes de eliminarlo
+        create_audit_log(
+            user=self.request.user,
+            action="DELETE",
+            instance=instance,
+        )
+
+        instance.delete()
+
+
+class PlayerViewSet(AuditModelViewSet):
     """
     API para la gestión de jugadores.
     """
@@ -52,7 +86,7 @@ class PlayerViewSet(viewsets.ModelViewSet):
     permission_classes = [PlayerPermission]
     
 
-class CompetitionViewSet(viewsets.ModelViewSet):
+class CompetitionViewSet(AuditModelViewSet):
     """
     API para la gestión de competencias.
     """
@@ -70,7 +104,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [CompetitionPermission]
     
-class CompetitionCategoryViewSet(viewsets.ModelViewSet):
+class CompetitionCategoryViewSet(AuditModelViewSet):
     """
     API para configurar las categorías de una competencia.
     """
@@ -83,7 +117,7 @@ class CompetitionCategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CompetitionCategorySerializer
     permission_classes = [CompetitionPermission]
 
-class RegistrationViewSet(viewsets.ModelViewSet):
+class RegistrationViewSet(AuditModelViewSet):
     """
     API para la gestión de inscripciones.
     """
@@ -100,14 +134,14 @@ class RegistrationViewSet(viewsets.ModelViewSet):
     permission_classes = [CompetitionPermission]
     
     
-class CourtViewSet(viewsets.ModelViewSet):
+class CourtViewSet(AuditModelViewSet):
 
     queryset = Court.objects.all().order_by("name")
     serializer_class = CourtSerializer
     permission_classes = [CompetitionPermission]
     
     
-class MatchViewSet(viewsets.ModelViewSet):
+class MatchViewSet(AuditModelViewSet):
 
     queryset = Match.objects.select_related(
         "competition_category",
@@ -123,7 +157,7 @@ class MatchViewSet(viewsets.ModelViewSet):
     permission_classes = [CompetitionPermission]
     
     
-class MatchSetViewSet(viewsets.ModelViewSet):
+class MatchSetViewSet(AuditModelViewSet):
 
     queryset = MatchSet.objects.select_related(
         "match",
@@ -135,7 +169,7 @@ class MatchSetViewSet(viewsets.ModelViewSet):
     serializer_class = MatchSetSerializer
     permission_classes = [CompetitionPermission]
     
-class StandingViewSet(viewsets.ModelViewSet):
+class StandingViewSet(AuditModelViewSet):
 
     queryset = Standing.objects.select_related(
         "competition_category",
@@ -146,3 +180,6 @@ class StandingViewSet(viewsets.ModelViewSet):
 
     serializer_class = StandingSerializer
     permission_classes = [CompetitionPermission]
+    
+    
+    

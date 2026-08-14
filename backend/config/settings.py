@@ -40,9 +40,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     #
     "rest_framework",
+    "drf_spectacular",
     "corsheaders",
-    #myapps
     "authentication",
+    #myapps
     "core",
 ]
 
@@ -121,7 +122,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Santiago'
 
 USE_I18N = True
 
@@ -146,6 +147,7 @@ CORS_ALLOWED_ORIGINS = [
 from datetime import timedelta
 
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -164,3 +166,29 @@ SIMPLE_JWT = {
 #cambiamos el modelo USER
 
 AUTH_USER_MODEL = "authentication.User"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Sistema de Gestión de Torneos de Tenis API",
+    "DESCRIPTION": (
+        "API REST para la gestión operativa de torneos "
+        "de tenis del Club Estadio Español de Curicó."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+
+    "SECURITY": [
+        {
+            "BearerAuth": [],
+        }
+    ],
+
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+}

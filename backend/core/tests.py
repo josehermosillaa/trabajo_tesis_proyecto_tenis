@@ -12,7 +12,8 @@ from core.models import (
     Court,
     Match,
     MatchSet,
-    Standing
+    Standing,
+    AuditLog
     )
 
 
@@ -1204,6 +1205,48 @@ class CompetitionCategoryAPITest(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_patch_minimum_players_cannot_exceed_maximum(self):
+        competition_category = (
+            self.create_competition_category()
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/competition-categories/"
+            f"{competition_category.id}/",
+            {
+                "minimum_players": 20,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+    def test_patch_maximum_players_cannot_be_less_than_minimum(self):
+        competition_category = (
+            self.create_competition_category()
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/competition-categories/"
+            f"{competition_category.id}/",
+            {
+                "max_players": 2,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
     def test_duplicate_competition_category_is_rejected(self):
         self.create_competition_category()
 
@@ -1602,6 +1645,250 @@ class RegistrationAPITest(TestCase):
             response.data["registration_date"]
         )
         
+    def test_registration_allowed_when_competition_is_pending(self):
+        self.competition.status = "PENDIENTE"
+        self.competition.save()
+
+        self.authenticate(self.organizer_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201,
+        )
+
+    def test_registration_allowed_when_competition_is_open(self):
+        self.competition.status = "ABIERTA"
+        self.competition.save()
+
+        self.authenticate(self.organizer_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201,
+        )
+
+    def test_admin_can_register_when_competition_is_in_progress(self):
+        self.competition.status = "EN_CURSO"
+        self.competition.save()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201,
+        )
+        
+    def test_organizer_cannot_register_when_competition_is_in_progress(self):
+        self.competition.status = "EN_CURSO"
+        self.competition.save()
+
+        self.authenticate(self.organizer_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+        
+    def test_registration_not_allowed_when_competition_is_finished(self):
+        self.competition.status = "FINALIZADA"
+        self.competition.save()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+        
+    def test_registration_not_allowed_when_competition_is_cancelled(self):
+        self.competition.status = "CANCELADA"
+        self.competition.save()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+        
+    def test_registration_not_allowed_when_max_players_is_reached(self):
+        self.competition_primera.max_players = 1
+        self.competition_primera.save()
+
+        self.authenticate(self.admin_user)
+
+        # Primera inscripción
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201,
+        )
+
+        # Segundo jugador
+        User = get_user_model()
+
+        second_player_user = User.objects.create_user(
+            username="second_registration_player",
+            password="TestPassword123!",
+            email="second_registration_player@tenis.cl",
+            role=self.player_role,
+        )
+
+        second_player = Player.objects.create(
+            user=second_player_user,
+            category=self.primera,
+            rut="66666666-6",
+            first_name="Segundo",
+            last_name="Jugador",
+        )
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": second_player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+        
+    def test_registration_allowed_after_increasing_max_players(self):
+        self.competition_primera.max_players = 1
+        self.competition_primera.save()
+
+        self.authenticate(self.admin_user)
+
+        # Primera inscripción
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        # Aumentamos el límite
+        self.competition_primera.max_players = 2
+        self.competition_primera.save()
+
+        # Creamos un segundo jugador
+        User = get_user_model()
+
+        second_player_user = User.objects.create_user(
+            username="second_registration_player",
+            password="TestPassword123!",
+            email="second_registration_player@tenis.cl",
+            role=self.player_role,
+        )
+
+        second_player = Player.objects.create(
+            user=second_player_user,
+            category=self.primera,
+            rut="66666666-6",
+            first_name="Segundo",
+            last_name="Jugador",
+        )
+
+        # Segunda inscripción
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": second_player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
 class CourtAPITest(TestCase):
 
     def setUp(self):
@@ -3949,4 +4236,406 @@ class StandingAPITest(TestCase):
 
         self.assertIsNone(
             response.data["position"]
+        )
+        
+
+class AuditLogAPITest(TestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+
+        # -----------------------------
+        # ROLES
+        # -----------------------------
+
+        self.admin_role = Role.objects.create(
+            name="Administrador"
+        )
+
+        self.organizer_role = Role.objects.create(
+            name="Organizador"
+        )
+
+        self.player_role = Role.objects.create(
+            name="Jugador"
+        )
+
+        User = get_user_model()
+
+        # -----------------------------
+        # USUARIOS
+        # -----------------------------
+
+        self.admin_user = User.objects.create_user(
+            username="audit_admin",
+            password="TestPassword123!",
+            email="audit_admin@tenis.cl",
+            role=self.admin_role,
+        )
+
+        self.organizer_user = User.objects.create_user(
+            username="audit_organizer",
+            password="TestPassword123!",
+            email="audit_organizer@tenis.cl",
+            role=self.organizer_role,
+        )
+
+        self.player_user = User.objects.create_user(
+            username="audit_player",
+            password="TestPassword123!",
+            email="audit_player@tenis.cl",
+            role=self.player_role,
+        )
+
+        # -----------------------------
+        # CATEGORÍA
+        # -----------------------------
+
+        self.category = Category.objects.create(
+            name="PRIMERA"
+        )
+
+        # -----------------------------
+        # JUGADOR EXISTENTE
+        # -----------------------------
+
+        self.player = Player.objects.create(
+            user=self.player_user,
+            category=self.category,
+            rut="61111111-1",
+            first_name="Jugador",
+            last_name="Prueba",
+            birth_date="1995-05-20",
+            phone="+56911111111",
+        )
+
+        # -----------------------------
+        # COMPETENCIA
+        # -----------------------------
+
+        self.competition = Competition.objects.create(
+            name="Torneo Auditoria",
+            type="ELIMINACION_DIRECTA",
+            start_date="2026-09-01",
+            end_date="2026-09-15",
+            registration_deadline="2026-08-28",
+        )
+
+    def authenticate(self, user):
+
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": user.username,
+                "password": "TestPassword123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=(
+                f"Bearer {response.data['access']}"
+            )
+        )
+
+    # =================================================
+    # CREATE
+    # =================================================
+
+    def test_audit_log_created_on_player_create(self):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        User = get_user_model()
+
+        new_player_user = User.objects.create_user(
+            username="audit_new_player",
+            password="TestPassword123!",
+            email="audit_new_player@tenis.cl",
+            role=self.player_role,
+        )
+
+        response = self.client.post(
+            "/api/players/",
+            {
+                "user": new_player_user.id,
+                "category": self.category.id,
+                "rut": "62222222-2",
+                "first_name": "Nuevo",
+                "last_name": "Jugador",
+                "birth_date": "1990-01-01",
+                "phone": "+56922222222",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        log = AuditLog.objects.latest(
+            "id"
+        )
+
+        self.assertEqual(
+            log.user_id,
+            self.admin_user.id
+        )
+
+        self.assertEqual(
+            log.username,
+            self.admin_user.username
+        )
+
+        self.assertEqual(
+            log.user_name,
+            self.admin_user.get_full_name()
+            or self.admin_user.username
+        )
+
+        self.assertEqual(
+            log.entity_name,
+            "Player"
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            response.data["id"]
+        )
+
+        self.assertEqual(
+            log.action,
+            "CREATE"
+        )
+    # =================================================
+    # UPDATE
+    # =================================================
+
+    def test_audit_log_created_on_player_update(self):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        initial_count = AuditLog.objects.count()
+
+        response = self.client.patch(
+            f"/api/players/{self.player.id}/",
+            {
+                "phone": "+56999999999",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            AuditLog.objects.count(),
+            initial_count + 1
+        )
+
+        log = AuditLog.objects.latest(
+            "id"
+        )
+
+        self.assertEqual(
+            log.user_id,
+            self.admin_user.id
+        )
+
+        self.assertEqual(
+            log.username,
+            self.admin_user.username
+        )
+
+        self.assertEqual(
+            log.entity_name,
+            "Player"
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            self.player.id
+        )
+
+        self.assertEqual(
+            log.action,
+            "UPDATE"
+        )
+
+    # =================================================
+    # DELETE
+    # =================================================
+
+    def test_audit_log_created_on_player_delete(self):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        player_id = self.player.id
+
+        initial_count = AuditLog.objects.count()
+
+        response = self.client.delete(
+            f"/api/players/{player_id}/"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            204
+        )
+
+        self.assertEqual(
+            AuditLog.objects.count(),
+            initial_count + 1
+        )
+
+        log = AuditLog.objects.latest(
+            "id"
+        )
+
+        self.assertEqual(
+            log.user_id,
+            self.admin_user.id
+        )
+
+        self.assertEqual(
+            log.username,
+            self.admin_user.username
+        )
+
+        self.assertEqual(
+            log.entity_name,
+            "Player"
+        )
+
+        self.assertEqual(
+            log.entity_id,
+            player_id
+        )
+
+        self.assertEqual(
+            log.action,
+            "DELETE"
+        )
+
+    # =================================================
+    # IDENTIDAD HISTÓRICA
+    # =================================================
+
+    def test_audit_log_preserves_user_identity_after_delete(self):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.patch(
+            f"/api/players/{self.player.id}/",
+            {
+                "phone": "+56988888888",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        log = AuditLog.objects.latest(
+            "id"
+        )
+
+        username = self.admin_user.username
+
+        user_name = (
+            self.admin_user.get_full_name()
+            or self.admin_user.username
+        )
+
+        self.admin_user.delete()
+
+        log.refresh_from_db()
+
+        self.assertIsNone(
+            log.user_id
+        )
+
+        self.assertEqual(
+            log.username,
+            username
+        )
+
+        self.assertEqual(
+            log.user_name,
+            user_name
+        )
+
+    # =================================================
+    # CREATED_AT
+    # =================================================
+
+    def test_audit_log_has_created_at(self):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.patch(
+            f"/api/players/{self.player.id}/",
+            {
+                "phone": "+56977777777",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        log = AuditLog.objects.latest(
+            "id"
+        )
+
+        self.assertIsNotNone(
+            log.created_at
+        )
+
+    # =================================================
+    # NO AUTENTICADO
+    # =================================================
+
+    def test_unauthenticated_user_cannot_modify_player_and_create_audit(self):
+
+        initial_count = AuditLog.objects.count()
+
+        response = self.client.patch(
+            f"/api/players/{self.player.id}/",
+            {
+                "phone": "+56966666666",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            401
+        )
+
+        self.assertEqual(
+            AuditLog.objects.count(),
+            initial_count
         )

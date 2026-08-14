@@ -70,8 +70,17 @@ class CompetitionCategorySerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate(self, data):
-        max_players = data.get("max_players")
-        minimum_players = data.get("minimum_players")
+        instance = self.instance
+
+        max_players = data.get(
+            "max_players",
+            instance.max_players if instance else None,
+        )
+
+        minimum_players = data.get(
+            "minimum_players",
+            instance.minimum_players if instance else None,
+        )
 
         if (
             max_players is not None
@@ -88,7 +97,6 @@ class CompetitionCategorySerializer(serializers.ModelSerializer):
             )
 
         return data
-    
 class RegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -107,8 +115,31 @@ class RegistrationSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, data):
-        player = data.get("player")
-        competition_category = data.get("competition_category")
+
+        # ---------------------------------
+        # Obtener valores actuales
+        # ---------------------------------
+
+        instance = self.instance
+
+        player = data.get(
+            "player",
+            instance.player if instance else None,
+        )
+
+        competition_category = data.get(
+            "competition_category",
+            (
+                instance.competition_category
+                if instance
+                else None
+            ),
+        )
+
+        # ---------------------------------
+        # 1. El jugador debe pertenecer a
+        #    la categoría de la competencia
+        # ---------------------------------
 
         if (
             player is not None
@@ -126,9 +157,90 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 }
             )
 
+        # ---------------------------------
+        # Las siguientes reglas corresponden
+        # solamente a la creación de una
+        # inscripción.
+        # ---------------------------------
+
+        if instance is None:
+
+            competition = (
+                competition_category.competition
+            )
+
+            # ---------------------------------
+            # 2. Estado de la competencia
+            # ---------------------------------
+
+            request = self.context.get("request")
+            user = (
+                request.user
+                if request is not None
+                else None
+            )
+
+            status = competition.status
+
+            if status == "EN_CURSO":
+                if (
+                    user is None
+                    or not user.is_authenticated
+                    or user.role.name != "Administrador"
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "competition_category": (
+                                "Solo un Administrador "
+                                "puede registrar jugadores "
+                                "en una competencia "
+                                "en curso."
+                            )
+                        }
+                    )
+
+            elif status not in [
+                "PENDIENTE",
+                "ABIERTA",
+            ]:
+                raise serializers.ValidationError(
+                    {
+                        "competition_category": (
+                            "No se pueden registrar "
+                            "jugadores en una competencia "
+                            "finalizada o cancelada."
+                        )
+                    }
+                )
+
+            # ---------------------------------
+            # 3. Cupos máximos
+            # ---------------------------------
+
+            registrations_count = (
+                Registration.objects.filter(
+                    competition_category=competition_category,
+                )
+                .exclude(status="CANCELADA")
+                .count()
+            )
+
+            if (
+                registrations_count
+                >= competition_category.max_players
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "competition_category": (
+                            "Se ha alcanzado el máximo "
+                            "de jugadores permitido "
+                            "para esta categoría."
+                        )
+                    }
+                )
+
         return data
-    
-    
+
 class CourtSerializer(serializers.ModelSerializer):
 
     class Meta:
