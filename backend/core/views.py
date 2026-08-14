@@ -4,13 +4,19 @@ from rest_framework import status, viewsets
 
 # from rest_framework.permissions import IsAuthenticated
 
-from .models import Player, Competition, Category
+from .models import (
+    Category,
+    Competition,
+    CompetitionCategory,
+    Player,
+)
 from .permissions import PlayerPermission, CompetitionPermission
 from .serializers import (
-    PlayerSerializer,
+    CategorySerializer,
+    CompetitionCategorySerializer,
     CompetitionSerializer,
-    CategorySerializer
-    )
+    PlayerSerializer,
+)
 
 class HealthAPIView(APIView):
 
@@ -55,4 +61,17 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    permission_classes = [CompetitionPermission]
+    
+class CompetitionCategoryViewSet(viewsets.ModelViewSet):
+    """
+    API para configurar las categorías de una competencia.
+    """
+
+    queryset = CompetitionCategory.objects.select_related(
+        "competition",
+        "category",
+    ).all()
+
+    serializer_class = CompetitionCategorySerializer
     permission_classes = [CompetitionPermission]

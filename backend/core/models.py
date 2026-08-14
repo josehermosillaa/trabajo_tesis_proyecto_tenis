@@ -71,3 +71,30 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+    
+class CompetitionCategory(models.Model):
+    competition = models.ForeignKey(
+        Competition,
+        on_delete=models.CASCADE,
+        related_name="competition_categories",
+    )
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="competition_categories",
+    )
+
+    max_players = models.PositiveIntegerField()
+    minimum_players = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["competition", "category"],
+                name="unique_competition_category",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.competition.name} - {self.category.name}"
