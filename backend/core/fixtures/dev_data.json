@@ -1,5 +1,178 @@
 [
 {
+  "model": "authentication.role",
+  "pk": 1,
+  "fields": {
+    "name": "Administrador"
+  }
+},
+{
+  "model": "authentication.role",
+  "pk": 2,
+  "fields": {
+    "name": "Organizador"
+  }
+},
+{
+  "model": "authentication.role",
+  "pk": 3,
+  "fields": {
+    "name": "Jugador"
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$V55Y18oeRpYt7utnQ369UP$9bKudKr+cYU3tpqhV3UhniSbsEbknhO30A+/UncLNhU=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "admin",
+    "first_name": "Administrador",
+    "last_name": "Sistema",
+    "email": "admin@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:11.792Z",
+    "role": 1,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$yzseh8zvk6owN3Rf1hqXjB$/tli7Sz8DpwwyVnx8Eur1Mk610ktaXTgawPIpbs7vqU=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "organizador",
+    "first_name": "Juan",
+    "last_name": "Organizador",
+    "email": "organizador@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:30.053Z",
+    "role": 2,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$BcZmMJMTLDBC4N9hWpv7jZ$sO4dlcjzYPm2EB/g39Rm3zmQAUhb20hJRkOQ1xSiQOM=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "jugador1",
+    "first_name": "Carlos",
+    "last_name": "González",
+    "email": "jugador1@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:36.860Z",
+    "role": 3,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 4,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$LU7lnbIOf2p7BLFdtyOeji$ZBrZ2P3738o6rPmR+VkkBMZXXHivx1wADQnPtZV1bNo=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "jugador2",
+    "first_name": "Diego",
+    "last_name": "Pérez",
+    "email": "jugador2@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:37.393Z",
+    "role": 3,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 5,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$Oyi1kdfyN7wcuDnVw04G6H$K6vPnQL/5V1m0vkggld8bzw3kkH7ihOrT94wvsA3G70=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "jugador3",
+    "first_name": "Felipe",
+    "last_name": "Muñoz",
+    "email": "jugador3@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:37.917Z",
+    "role": 3,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 6,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$3QPj95rC7uENmH5FIpxxSk$YM2aCb+MeiSeAGpPQ8tqppY/YDqnED7G9hjrmbVDxMM=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "jugador4",
+    "first_name": "Andrés",
+    "last_name": "Soto",
+    "email": "jugador4@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:10:38.427Z",
+    "role": 3,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 9,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$HJcp5YFFPOsn2J7ukQu4n2$t0X5fu5ROCMLpHBxNWTMQrSrE3FK1J6pwkppz4bz5QQ=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "api_admin",
+    "first_name": "Administrador",
+    "last_name": "API",
+    "email": "api_admin@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T04:46:54.951Z",
+    "role": 1,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "authentication.user",
+  "pk": 10,
+  "fields": {
+    "password": "pbkdf2_sha256$1000000$FrGMDQYEjOwFLP5Kzxk7Br$keacbFSfIzJx2JG7mym6z8RB+TxuJBS+uQrslA+BRJA=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "jugador_segunda_test",
+    "first_name": "",
+    "last_name": "",
+    "email": "jugador_segunda_test@tenis.cl",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-14T06:36:59.689Z",
+    "role": 3,
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
   "model": "core.player",
   "pk": 1,
   "fields": {
