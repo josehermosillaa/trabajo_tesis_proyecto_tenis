@@ -9,15 +9,24 @@ from .models import (
     Competition,
     CompetitionCategory,
     Player,
+    Registration,
+    Court,
+    Match,
+    MatchSet,
+    Standing
 )
 from .permissions import PlayerPermission, CompetitionPermission
 from .serializers import (
     CategorySerializer,
-    CompetitionCategorySerializer,
     CompetitionSerializer,
+    CompetitionCategorySerializer,
     PlayerSerializer,
+    RegistrationSerializer,
+    CourtSerializer,
+    MatchSerializer,
+    MatchSetSerializer,
+    StandingSerializer
 )
-
 class HealthAPIView(APIView):
 
     authentication_classes = []
@@ -32,8 +41,6 @@ class HealthAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-        
-
 
 class PlayerViewSet(viewsets.ModelViewSet):
     """
@@ -74,4 +81,68 @@ class CompetitionCategoryViewSet(viewsets.ModelViewSet):
     ).all()
 
     serializer_class = CompetitionCategorySerializer
+    permission_classes = [CompetitionPermission]
+
+class RegistrationViewSet(viewsets.ModelViewSet):
+    """
+    API para la gestión de inscripciones.
+    """
+
+    queryset = Registration.objects.select_related(
+        "player",
+        "player__category",
+        "competition_category",
+        "competition_category__competition",
+        "competition_category__category",
+    ).all()
+
+    serializer_class = RegistrationSerializer
+    permission_classes = [CompetitionPermission]
+    
+    
+class CourtViewSet(viewsets.ModelViewSet):
+
+    queryset = Court.objects.all().order_by("name")
+    serializer_class = CourtSerializer
+    permission_classes = [CompetitionPermission]
+    
+    
+class MatchViewSet(viewsets.ModelViewSet):
+
+    queryset = Match.objects.select_related(
+        "competition_category",
+        "competition_category__competition",
+        "competition_category__category",
+        "court",
+        "player1",
+        "player2",
+        "winner_player",
+    ).all()
+
+    serializer_class = MatchSerializer
+    permission_classes = [CompetitionPermission]
+    
+    
+class MatchSetViewSet(viewsets.ModelViewSet):
+
+    queryset = MatchSet.objects.select_related(
+        "match",
+        "match__competition_category",
+        "match__player1",
+        "match__player2",
+    ).all()
+
+    serializer_class = MatchSetSerializer
+    permission_classes = [CompetitionPermission]
+    
+class StandingViewSet(viewsets.ModelViewSet):
+
+    queryset = Standing.objects.select_related(
+        "competition_category",
+        "competition_category__competition",
+        "competition_category__category",
+        "player",
+    ).all()
+
+    serializer_class = StandingSerializer
     permission_classes = [CompetitionPermission]

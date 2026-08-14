@@ -7,6 +7,11 @@ from .views import (
     CompetitionViewSet,
     HealthAPIView,
     PlayerViewSet,
+    RegistrationViewSet,
+    CourtViewSet,
+    MatchViewSet,
+    MatchSetViewSet,
+    StandingViewSet
 )
 
 
@@ -32,7 +37,38 @@ router.register(
     basename="competition-category",
 )
 
+router.register(
+    r"registrations",
+    RegistrationViewSet,
+    basename="registration",
+)
+router.register(
+    r"courts",
+    CourtViewSet,
+    basename="court",
+)
+
+router.register(
+    r"matches",
+    MatchViewSet,
+    basename="match",
+)
+
+router.register(
+    r"match-sets",
+    MatchSetViewSet,
+    basename="match-set",
+)
+
+router.register(
+    r"standings",
+    StandingViewSet,
+    basename="standing",
+)
+
 urlpatterns = [
     path("health/", HealthAPIView.as_view(), name="health"),
     path("", include(router.urls)),
 ]
+
+
