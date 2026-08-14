@@ -1,0 +1,250 @@
+[
+{
+  "model": "core.player",
+  "pk": 1,
+  "fields": {
+    "user": 3,
+    "category": 1,
+    "rut": "11111111-1",
+    "first_name": "Carlos",
+    "last_name": "González",
+    "birth_date": "1990-05-10",
+    "phone": "+56911111111"
+  }
+},
+{
+  "model": "core.player",
+  "pk": 2,
+  "fields": {
+    "user": 4,
+    "category": 1,
+    "rut": "22222222-2",
+    "first_name": "Diego",
+    "last_name": "Pérez",
+    "birth_date": "1992-08-15",
+    "phone": "+56922222222"
+  }
+},
+{
+  "model": "core.player",
+  "pk": 3,
+  "fields": {
+    "user": 5,
+    "category": 1,
+    "rut": "33333333-3",
+    "first_name": "Felipe",
+    "last_name": "Muñoz",
+    "birth_date": "1988-03-20",
+    "phone": "+56933333333"
+  }
+},
+{
+  "model": "core.player",
+  "pk": 4,
+  "fields": {
+    "user": 6,
+    "category": 1,
+    "rut": "44444444-4",
+    "first_name": "Andrés",
+    "last_name": "Soto",
+    "birth_date": "1995-11-02",
+    "phone": "+56944444444"
+  }
+},
+{
+  "model": "core.player",
+  "pk": 5,
+  "fields": {
+    "user": 10,
+    "category": 2,
+    "rut": "99999991-9",
+    "first_name": "Jugador",
+    "last_name": "Segunda",
+    "birth_date": null,
+    "phone": ""
+  }
+},
+{
+  "model": "core.competition",
+  "pk": 1,
+  "fields": {
+    "name": "Torneo Estadio Español 2026",
+    "type": "ELIMINACION_DIRECTA",
+    "start_date": "2026-09-01",
+    "end_date": "2026-09-15",
+    "status": "PENDIENTE",
+    "registration_deadline": "2026-08-28"
+  }
+},
+{
+  "model": "core.category",
+  "pk": 1,
+  "fields": {
+    "name": "PRIMERA"
+  }
+},
+{
+  "model": "core.category",
+  "pk": 2,
+  "fields": {
+    "name": "SEGUNDA"
+  }
+},
+{
+  "model": "core.category",
+  "pk": 3,
+  "fields": {
+    "name": "TERCERA"
+  }
+},
+{
+  "model": "core.competitioncategory",
+  "pk": 1,
+  "fields": {
+    "competition": 1,
+    "category": 1,
+    "max_players": 16,
+    "minimum_players": 4
+  }
+},
+{
+  "model": "core.competitioncategory",
+  "pk": 2,
+  "fields": {
+    "competition": 1,
+    "category": 2,
+    "max_players": 16,
+    "minimum_players": 4
+  }
+},
+{
+  "model": "core.competitioncategory",
+  "pk": 3,
+  "fields": {
+    "competition": 1,
+    "category": 3,
+    "max_players": 16,
+    "minimum_players": 4
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 1,
+  "fields": {
+    "competition_category": 1,
+    "player": 1,
+    "registration_date": "2026-08-14T04:11:57.129Z",
+    "status": "PENDIENTE",
+    "seed": 1
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 2,
+  "fields": {
+    "competition_category": 1,
+    "player": 2,
+    "registration_date": "2026-08-14T04:12:07.850Z",
+    "status": "PENDIENTE",
+    "seed": 2
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 3,
+  "fields": {
+    "competition_category": 1,
+    "player": 3,
+    "registration_date": "2026-08-14T04:12:15.794Z",
+    "status": "PENDIENTE",
+    "seed": 3
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 4,
+  "fields": {
+    "competition_category": 1,
+    "player": 4,
+    "registration_date": "2026-08-14T04:12:20.094Z",
+    "status": "PENDIENTE",
+    "seed": 4
+  }
+},
+{
+  "model": "core.match",
+  "pk": 1,
+  "fields": {
+    "competition_category": 1,
+    "court": 1,
+    "player1": 1,
+    "player2": 2,
+    "winner_player": null,
+    "scheduled_date_time": null,
+    "status": "PROGRAMADO",
+    "round": 1,
+    "is_walkover": false
+  }
+},
+{
+  "model": "core.match",
+  "pk": 2,
+  "fields": {
+    "competition_category": 1,
+    "court": null,
+    "player1": 1,
+    "player2": null,
+    "winner_player": null,
+    "scheduled_date_time": null,
+    "status": "PROGRAMADO",
+    "round": 1,
+    "is_walkover": true
+  }
+},
+{
+  "model": "core.court",
+  "pk": 1,
+  "fields": {
+    "name": "Cancha 1",
+    "status": "AVAILABLE"
+  }
+},
+{
+  "model": "core.court",
+  "pk": 2,
+  "fields": {
+    "name": "Cancha 2",
+    "status": "OCCUPIED"
+  }
+},
+{
+  "model": "core.matchset",
+  "pk": 1,
+  "fields": {
+    "match": 1,
+    "set_number": 1,
+    "games_player1": 6,
+    "games_player2": 4,
+    "is_super_tie_break": false
+  }
+},
+{
+  "model": "core.standing",
+  "pk": 1,
+  "fields": {
+    "competition_category": 1,
+    "player": 1,
+    "matches_played": 0,
+    "matches_won": 0,
+    "matches_lost": 0,
+    "walkovers_won": 0,
+    "walkovers_lost": 0,
+    "sets_won": 0,
+    "sets_lost": 0,
+    "games_won": 0,
+    "games_lost": 0,
+    "points": 0,
+    "position": null
+  }
+}
+]
