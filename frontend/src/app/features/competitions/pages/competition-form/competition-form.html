@@ -1,0 +1,229 @@
+<div class="container-fluid py-4">
+
+  <div class="mb-4">
+    <h1 class="h3 mb-1">
+    {{ isEditMode ? 'Editar competencia' : 'Nueva competencia' }}
+    </h1>
+
+    <p class="text-muted mb-0">
+      Registra una nueva competencia de tenis.
+    </p>
+  </div>
+
+  @if (errorMessage) {
+    <div class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+  }
+
+  <div class="card shadow-sm border-0">
+
+    <div class="card-body">
+
+      <form
+        [formGroup]="competitionForm"
+        (ngSubmit)="onSubmit()"
+      >
+
+        <!-- Nombre -->
+
+        <div class="mb-3">
+
+          <label
+            for="name"
+            class="form-label"
+          >
+            Nombre
+          </label>
+
+          <input
+            id="name"
+            type="text"
+            class="form-control"
+            formControlName="name"
+            placeholder="Ej. Torneo Estadio Español 2026"
+          >
+
+          @if (
+            competitionForm.controls.name.touched &&
+            competitionForm.controls.name.invalid
+          ) {
+            <div class="text-danger small mt-1">
+              El nombre es obligatorio.
+            </div>
+          }
+
+        </div>
+
+        <!-- Tipo -->
+
+        <div class="mb-3">
+
+          <label
+            for="type"
+            class="form-label"
+          >
+            Tipo de competencia
+          </label>
+
+          <select
+            id="type"
+            class="form-select"
+            formControlName="type"
+          >
+            <option value="ELIMINACION_DIRECTA">
+              Eliminación directa
+            </option>
+
+            <option value="ESCALERILLA">
+              Escalerilla
+            </option>
+          </select>
+
+        </div>
+
+        <!-- Fecha inicio -->
+
+        <div class="mb-3">
+
+          <label
+            for="start_date"
+            class="form-label"
+          >
+            Fecha de inicio
+          </label>
+
+          <input
+            id="start_date"
+            type="date"
+            class="form-control"
+            lang="es-CL"
+            formControlName="start_date"
+          >
+
+        </div>
+
+        <!-- Fecha término -->
+
+        <div class="mb-3">
+
+          <label
+            for="end_date"
+            class="form-label"
+          >
+            Fecha de término
+          </label>
+
+          <input
+            id="end_date"
+            type="date"
+            class="form-control"
+            formControlName="end_date"
+            lang="es-CL"
+          >
+
+        </div>
+
+        <!-- Estado -->
+
+        <div class="mb-3">
+
+          <label
+            for="status"
+            class="form-label"
+          >
+            Estado
+          </label>
+
+          <select
+            id="status"
+            class="form-select"
+            formControlName="status"
+          >
+
+            <option value="PENDIENTE">
+              Pendiente
+            </option>
+
+            <option value="ABIERTA">
+              Abierta
+            </option>
+
+            <option value="EN_CURSO">
+              En curso
+            </option>
+
+            <option value="FINALIZADA">
+              Finalizada
+            </option>
+
+            <option value="CANCELADA">
+              Cancelada
+            </option>
+
+          </select>
+
+        </div>
+
+        <!-- Fecha límite -->
+
+        <div class="mb-4">
+
+          <label
+            for="registration_deadline"
+            class="form-label"
+          >
+            Fecha límite de inscripción
+          </label>
+
+          <input
+            id="registration_deadline"
+            type="date"
+            class="form-control"
+            formControlName="registration_deadline"
+            lang="es-CL"
+          >
+
+        </div>
+
+        <!-- Botones -->
+
+        <div class="d-flex gap-2">
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="cancel()"
+            [disabled]="loading"
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="submit"
+            class="btn btn-danger"
+            [disabled]="loading"
+          >
+
+          @if (loading) {
+            <span
+              class="spinner-border spinner-border-sm me-2"
+              aria-hidden="true"
+            ></span>
+
+            Guardando...
+          } @else {
+            {{ isEditMode ? 'Actualizar competencia' : 'Guardar competencia' }}
+          }
+
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</div>
