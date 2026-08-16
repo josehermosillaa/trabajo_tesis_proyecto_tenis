@@ -107,4 +107,11 @@ export class CompetitionListComponent implements OnInit {
         },
       });
   }
+  goToCategories(id: number): void {
+  this.router.navigate([
+    '/competitions',
+    id,
+    'categories',
+  ]);
+}
 }

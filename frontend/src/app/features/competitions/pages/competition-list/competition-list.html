@@ -199,6 +199,15 @@
                       >
                         Eliminar
                       </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        (click)="goToCategories(competition.id)"
+                        [disabled]="deletingId === competition.id"
+                      >
+                        Categorías
+                      </button>
+
 
                     </div>
 

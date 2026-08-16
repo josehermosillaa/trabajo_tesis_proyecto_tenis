@@ -1,21 +1,34 @@
 <div class="container-fluid py-4">
 
+  <!-- Encabezado -->
   <div class="mb-4">
+
     <h1 class="h3 mb-1">
-    {{ isEditMode ? 'Editar competencia' : 'Nueva competencia' }}
+      {{ isEditMode ? 'Editar competencia' : 'Nueva competencia' }}
     </h1>
 
     <p class="text-muted mb-0">
-      Registra una nueva competencia de tenis.
+      {{
+        isEditMode
+          ? 'Modifica los datos de la competencia.'
+          : 'Registra una nueva competencia de tenis.'
+      }}
     </p>
+
   </div>
 
+
+  <!-- Error general -->
   @if (errorMessage) {
+
     <div class="alert alert-danger">
       {{ errorMessage }}
     </div>
+
   }
 
+
+  <!-- Formulario -->
   <div class="card shadow-sm border-0">
 
     <div class="card-body">
@@ -25,8 +38,16 @@
         (ngSubmit)="onSubmit()"
       >
 
-        <!-- Nombre -->
+        <!-- ============================== -->
+        <!-- DATOS DE LA COMPETENCIA -->
+        <!-- ============================== -->
 
+        <h2 class="h5 mb-3">
+          Datos de la competencia
+        </h2>
+
+
+        <!-- Nombre -->
         <div class="mb-3">
 
           <label
@@ -48,15 +69,17 @@
             competitionForm.controls.name.touched &&
             competitionForm.controls.name.invalid
           ) {
+
             <div class="text-danger small mt-1">
               El nombre es obligatorio.
             </div>
+
           }
 
         </div>
 
-        <!-- Tipo -->
 
+        <!-- Tipo -->
         <div class="mb-3">
 
           <label
@@ -71,6 +94,7 @@
             class="form-select"
             formControlName="type"
           >
+
             <option value="ELIMINACION_DIRECTA">
               Eliminación directa
             </option>
@@ -78,54 +102,60 @@
             <option value="ESCALERILLA">
               Escalerilla
             </option>
+
           </select>
 
         </div>
 
-        <!-- Fecha inicio -->
 
-        <div class="mb-3">
+        <!-- Fechas -->
+        <div class="row">
 
-          <label
-            for="start_date"
-            class="form-label"
-          >
-            Fecha de inicio
-          </label>
+          <!-- Fecha inicio -->
+          <div class="col-md-6 mb-3">
 
-          <input
-            id="start_date"
-            type="date"
-            class="form-control"
-            lang="es-CL"
-            formControlName="start_date"
-          >
+            <label
+              for="start_date"
+              class="form-label"
+            >
+              Fecha de inicio
+            </label>
+
+            <input
+              id="start_date"
+              type="date"
+              lang="es-CL"
+              class="form-control"
+              formControlName="start_date"
+            >
+
+          </div>
+
+
+          <!-- Fecha término -->
+          <div class="col-md-6 mb-3">
+
+            <label
+              for="end_date"
+              class="form-label"
+            >
+              Fecha de término
+            </label>
+
+            <input
+              id="end_date"
+              type="date"
+              lang="es-CL"
+              class="form-control"
+              formControlName="end_date"
+            >
+
+          </div>
 
         </div>
 
-        <!-- Fecha término -->
-
-        <div class="mb-3">
-
-          <label
-            for="end_date"
-            class="form-label"
-          >
-            Fecha de término
-          </label>
-
-          <input
-            id="end_date"
-            type="date"
-            class="form-control"
-            formControlName="end_date"
-            lang="es-CL"
-          >
-
-        </div>
 
         <!-- Estado -->
-
         <div class="mb-3">
 
           <label
@@ -165,8 +195,8 @@
 
         </div>
 
-        <!-- Fecha límite -->
 
+        <!-- Fecha límite -->
         <div class="mb-4">
 
           <label
@@ -179,14 +209,210 @@
           <input
             id="registration_deadline"
             type="date"
+            lang="es-CL"
             class="form-control"
             formControlName="registration_deadline"
-            lang="es-CL"
           >
 
         </div>
 
-        <!-- Botones -->
+
+        <!-- Separador -->
+        <hr class="my-4">
+
+
+        <!-- ============================== -->
+        <!-- CATEGORÍAS -->
+        <!-- ============================== -->
+
+        <div class="mb-4">
+
+          <h2 class="h5 mb-1">
+            Categorías
+          </h2>
+
+          <p class="text-muted small mb-3">
+            Selecciona las categorías que estarán disponibles
+            para esta competencia.
+          </p>
+
+
+          <!-- Cargando categorías -->
+          @if (loadingCategories) {
+
+            <div class="text-center py-4">
+
+              <div
+                class="spinner-border spinner-border-sm text-danger"
+                role="status"
+              >
+                <span class="visually-hidden">
+                  Cargando categorías...
+                </span>
+              </div>
+
+              <span class="ms-2 text-muted">
+                Cargando categorías...
+              </span>
+
+            </div>
+
+          }
+
+
+          <!-- Error categorías -->
+          @if (categoriesErrorMessage) {
+
+            <div class="alert alert-danger">
+              {{ categoriesErrorMessage }}
+            </div>
+
+          }
+
+
+          <!-- Categorías disponibles -->
+          @if (
+            !loadingCategories &&
+            !categoriesErrorMessage &&
+            categories.length > 0
+          ) {
+
+            <div class="row g-3">
+
+              @for (
+                category of categories;
+                track category.id
+              ) {
+
+                <div class="col-12">
+
+                  <div class="card border">
+
+                    <div class="card-body">
+
+                      <!-- Checkbox -->
+                      <div class="form-check">
+
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          [id]="'category-' + category.id"
+                          [checked]="
+                            isCategorySelected(category.id)
+                          "
+                          (change)="
+                            toggleCategory(category.id)
+                          "
+                        >
+
+                        <label
+                          class="form-check-label fw-semibold"
+                          [for]="'category-' + category.id"
+                        >
+                          {{ category.name }}
+                        </label>
+
+                      </div>
+
+
+                      <!-- Configuración -->
+                      @if (
+                        isCategorySelected(category.id)
+                      ) {
+
+                        <div class="row mt-3">
+
+                          <!-- Mínimo -->
+                          <div class="col-md-6">
+
+                            <label
+                              class="form-label"
+                              [for]="'minimum-' + category.id"
+                            >
+                              Mínimo de jugadores
+                            </label>
+
+                            <input
+                              type="number"
+                              class="form-control"
+                              [id]="'minimum-' + category.id"
+                              [(ngModel)]="
+                                categorySettings[
+                                  category.id
+                                ].minimum_players
+                              "
+                              [ngModelOptions]="{
+                                standalone: true
+                              }"
+                              min="1"
+                            >
+
+                          </div>
+
+
+                          <!-- Máximo -->
+                          <div class="col-md-6">
+
+                            <label
+                              class="form-label"
+                              [for]="'maximum-' + category.id"
+                            >
+                              Máximo de jugadores
+                            </label>
+
+                            <input
+                              type="number"
+                              class="form-control"
+                              [id]="'maximum-' + category.id"
+                              [(ngModel)]="
+                                categorySettings[
+                                  category.id
+                                ].max_players
+                              "
+                              [ngModelOptions]="{
+                                standalone: true
+                              }"
+                              min="1"
+                            >
+
+                          </div>
+
+                        </div>
+
+                      }
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              }
+
+            </div>
+
+          }
+
+
+          <!-- No hay categorías -->
+          @if (
+            !loadingCategories &&
+            !categoriesErrorMessage &&
+            categories.length === 0
+          ) {
+
+            <div class="alert alert-info">
+              No existen categorías disponibles.
+            </div>
+
+          }
+
+        </div>
+
+
+        <!-- ============================== -->
+        <!-- BOTONES -->
+        <!-- ============================== -->
 
         <div class="d-flex gap-2">
 
@@ -199,22 +425,31 @@
             Cancelar
           </button>
 
+
           <button
             type="submit"
             class="btn btn-danger"
             [disabled]="loading"
           >
 
-          @if (loading) {
-            <span
-              class="spinner-border spinner-border-sm me-2"
-              aria-hidden="true"
-            ></span>
+            @if (loading) {
 
-            Guardando...
-          } @else {
-            {{ isEditMode ? 'Actualizar competencia' : 'Guardar competencia' }}
-          }
+              <span
+                class="spinner-border spinner-border-sm me-2"
+                aria-hidden="true"
+              ></span>
+
+              Guardando...
+
+            } @else {
+
+              {{
+                isEditMode
+                  ? 'Actualizar competencia'
+                  : 'Guardar competencia'
+              }}
+
+            }
 
           </button>
 

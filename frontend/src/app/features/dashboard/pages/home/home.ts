@@ -20,4 +20,10 @@ export class HomeComponent {
     this.router.navigate(['/login']);
 
   }
+  competition(): void {
+
+
+    this.router.navigate(['/competitions']);
+
+  }
 }
