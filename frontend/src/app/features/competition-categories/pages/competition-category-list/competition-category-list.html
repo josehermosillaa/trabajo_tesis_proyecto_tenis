@@ -15,7 +15,7 @@
 
     </div>
 
-    <div>
+    <div class="d-flex gap-2">
 
       <button
         type="button"
@@ -23,6 +23,15 @@
         (click)="goBack()"
       >
         Volver
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-danger"
+        (click)="editCompetition()"
+        [disabled]="loading"
+      >
+        Editar categorías
       </button>
 
     </div>
@@ -108,10 +117,6 @@
                   Máximo de jugadores
                 </th>
 
-                <th class="text-end">
-                  Acciones
-                </th>
-
               </tr>
 
             </thead>
@@ -144,18 +149,6 @@
 
                   <td>
                     {{ competitionCategory.max_players }}
-                  </td>
-
-                  <td class="text-end">
-
-                    <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    (click)="goToEdit(competitionCategory.id)"
-                    >
-                    Editar
-                    </button>
-
                   </td>
 
                 </tr>

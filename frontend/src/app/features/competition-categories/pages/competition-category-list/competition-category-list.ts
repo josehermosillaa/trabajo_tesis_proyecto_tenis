@@ -110,6 +110,18 @@ export class CompetitionCategoryListComponent implements OnInit {
     return category?.name ?? `Categoría ${categoryId}`;
   }
 
+  editCompetition(): void {
+  if (this.competitionId === null) {
+    return;
+  }
+
+  this.router.navigate([
+    '/competitions',
+    this.competitionId,
+    'edit',
+  ]);
+}
+
   goBack(): void {
     this.router.navigate(['/competitions']);
   }
