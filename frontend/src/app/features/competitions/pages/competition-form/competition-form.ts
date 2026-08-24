@@ -446,7 +446,7 @@ export class CompetitionFormComponent implements OnInit {
           );
 
           this.errorMessage =
-            'No fue posible crear la competencia.';
+            this.getBackendErrorMessage(error);
 
           this.loading = false;
         },
@@ -499,15 +499,19 @@ export class CompetitionFormComponent implements OnInit {
     >[],
     index: number
   ): void {
-    if (
-      index >= requests.length
-    ) {
-      this.router.navigate([
-        '/competitions',
-      ]);
-
-      return;
+    if (index >= requests.length) {
+  this.router.navigate(
+    ['/competitions'],
+    {
+      state: {
+        successMessage:
+          'Competencia creada correctamente.',
+      },
     }
+  );
+
+  return;
+}
 
     requests[index].subscribe({
       next: () => {
@@ -564,7 +568,7 @@ export class CompetitionFormComponent implements OnInit {
           );
 
           this.errorMessage =
-            'No fue posible actualizar la competencia.';
+            this.getBackendErrorMessage(error);
 
           this.loading = false;
         },
@@ -660,12 +664,16 @@ export class CompetitionFormComponent implements OnInit {
     >[],
     index: number
   ): void {
-    if (
-      index >= requests.length
-    ) {
-      this.router.navigate([
-        '/competitions',
-      ]);
+    if (index >= requests.length) {
+      this.router.navigate(
+        ['/competitions'],
+        {
+          state: {
+            successMessage:
+              'Competencia actualizada correctamente.',
+          },
+        }
+      );
 
       return;
     }
@@ -691,6 +699,35 @@ export class CompetitionFormComponent implements OnInit {
       },
     });
   }
+//backend error
+
+  private getBackendErrorMessage(error: any): string {
+  const backendError = error?.error;
+
+  if (!backendError) {
+    return 'Ocurrió un error inesperado.';
+  }
+
+  if (typeof backendError === 'string') {
+    return backendError;
+  }
+
+  const messages: string[] = [];
+
+  for (const key of Object.keys(backendError)) {
+    const value = backendError[key];
+
+    if (Array.isArray(value)) {
+      messages.push(...value);
+    } else if (typeof value === 'string') {
+      messages.push(value);
+    }
+  }
+
+  return messages.length > 0
+    ? messages.join(' ')
+    : 'Ocurrió un error inesperado.';
+}
 
   /*
    * =========================================================

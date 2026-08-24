@@ -20,13 +20,38 @@ export class CompetitionListComponent implements OnInit {
   loading = false;
   deletingId: number | null = null;
   errorMessage = '';
+  successMessage = '';
 
   // Control del modal
   showDeleteModal = false;
   competitionToDelete: Competition | null = null;
 
   ngOnInit(): void {
+    const navigationMessage =
+      history.state?.successMessage;
+
+    if (navigationMessage) {
+      this.showSuccessMessage(
+        navigationMessage
+      );
+
+      history.replaceState(
+        {},
+        document.title
+      );
+    }
+
     this.loadCompetitions();
+  }
+
+  private showSuccessMessage(
+    message: string
+  ): void {
+    this.successMessage = message;
+
+    setTimeout(() => {
+      this.successMessage = '';
+    }, 4000);
   }
 
   loadCompetitions(): void {
@@ -86,14 +111,19 @@ export class CompetitionListComponent implements OnInit {
       .deleteCompetition(competition.id)
       .subscribe({
         next: () => {
-          this.competitions = this.competitions.filter(
-            (item) => item.id !== competition.id
-          );
+        this.competitions = this.competitions.filter(
+          (item) => item.id !== competition.id
+        );
 
-          this.deletingId = null;
-          this.showDeleteModal = false;
-          this.competitionToDelete = null;
+        this.deletingId = null;
+        this.showDeleteModal = false;
+        this.competitionToDelete = null;
+
+        this.showSuccessMessage(
+          'Competencia eliminada correctamente.'
+        );
         },
+
         error: (error) => {
           console.error(
             'Error al eliminar competencia:',

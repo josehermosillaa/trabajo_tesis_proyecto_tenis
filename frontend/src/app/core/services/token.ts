@@ -12,6 +12,12 @@ saveTokens(accessToken: string, refreshToken: string): void {
   localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
 }
+saveAccessToken(accessToken: string): void {
+  localStorage.setItem(
+    this.ACCESS_TOKEN_KEY,
+    accessToken
+  );
+}
 
 getAccessToken(): string | null {
   return localStorage.getItem(this.ACCESS_TOKEN_KEY);

@@ -16,6 +16,8 @@ from core.models import (
     AuditLog
     )
 
+from django.utils import timezone
+
 
 class HealthAPITest(TestCase):
 
@@ -29,6 +31,7 @@ class HealthAPITest(TestCase):
 class PlayerAPITest(TestCase):
 
     def setUp(self):
+
         self.client = APIClient()
 
         # -----------------------------
@@ -83,6 +86,7 @@ class PlayerAPITest(TestCase):
         )
 
     def authenticate(self, user):
+
         response = self.client.post(
             "/api/token/",
             {
@@ -92,10 +96,15 @@ class PlayerAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
 
         self.client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {response.data['access']}"
+            HTTP_AUTHORIZATION=(
+                f"Bearer {response.data['access']}"
+            )
         )
 
     # -----------------------------
@@ -103,19 +112,30 @@ class PlayerAPITest(TestCase):
     # -----------------------------
 
     def test_list_players_authenticated(self):
-        self.authenticate(self.admin_user)
+
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.get(
             "/api/players/"
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
 
     def test_create_player(self):
-        self.authenticate(self.admin_user)
+
+        self.authenticate(
+            self.admin_user
+        )
 
         data = {
-            "user": self.admin_user.id,
+            "username": "juan.perez",
+            "email": "juan.perez@test.cl",
+            "password": "Temporal123!",
             "category": self.category.id,
             "rut": "22222222-2",
             "first_name": "Juan",
@@ -140,7 +160,41 @@ class PlayerAPITest(TestCase):
             "22222222-2"
         )
 
+        self.assertEqual(
+            response.data["username"],
+            "juan.perez"
+        )
+
+        self.assertEqual(
+            response.data["email"],
+            "juan.perez@test.cl"
+        )
+
+        User = get_user_model()
+
+        created_user = User.objects.get(
+            username="juan.perez"
+        )
+
+        self.assertEqual(
+            created_user.role.name,
+            "Jugador"
+        )
+
+        self.assertTrue(
+            created_user.check_password(
+                "Temporal123!"
+            )
+        )
+
+        self.assertTrue(
+            Player.objects.filter(
+                user=created_user
+            ).exists()
+        )
+
     def test_get_player(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -151,7 +205,9 @@ class PlayerAPITest(TestCase):
             phone="+56911111111",
         )
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.get(
             f"/api/players/{player.id}/"
@@ -168,6 +224,7 @@ class PlayerAPITest(TestCase):
         )
 
     def test_update_player(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -178,7 +235,9 @@ class PlayerAPITest(TestCase):
             phone="+56922222222",
         )
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.patch(
             f"/api/players/{player.id}/",
@@ -198,7 +257,63 @@ class PlayerAPITest(TestCase):
             "+56999999999"
         )
 
+    def test_update_player_updates_user_data(self):
+
+        player = Player.objects.create(
+            user=self.admin_user,
+            category=self.category,
+            rut="45454545-4",
+            first_name="Carlos",
+            last_name="Pérez",
+            birth_date="1992-03-10",
+            phone="+56922222222",
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.patch(
+            f"/api/players/{player.id}/",
+            {
+                "username": "carlos.actualizado",
+                "email": "carlos.actualizado@test.cl",
+                "first_name": "Carlos Andrés",
+                "last_name": "Pérez Soto",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        player.refresh_from_db()
+        player.user.refresh_from_db()
+
+        self.assertEqual(
+            player.user.username,
+            "carlos.actualizado"
+        )
+
+        self.assertEqual(
+            player.user.email,
+            "carlos.actualizado@test.cl"
+        )
+
+        self.assertEqual(
+            player.user.first_name,
+            "Carlos Andrés"
+        )
+
+        self.assertEqual(
+            player.user.last_name,
+            "Pérez Soto"
+        )
+
     def test_duplicate_rut(self):
+
         Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -209,21 +324,16 @@ class PlayerAPITest(TestCase):
             phone="+56933333333",
         )
 
-        User = get_user_model()
-
-        second_user = User.objects.create_user(
-            username="secondplayer",
-            password="TestPassword123!",
-            email="secondplayer@tenis.cl",
-            role=self.admin_role,
+        self.authenticate(
+            self.admin_user
         )
-
-        self.authenticate(self.admin_user)
 
         response = self.client.post(
             "/api/players/",
             {
-                "user": second_user.id,
+                "username": "otra.persona",
+                "email": "otra.persona@test.cl",
+                "password": "Temporal123!",
                 "category": self.category.id,
                 "rut": "55555555-5",
                 "first_name": "Otra",
@@ -239,17 +349,100 @@ class PlayerAPITest(TestCase):
             400
         )
 
+        User = get_user_model()
+
+        self.assertFalse(
+            User.objects.filter(
+                username="otra.persona"
+            ).exists()
+        )
+
+    def test_duplicate_username_not_allowed(self):
+
+        User = get_user_model()
+
+        User.objects.create_user(
+            username="duplicado",
+            password="TestPassword123!",
+            email="duplicado@test.cl",
+            role=self.player_role,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/players/",
+            {
+                "username": "duplicado",
+                "email": "otro@test.cl",
+                "password": "Temporal123!",
+                "category": self.category.id,
+                "rut": "13131313-1",
+                "first_name": "Usuario",
+                "last_name": "Duplicado",
+                "birth_date": "1990-01-01",
+                "phone": "+56911111111",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_duplicate_email_not_allowed(self):
+
+        User = get_user_model()
+
+        User.objects.create_user(
+            username="usuario_email",
+            password="TestPassword123!",
+            email="correo@test.cl",
+            role=self.player_role,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/players/",
+            {
+                "username": "otro.usuario",
+                "email": "correo@test.cl",
+                "password": "Temporal123!",
+                "category": self.category.id,
+                "rut": "14141414-1",
+                "first_name": "Correo",
+                "last_name": "Duplicado",
+                "birth_date": "1990-01-01",
+                "phone": "+56911111111",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
     # -----------------------------
     # TESTS DE PERMISOS POR ROL
     # -----------------------------
 
     def test_organizer_can_create_player(self):
+
         self.authenticate(
             self.organizer_user
         )
 
         data = {
-            "user": self.organizer_user.id,
+            "username": "jugador.organizador",
+            "email": "jugador.organizador@test.cl",
+            "password": "Temporal123!",
             "category": self.category.id,
             "rut": "66666666-6",
             "first_name": "Organizador",
@@ -270,6 +463,7 @@ class PlayerAPITest(TestCase):
         )
 
     def test_organizer_cannot_delete_player(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -294,6 +488,7 @@ class PlayerAPITest(TestCase):
         )
 
     def test_player_can_view_players(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -318,12 +513,15 @@ class PlayerAPITest(TestCase):
         )
 
     def test_player_cannot_create_player(self):
+
         self.authenticate(
             self.player_user
         )
 
         data = {
-            "user": self.player_user.id,
+            "username": "nuevo.jugador",
+            "email": "nuevo.jugador@test.cl",
+            "password": "Temporal123!",
             "category": self.category.id,
             "rut": "99999999-9",
             "first_name": "Nuevo",
@@ -344,6 +542,7 @@ class PlayerAPITest(TestCase):
         )
 
     def test_player_cannot_update_player(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -372,6 +571,7 @@ class PlayerAPITest(TestCase):
         )
 
     def test_admin_can_delete_player(self):
+
         player = Player.objects.create(
             user=self.admin_user,
             category=self.category,
@@ -393,9 +593,66 @@ class PlayerAPITest(TestCase):
         self.assertEqual(
             response.status_code,
             204
+        )     
+    def test_player_phone_invalid_format(self):
+
+        self.authenticate(
+            self.admin_user
         )
-        
-        
+
+        response = self.client.post(
+            "/api/players/",
+            {
+                "username": "telefono.invalido",
+                "email": "telefono@test.cl",
+                "password": "Temporal123!",
+                "category": self.category.id,
+                "rut": "15151515-1",
+                "first_name": "Telefono",
+                "last_name": "Invalido",
+                "birth_date": "1990-01-01",
+                "phone": "+5691234",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_player_must_be_at_least_10_years_old(self):
+
+        today = timezone.localdate()
+
+        birth_date = today.replace(
+            year=today.year - 5
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/players/",
+            {
+                "username": "jugador.menor",
+                "email": "menor@test.cl",
+                "password": "Temporal123!",
+                "category": self.category.id,
+                "rut": "16161616-1",
+                "first_name": "Jugador",
+                "last_name": "Menor",
+                "birth_date": birth_date.isoformat(),
+                "phone": "+56912345678",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
         
 class CompetitionAPITest(TestCase):
 

@@ -1,0 +1,479 @@
+<div class="container-fluid py-4">
+
+  <!-- Encabezado -->
+  <div class="mb-4">
+    <h1 class="h3 mb-1">
+      {{ isEditMode ? 'Editar jugador' : 'Nuevo jugador' }}
+    </h1>
+
+    <p class="text-muted mb-0">
+      {{
+        isEditMode
+          ? 'Modifica los datos del jugador.'
+          : 'Registra un nuevo jugador y sus credenciales de acceso.'
+      }}
+    </p>
+  </div>
+
+
+  <!-- Error general -->
+  @if (errorMessage) {
+    <div class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+  }
+
+
+  <!-- Cargando jugador -->
+  @if (loading && isEditMode) {
+
+    <div class="text-center py-5">
+      <div
+        class="spinner-border text-danger"
+        role="status"
+      >
+        <span class="visually-hidden">
+          Cargando...
+        </span>
+      </div>
+
+      <p class="mt-3 text-muted">
+        Cargando jugador...
+      </p>
+    </div>
+
+  } @else {
+
+    <div class="card shadow-sm border-0">
+
+      <div class="card-body">
+
+        <form
+          [formGroup]="playerForm"
+          (ngSubmit)="onSubmit()"
+        >
+
+          <!-- ===================== -->
+          <!-- DATOS PERSONALES -->
+          <!-- ===================== -->
+
+          <h2 class="h5 mb-3">
+            Datos personales
+          </h2>
+
+
+          <div class="row">
+
+            <!-- Nombre -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="first_name"
+                class="form-label"
+              >
+                Nombre *
+              </label>
+
+              <input
+                id="first_name"
+                type="text"
+                class="form-control"
+                formControlName="first_name"
+                [class.is-invalid]="
+                  playerForm.controls.first_name.invalid &&
+                  playerForm.controls.first_name.touched
+                "
+              >
+
+              @if (
+                playerForm.controls.first_name.invalid &&
+                playerForm.controls.first_name.touched
+              ) {
+                <div class="invalid-feedback">
+                  El nombre es obligatorio.
+                </div>
+              }
+
+            </div>
+
+
+            <!-- Apellido -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="last_name"
+                class="form-label"
+              >
+                Apellido *
+              </label>
+
+              <input
+                id="last_name"
+                type="text"
+                class="form-control"
+                formControlName="last_name"
+                [class.is-invalid]="
+                  playerForm.controls.last_name.invalid &&
+                  playerForm.controls.last_name.touched
+                "
+              >
+
+              @if (
+                playerForm.controls.last_name.invalid &&
+                playerForm.controls.last_name.touched
+              ) {
+                <div class="invalid-feedback">
+                  El apellido es obligatorio.
+                </div>
+              }
+
+            </div>
+
+          </div>
+
+
+          <div class="row">
+
+            <!-- RUT -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="rut"
+                class="form-label"
+              >
+                RUT *
+              </label>
+
+              <input
+                id="rut"
+                type="text"
+                class="form-control"
+                formControlName="rut"
+                placeholder="12345678-9"
+                [class.is-invalid]="
+                  playerForm.controls.rut.invalid &&
+                  playerForm.controls.rut.touched
+                "
+              >
+            <div class="form-text">
+                Ejemplo: 12345678-5 o 12.345.678-5
+            </div>
+
+              @if (
+                playerForm.controls.rut.invalid &&
+                playerForm.controls.rut.touched
+              ) {
+                <div class="invalid-feedback">
+                  El RUT es obligatorio.
+                </div>
+              }
+
+            </div>
+
+
+            <!-- Categoría -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="category"
+                class="form-label"
+              >
+                Categoría *
+              </label>
+
+              <select
+                id="category"
+                class="form-select"
+                formControlName="category"
+              >
+
+                <option [ngValue]="0">
+                  Seleccione una categoría
+                </option>
+
+                @for (
+                  category of categories;
+                  track category.id
+                ) {
+                  <option
+                    [ngValue]="category.id"
+                  >
+                    {{ category.name }}
+                  </option>
+                }
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <div class="row">
+
+            <!-- Fecha nacimiento -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="birth_date"
+                class="form-label"
+              >
+                Fecha de nacimiento
+              </label>
+
+              <input
+                id="birth_date"
+                type="date"
+                class="form-control"
+                formControlName="birth_date"
+                [max]="maxBirthDate"
+                >
+                <div class="form-text">
+                El jugador debe tener al menos 10 años.
+                </div>
+            </div>
+
+
+            <!-- Teléfono -->
+
+
+              <!-- <label
+                for="phone"
+                class="form-label"
+              >
+                Teléfono
+              </label> -->
+
+    <div class="col-md-6 mb-3">
+
+    <label
+        for="phone"
+        class="form-label"
+    >
+        Teléfono
+    </label>
+
+    <div class="input-group">
+
+        <span class="input-group-text">
+        +569
+        </span>
+
+        <input
+        id="phone"
+        type="text"
+        class="form-control"
+        formControlName="phone"
+        placeholder="12345678"
+        maxlength="8"
+        inputmode="numeric"
+        [class.is-invalid]="
+            playerForm.controls.phone.invalid &&
+            playerForm.controls.phone.touched
+        "
+        >
+
+        @if (
+        playerForm.controls.phone.invalid &&
+        playerForm.controls.phone.touched
+        ) {
+
+        <div class="invalid-feedback">
+            Ingresa exactamente 8 números.
+        </div>
+
+        }
+
+        </div>
+
+    </div>
+
+
+
+          </div>
+
+
+          <hr class="my-4">
+
+
+          <!-- ===================== -->
+          <!-- DATOS DE ACCESO -->
+          <!-- ===================== -->
+
+          <h2 class="h5 mb-3">
+            Datos de acceso
+          </h2>
+
+          <p class="text-muted small">
+            Estas credenciales permitirán al jugador
+            ingresar al sistema.
+          </p>
+
+
+          <div class="row">
+
+            <!-- Usuario -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="username"
+                class="form-label"
+              >
+                Nombre de usuario *
+              </label>
+
+              <input
+                id="username"
+                type="text"
+                class="form-control"
+                formControlName="username"
+                [class.is-invalid]="
+                  playerForm.controls.username.invalid &&
+                  playerForm.controls.username.touched
+                "
+              >
+
+              @if (
+                playerForm.controls.username.invalid &&
+                playerForm.controls.username.touched
+              ) {
+                <div class="invalid-feedback">
+                  El nombre de usuario es obligatorio.
+                </div>
+              }
+
+            </div>
+
+
+            <!-- Email -->
+            <div class="col-md-6 mb-3">
+
+              <label
+                for="email"
+                class="form-label"
+              >
+                Correo electrónico *
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                class="form-control"
+                formControlName="email"
+                [class.is-invalid]="
+                  playerForm.controls.email.invalid &&
+                  playerForm.controls.email.touched
+                "
+              >
+
+              @if (
+                playerForm.controls.email.touched &&
+                playerForm.controls.email.hasError('required')
+              ) {
+                <div class="invalid-feedback">
+                  El correo electrónico es obligatorio.
+                </div>
+              }
+
+              @if (
+                playerForm.controls.email.touched &&
+                playerForm.controls.email.hasError('email')
+              ) {
+                <div class="invalid-feedback">
+                  Ingresa un correo electrónico válido.
+                </div>
+              }
+
+            </div>
+
+          </div>
+
+
+          <!-- Contraseña temporal -->
+          @if (!isEditMode) {
+
+            <div class="row">
+
+              <div class="col-md-6 mb-3">
+
+                <label
+                  for="password"
+                  class="form-label"
+                >
+                  Contraseña temporal *
+                </label>
+
+                <input
+                  id="password"
+                  type="password"
+                  class="form-control"
+                  formControlName="password"
+                  autocomplete="new-password"
+                >
+
+                <div class="form-text">
+                  El jugador utilizará esta contraseña
+                  para ingresar al sistema.
+                </div>
+
+              </div>
+
+            </div>
+
+          }
+
+
+          <!-- Botones -->
+          <div
+            class="d-flex justify-content-end gap-2 mt-4"
+          >
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="cancel()"
+              [disabled]="loading"
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-danger"
+              [disabled]="
+                loading ||
+                loadingCategories
+              "
+            >
+
+              @if (loading) {
+
+                <span
+                  class="spinner-border spinner-border-sm me-2"
+                ></span>
+
+                Guardando...
+
+              } @else {
+
+                {{
+                  isEditMode
+                    ? 'Actualizar jugador'
+                    : 'Crear jugador'
+                }}
+
+              }
+
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  }
+
+</div>

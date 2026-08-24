@@ -1,6 +1,10 @@
-<div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light">
-
-  <div class="card shadow p-4" style="max-width: 420px; width: 100%;">
+<div
+  class="container-fluid min-vh-100 d-flex justify-content-center align-items-center bg-light"
+>
+  <div
+    class="card shadow p-4"
+    style="max-width: 420px; width: 100%;"
+  >
 
     <div class="text-center mb-4">
 
@@ -22,7 +26,24 @@
 
     </div>
 
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+
+    <!-- Error de autenticación -->
+    @if (errorMessage) {
+
+      <div
+        class="alert alert-danger"
+        role="alert"
+      >
+        {{ errorMessage }}
+      </div>
+
+    }
+
+
+    <form
+      [formGroup]="loginForm"
+      (ngSubmit)="onSubmit()"
+    >
 
       <!-- Usuario -->
       <div class="mb-3">
@@ -40,9 +61,23 @@
           class="form-control"
           formControlName="username"
           placeholder="Ingrese su usuario"
+          [class.is-invalid]="
+            loginForm.controls.username.invalid &&
+            loginForm.controls.username.touched
+          "
         >
 
+        @if (
+          loginForm.controls.username.invalid &&
+          loginForm.controls.username.touched
+        ) {
+          <div class="invalid-feedback">
+            El usuario es obligatorio.
+          </div>
+        }
+
       </div>
+
 
       <!-- Contraseña -->
       <div class="mb-4">
@@ -60,19 +95,49 @@
           class="form-control"
           formControlName="password"
           placeholder="Ingrese su contraseña"
+          [class.is-invalid]="
+            loginForm.controls.password.invalid &&
+            loginForm.controls.password.touched
+          "
         >
+
+        @if (
+          loginForm.controls.password.invalid &&
+          loginForm.controls.password.touched
+        ) {
+          <div class="invalid-feedback">
+            La contraseña es obligatoria.
+          </div>
+        }
 
       </div>
 
+
+      <!-- Botón -->
       <button
         type="submit"
         class="btn btn-danger w-100"
+        [disabled]="loading"
       >
-        Iniciar sesión
+
+        @if (loading) {
+
+          <span
+            class="spinner-border spinner-border-sm me-2"
+            aria-hidden="true"
+          ></span>
+
+          Iniciando sesión...
+
+        } @else {
+
+          Iniciar sesión
+
+        }
+
       </button>
 
     </form>
 
   </div>
-
 </div>

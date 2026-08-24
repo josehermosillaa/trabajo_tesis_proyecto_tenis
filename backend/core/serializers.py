@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from django.utils import timezone
 
@@ -13,27 +15,378 @@ from .models import (
     MatchSet,
     Standing
 )
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import  transaction
+from django.utils import timezone
+
+from authentication.models import Role
+
+
+
 
 class PlayerSerializer(serializers.ModelSerializer):
+
+    username = serializers.CharField(
+        source="user.username",
+        required=False,
+    )
+
     email = serializers.EmailField(
         source="user.email",
-        read_only=True
+        required=False,
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        required=False,
+        style={
+            "input_type": "password",
+        },
     )
 
     class Meta:
         model = Player
+
         fields = [
             "id",
             "user",
+            "username",
+            "email",
+            "password",
             "category",
             "rut",
             "first_name",
             "last_name",
             "birth_date",
-            "email",
             "phone",
         ]
-        read_only_fields = ["id", "email"]
+
+        read_only_fields = [
+            "id",
+            "user",
+        ]
+
+    # ---------------------------------
+    # Username único
+    # ---------------------------------
+
+    def validate_username(self, value):
+
+        User = get_user_model()
+
+        queryset = User.objects.filter(
+            username=value
+        )
+
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.user_id
+            )
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "El nombre de usuario ya está registrado."
+            )
+
+        return value
+
+    # ---------------------------------
+    # Email único
+    # ---------------------------------
+
+    def validate_email(self, value):
+
+        User = get_user_model()
+
+        queryset = User.objects.filter(
+            email__iexact=value
+        )
+
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.user_id
+            )
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "El correo electrónico ya está registrado."
+            )
+
+        return value
+
+    def validate_birth_date(self, value):
+
+        if value is None:
+            return value
+
+        today = timezone.localdate()
+
+        if value > today:
+            raise serializers.ValidationError(
+                "La fecha de nacimiento no puede ser futura."
+            )
+
+        try:
+            minimum_birth_date = today.replace(
+                year=today.year - 10
+            )
+        except ValueError:
+            minimum_birth_date = today.replace(
+                year=today.year - 10,
+                day=28,
+            )
+
+        if value > minimum_birth_date:
+            raise serializers.ValidationError(
+                "El jugador debe tener al menos 10 años."
+            )
+
+        return value
+
+    def validate_rut(self, value):
+
+        if not value:
+            return value
+
+        # Normalizar
+        rut = (
+            value
+            .replace(".", "")
+            .replace("-", "")
+            .upper()
+            .strip()
+        )
+
+        if len(rut) < 2:
+            raise serializers.ValidationError(
+                "El RUT ingresado no es válido."
+            )
+
+        body = rut[:-1]
+        verifier = rut[-1]
+
+        if not body.isdigit():
+            raise serializers.ValidationError(
+                "El RUT ingresado no es válido."
+            )
+
+        # Cálculo módulo 11
+        total = 0
+        multiplier = 2
+
+        for digit in reversed(body):
+            total += int(digit) * multiplier
+
+            multiplier += 1
+
+            if multiplier > 7:
+                multiplier = 2
+
+        remainder = 11 - (total % 11)
+
+        if remainder == 11:
+            expected_verifier = "0"
+        elif remainder == 10:
+            expected_verifier = "K"
+        else:
+            expected_verifier = str(remainder)
+
+        if verifier != expected_verifier:
+            raise serializers.ValidationError(
+                "El RUT ingresado no es válido."
+            )
+
+        # Guardamos siempre el mismo formato
+        return f"{int(body)}-{verifier}"
+
+
+    def validate_phone(self, value):
+
+        if not value:
+            return value
+
+        if not re.fullmatch(
+            r"\+569\d{8}",
+            value
+        ):
+            raise serializers.ValidationError(
+                "El teléfono debe contener un número móvil chileno válido."
+            )
+
+        return value
+
+    # ---------------------------------
+    # Validaciones generales
+    # ---------------------------------
+
+    def validate(self, data):
+
+        # En creación las credenciales
+        # son obligatorias.
+        if self.instance is None:
+
+            user_data = data.get(
+                "user",
+                {}
+            )
+
+            username = user_data.get(
+                "username"
+            )
+
+            email = user_data.get(
+                "email"
+            )
+
+            password = data.get(
+                "password"
+            )
+
+            errors = {}
+
+            if not username:
+                errors["username"] = (
+                    "El nombre de usuario es obligatorio."
+                )
+
+            if not email:
+                errors["email"] = (
+                    "El correo electrónico es obligatorio."
+                )
+
+            if not password:
+                errors["password"] = (
+                    "La contraseña temporal es obligatoria."
+                )
+
+            if errors:
+                raise serializers.ValidationError(
+                    errors
+                )
+
+            # Validaciones estándar de contraseña
+            # configuradas en Django.
+            try:
+                validate_password(password)
+
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(
+                    {
+                        "password": list(
+                            exc.messages
+                        )
+                    }
+                )
+
+        return data
+
+    # ---------------------------------
+    # Crear User + Player
+    # ---------------------------------
+
+    @transaction.atomic
+    def create(self, validated_data):
+
+        User = get_user_model()
+
+        user_data = validated_data.pop(
+            "user"
+        )
+
+        password = validated_data.pop(
+            "password"
+        )
+
+        try:
+            player_role = Role.objects.get(
+                name="Jugador"
+            )
+
+        except Role.DoesNotExist:
+            raise serializers.ValidationError(
+                {
+                    "role": (
+                        "No existe el rol Jugador "
+                        "en el sistema."
+                    )
+                }
+            )
+
+        user = User.objects.create_user(
+            username=user_data["username"],
+            email=user_data["email"],
+            password=password,
+            first_name=validated_data[
+                "first_name"
+            ],
+            last_name=validated_data[
+                "last_name"
+            ],
+            role=player_role,
+        )
+
+        player = Player.objects.create(
+            user=user,
+            **validated_data,
+        )
+
+        return player
+
+    # ---------------------------------
+    # Actualizar Player + User
+    # ---------------------------------
+
+    @transaction.atomic
+    def update(
+        self,
+        instance,
+        validated_data,
+    ):
+
+        user_data = validated_data.pop(
+            "user",
+            {},
+        )
+
+        # Por ahora la contraseña no se
+        # modifica desde editar jugador.
+        validated_data.pop(
+            "password",
+            None,
+        )
+
+        user = instance.user
+
+        if "username" in user_data:
+            user.username = user_data[
+                "username"
+            ]
+
+        if "email" in user_data:
+            user.email = user_data[
+                "email"
+            ]
+
+        if "first_name" in validated_data:
+            user.first_name = validated_data[
+                "first_name"
+            ]
+
+        if "last_name" in validated_data:
+            user.last_name = validated_data[
+                "last_name"
+            ]
+
+        user.save()
+
+        return super().update(
+            instance,
+            validated_data,
+        )
+        
+        
 class CompetitionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Competition

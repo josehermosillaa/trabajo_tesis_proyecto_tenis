@@ -6,6 +6,9 @@ import { authGuard } from './core/guards/auth-guard';
 import { CompetitionListComponent } from './features/competitions/pages/competition-list/competition-list';
 import { CompetitionFormComponent } from './features/competitions/pages/competition-form/competition-form';
 import { CompetitionCategoryListComponent } from './features/competition-categories/pages/competition-category-list/competition-category-list';
+import { PlayerListComponent } from './features/players/pages/player-list/player-list';
+import { PlayerFormComponent } from './features/players/pages/player-form/player-form';
+
 
 export const routes: Routes = [
   {
@@ -40,6 +43,21 @@ export const routes: Routes = [
 {
   path: 'competitions/:id/categories',
   component: CompetitionCategoryListComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'players',
+  component: PlayerListComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'players/new',
+  component: PlayerFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'players/:id/edit',
+  component: PlayerFormComponent,
   canActivate: [authGuard],
 },
 ];

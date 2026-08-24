@@ -1,8 +1,18 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  inject,
+} from '@angular/core';
 
-import { HealthService } from './core/services/health.service';
-import { HealthResponse } from './core/models/health-response.model';
+import {
+  Router,
+  RouterOutlet,
+} from '@angular/router';
+
+import { AuthService } from './core/services/auth';
+import { TokenService } from './core/services/token';
 
 @Component({
   selector: 'app-root',
@@ -10,21 +20,89 @@ import { HealthResponse } from './core/models/health-response.model';
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
 
-  private healthService = inject(HealthService);
+  private readonly authService = inject(AuthService);
+  private readonly tokenService = inject(TokenService);
+  private readonly router = inject(Router);
 
-  health?: HealthResponse;
+  private inactivityTimer:
+    ReturnType<typeof setTimeout> | null = null;
+
+  // 1 minuto solamente para probar
+  private readonly inactivityTime = 20*60 * 1000;
 
   ngOnInit(): void {
-    this.healthService.getHealth().subscribe({
-      next: (response) => {
-        console.log(response);
-        this.health = response;
-      },
-      error: (error) => {
-        console.error(error);
-      },
-    });
+    if (this.tokenService.isAuthenticated()) {
+      this.resetInactivityTimer();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.clearInactivityTimer();
+  }
+
+  isAuthenticated(): boolean {
+    return (
+      this.tokenService.isAuthenticated() &&
+      !this.router.url.startsWith('/login')
+    );
+  }
+
+  logout(): void {
+    this.clearInactivityTimer();
+
+    this.authService.logout();
+
+    this.router.navigate(['/login']);
+  }
+
+  @HostListener('document:mousemove')
+  @HostListener('document:keydown')
+  @HostListener('document:click')
+  @HostListener('document:scroll')
+  onUserActivity(): void {
+
+    if (this.tokenService.isAuthenticated()) {
+      this.resetInactivityTimer();
+    }
+  }
+
+  private resetInactivityTimer(): void {
+
+    this.clearInactivityTimer();
+
+    if (!this.tokenService.isAuthenticated()) {
+      return;
+    }
+
+    this.inactivityTimer = setTimeout(() => {
+      this.logoutByInactivity();
+    }, this.inactivityTime);
+  }
+
+  private clearInactivityTimer(): void {
+
+    if (this.inactivityTimer !== null) {
+      clearTimeout(this.inactivityTimer);
+
+      this.inactivityTimer = null;
+    }
+  }
+
+  private logoutByInactivity(): void {
+
+    this.clearInactivityTimer();
+
+    this.authService.logout();
+
+    this.router.navigate(
+      ['/login'],
+      {
+        state: {
+          inactivityExpired: true,
+        },
+      }
+    );
   }
 }
