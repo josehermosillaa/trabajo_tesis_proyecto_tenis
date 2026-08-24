@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.utils import timezone
+
 
 from .models import (
     Category,
@@ -45,7 +47,142 @@ class CompetitionSerializer(serializers.ModelSerializer):
             "registration_deadline",
         ]
         read_only_fields = ["id"]
-        
+
+    def validate(self, data):
+        instance = self.instance
+        today = timezone.localdate()
+
+        start_date = data.get(
+            "start_date",
+            instance.start_date if instance else None,
+        )
+
+        end_date = data.get(
+            "end_date",
+            instance.end_date if instance else None,
+        )
+
+        registration_deadline = data.get(
+            "registration_deadline",
+            instance.registration_deadline if instance else None,
+        )
+
+        # ---------------------------------
+        # 1. Fecha término >= fecha inicio
+        # ---------------------------------
+
+        if (
+            start_date is not None
+            and end_date is not None
+            and end_date < start_date
+        ):
+            raise serializers.ValidationError(
+                {
+                    "end_date": (
+                        "La fecha de término no puede ser "
+                        "anterior a la fecha de inicio."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 2. Cierre de inscripciones
+        #    <= fecha de inicio
+        # ---------------------------------
+
+        if (
+            registration_deadline is not None
+            and start_date is not None
+            and registration_deadline > start_date
+        ):
+            raise serializers.ValidationError(
+                {
+                    "registration_deadline": (
+                        "La fecha límite de inscripción "
+                        "no puede ser posterior a la "
+                        "fecha de inicio."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 3. Creación
+        # ---------------------------------
+
+        if instance is None:
+
+            if (
+                start_date is not None
+                and start_date < today
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "start_date": (
+                            "La fecha de inicio no puede "
+                            "ser anterior a la fecha actual."
+                        )
+                    }
+                )
+
+            if (
+                registration_deadline is not None
+                and registration_deadline < today
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "registration_deadline": (
+                            "La fecha límite de inscripción "
+                            "no puede ser anterior a la "
+                            "fecha actual."
+                        )
+                    }
+                )
+
+        # ---------------------------------
+        # 4. Edición
+        # ---------------------------------
+
+        else:
+
+            if "start_date" in data:
+                new_start_date = data["start_date"]
+
+                if (
+                    new_start_date != instance.start_date
+                    and new_start_date < today
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "start_date": (
+                                "No se puede cambiar la "
+                                "fecha de inicio por una "
+                                "fecha anterior a la actual."
+                            )
+                        }
+                    )
+
+            if "registration_deadline" in data:
+                new_deadline = data[
+                    "registration_deadline"
+                ]
+
+                if (
+                    new_deadline
+                    != instance.registration_deadline
+                    and new_deadline < today
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "registration_deadline": (
+                                "No se puede cambiar la "
+                                "fecha límite de inscripción "
+                                "por una fecha anterior a "
+                                "la actual."
+                            )
+                        }
+                    )
+
+        return data     
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category

@@ -157,8 +157,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),#ni tan poco timepo para obligar al usuario a autenticarse constantemente, ni tan largo para verlo comprometido
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), #razonable para el entorno del club
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
 }
