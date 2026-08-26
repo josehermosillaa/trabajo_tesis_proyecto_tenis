@@ -1,7 +1,9 @@
 <div class="container-fluid py-4">
 
   <!-- Encabezado -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  <div
+    class="d-flex justify-content-between align-items-center mb-4"
+  >
 
     <div>
 
@@ -10,7 +12,7 @@
       </h1>
 
       <p class="text-muted mb-0">
-        Categorías disponibles para esta competencia
+        Categorías, cupos y jugadores inscritos
       </p>
 
     </div>
@@ -25,18 +27,50 @@
         Volver
       </button>
 
-      <button
-        type="button"
-        class="btn btn-danger"
-        (click)="editCompetition()"
-        [disabled]="loading"
-      >
-        Editar categorías
-      </button>
+
+      <!--
+        Solo mostramos edición cuando
+        NO estamos usando una cuenta Player.
+
+        La seguridad definitiva sigue
+        estando en Django.
+      -->
+      @if (!isPlayerUser()) {
+
+        <button
+          type="button"
+          class="btn btn-danger"
+          (click)="editCompetition()"
+          [disabled]="loading"
+        >
+          Editar categorías
+        </button>
+
+      }
 
     </div>
 
   </div>
+
+
+  <!-- Éxito -->
+  @if (successMessage) {
+
+    <div class="alert alert-success">
+      {{ successMessage }}
+    </div>
+
+  }
+
+
+  <!-- Error -->
+  @if (errorMessage) {
+
+    <div class="alert alert-danger">
+      {{ errorMessage }}
+    </div>
+
+  }
 
 
   <!-- Cargando -->
@@ -62,16 +96,6 @@
   }
 
 
-  <!-- Error -->
-  @if (errorMessage) {
-
-    <div class="alert alert-danger">
-      {{ errorMessage }}
-    </div>
-
-  }
-
-
   <!-- Sin categorías -->
   @if (
     !loading &&
@@ -80,88 +104,378 @@
   ) {
 
     <div class="alert alert-info">
-      Esta competencia todavía no tiene categorías configuradas.
+
+      Esta competencia todavía no tiene
+      categorías configuradas.
+
     </div>
 
   }
 
 
-  <!-- Listado -->
+  <!-- Categorías -->
   @if (
     !loading &&
-    !errorMessage &&
     competitionCategories.length > 0
   ) {
 
-    <div class="card shadow-sm border-0">
+    <div class="row g-4">
 
-      <div class="card-body p-0">
+      @for (
+        competitionCategory
+          of competitionCategories;
+        track competitionCategory.id
+      ) {
 
-        <div class="table-responsive">
+        <div class="col-12">
 
-          <table class="table table-hover mb-0 align-middle">
+          <div
+            class="card shadow-sm border-0"
+          >
 
-            <thead class="table-light">
+            <!-- Header categoría -->
+            <div
+              class="card-header bg-light d-flex justify-content-between align-items-center"
+            >
 
-              <tr>
+              <div>
 
-                <th>
-                  Categoría
-                </th>
+                <h2 class="h5 mb-1">
 
-                <th>
-                  Mínimo de jugadores
-                </th>
+                  {{
+                    getCategoryName(
+                      competitionCategory.category
+                    )
+                  }}
 
-                <th>
-                  Máximo de jugadores
-                </th>
+                </h2>
 
-              </tr>
+                <span class="text-muted small">
 
-            </thead>
+                  Mínimo:
+                  {{
+                    competitionCategory.minimum_players
+                  }}
+                  jugadores
+
+                </span>
+
+              </div>
 
 
-            <tbody>
+              <!-- Cupos -->
+              <div class="text-end">
 
-              @for (
-                competitionCategory of competitionCategories;
-                track competitionCategory.id
+                <div class="fw-bold">
+
+                  {{
+                    competitionCategory.occupied_slots
+                  }}
+                  /
+                  {{
+                    competitionCategory.max_players
+                  }}
+
+                </div>
+
+                <small class="text-muted">
+                  cupos utilizados
+                </small>
+
+              </div>
+
+            </div>
+
+
+            <div class="card-body">
+
+              <!-- Información de cupos -->
+              <div class="row mb-4">
+
+                <div class="col-md-4">
+
+                  <div class="text-muted small">
+                    Inscritos
+                  </div>
+
+                  <div class="fs-5 fw-bold">
+                    {{
+                      competitionCategory.occupied_slots
+                    }}
+                  </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                  <div class="text-muted small">
+                    Cupos disponibles
+                  </div>
+
+                  <div class="fs-5 fw-bold">
+
+                    {{
+                      competitionCategory.available_slots
+                    }}
+
+                  </div>
+
+                </div>
+
+
+                <div class="col-md-4">
+
+                  <div class="text-muted small">
+                    Capacidad máxima
+                  </div>
+
+                  <div class="fs-5 fw-bold">
+
+                    {{
+                      competitionCategory.max_players
+                    }}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <!-- Jugadores inscritos -->
+              <h3 class="h6 mb-3">
+                Jugadores inscritos
+              </h3>
+
+
+              @if (
+                competitionCategory
+                  .registered_players
+                  .length === 0
               ) {
 
-                <tr>
+                <p class="text-muted mb-3">
+                  Todavía no existen jugadores
+                  inscritos en esta categoría.
+                </p>
 
-                  <td>
+              } @else {
 
-                    <strong>
-                      {{
-                        getCategoryName(
-                          competitionCategory.category
-                        )
-                      }}
-                    </strong>
+                <div class="table-responsive mb-3">
 
-                  </td>
+                  <table
+                    class="table table-sm align-middle"
+                  >
 
-                  <td>
-                    {{ competitionCategory.minimum_players }}
-                  </td>
+                    <thead>
 
-                  <td>
-                    {{ competitionCategory.max_players }}
-                  </td>
+                      <tr>
+                        <th>Jugador</th>
+                        <th>Estado</th>
+                      </tr>
 
-                </tr>
+                    </thead>
+
+                    <tbody>
+
+                      @for (
+                        registeredPlayer
+                          of competitionCategory
+                            .registered_players;
+                        track registeredPlayer.id
+                      ) {
+
+                        <tr>
+
+                          <td>
+
+                            {{
+                              registeredPlayer.first_name
+                            }}
+
+                            {{
+                              registeredPlayer.last_name
+                            }}
+
+                          </td>
+
+
+                          <td>
+
+                            @switch (
+                              registeredPlayer.status
+                            ) {
+
+                              @case ('CONFIRMADA') {
+
+                                <span
+                                  class="badge text-bg-success"
+                                >
+                                  Confirmada
+                                </span>
+
+                              }
+
+                              @case ('PENDIENTE') {
+
+                                <span
+                                  class="badge text-bg-warning"
+                                >
+                                  Pendiente
+                                </span>
+
+                              }
+
+                              @default {
+
+                                <span
+                                  class="badge text-bg-secondary"
+                                >
+                                  {{
+                                    registeredPlayer.status
+                                  }}
+                                </span>
+
+                              }
+
+                            }
+
+                          </td>
+
+                        </tr>
+
+                      }
+
+                    </tbody>
+
+                  </table>
+
+                </div>
 
               }
 
-            </tbody>
 
-          </table>
+              <!-- ==================== -->
+              <!-- ACCIONES -->
+              <!-- ==================== -->
+
+              <div
+                class="d-flex justify-content-end"
+              >
+
+
+                <!-- JUGADOR -->
+                @if (isPlayerUser()) {
+
+                  @if (
+                    isPlayerCategory(
+                      competitionCategory
+                    )
+                  ) {
+
+                    @if (
+                      isCurrentPlayerRegistered(
+                        competitionCategory
+                      )
+                    ) {
+
+                      <div
+                        class="alert alert-success mb-0 py-2 px-3"
+                      >
+
+                        Ya estás inscrito.
+
+                        Estado:
+
+                        <strong>
+                          {{
+                            getCurrentRegistrationStatus(
+                              competitionCategory
+                            )
+                          }}
+                        </strong>
+
+                      </div>
+
+                    } @else if (
+                      competitionCategory
+                        .available_slots > 0
+                    ) {
+
+                      <button
+                        type="button"
+                        class="btn btn-danger"
+                        (click)="
+                          registerMyself(
+                            competitionCategory
+                          )
+                        "
+                        [disabled]="
+                          registeringCategoryId !== null
+                        "
+                      >
+
+                        @if (
+                          registeringCategoryId ===
+                          competitionCategory.id
+                        ) {
+
+                          <span
+                            class="spinner-border spinner-border-sm me-2"
+                          ></span>
+
+                          Inscribiendo...
+
+                        } @else {
+
+                          Inscribirme
+
+                        }
+
+                      </button>
+
+                    } @else {
+
+                      <span
+                        class="badge text-bg-danger"
+                      >
+                        Sin cupos disponibles
+                      </span>
+
+                    }
+
+                  }
+
+                }
+
+
+                <!-- ADMIN / ORGANIZADOR -->
+                @else {
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    (click)="
+                      registerPlayer(
+                        competitionCategory
+                      )
+                    "
+                  >
+                    Inscribir jugador
+                  </button>
+
+                }
+
+              </div>
+
+            </div>
+
+          </div>
 
         </div>
 
-      </div>
+      }
 
     </div>
 

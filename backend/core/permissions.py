@@ -58,3 +58,55 @@ class CompetitionPermission(BasePermission):
             return role == "Administrador"
 
         return False
+    
+class RegistrationPermission(BasePermission):
+    """
+    Permisos para la gestión de inscripciones.
+    """
+
+    def has_permission(self, request, view):
+
+        if (
+            not request.user
+            or not request.user.is_authenticated
+        ):
+            return False
+
+        role = request.user.role.name
+
+        # Todos los usuarios autenticados
+        # pueden consultar inscripciones.
+        if request.method in [
+            "GET",
+            "HEAD",
+            "OPTIONS",
+        ]:
+            return True
+
+        # Crear:
+        # Admin y Organizador inscriben jugadores.
+        # Jugador puede inscribirse a sí mismo.
+        if request.method == "POST":
+            return role in [
+                "Administrador",
+                "Organizador",
+                "Jugador",
+            ]
+
+        # Editar:
+        # solamente Admin y Organizador.
+        if request.method in [
+            "PUT",
+            "PATCH",
+        ]:
+            return role in [
+                "Administrador",
+                "Organizador",
+            ]
+
+        # Eliminar:
+        # solamente Administrador.
+        if request.method == "DELETE":
+            return role == "Administrador"
+
+        return False

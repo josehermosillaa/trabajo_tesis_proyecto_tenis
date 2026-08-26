@@ -27,6 +27,12 @@ from .serializers import (
     MatchSetSerializer,
     StandingSerializer
 )
+from .permissions import (
+    PlayerPermission,
+    CompetitionPermission,
+    RegistrationPermission,
+)
+
 class HealthAPIView(APIView):
 
     authentication_classes = []
@@ -115,7 +121,9 @@ class CompetitionCategoryViewSet(AuditModelViewSet):
     ).all()
 
     serializer_class = CompetitionCategorySerializer
-    permission_classes = [CompetitionPermission]
+    permission_classes = [
+    RegistrationPermission
+]
 
 class RegistrationViewSet(AuditModelViewSet):
     """

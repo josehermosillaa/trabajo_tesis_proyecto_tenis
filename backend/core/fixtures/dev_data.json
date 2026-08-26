@@ -1347,13 +1347,57 @@
 },
 {
   "model": "core.registration",
-  "pk": 4,
+  "pk": 5,
   "fields": {
     "competition_category": 1,
     "player": 4,
-    "registration_date": "2026-08-14T04:12:20.094Z",
+    "registration_date": "2026-08-26T03:40:02.632Z",
+    "status": "CONFIRMADA",
+    "seed": null
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 6,
+  "fields": {
+    "competition_category": 16,
+    "player": 6,
+    "registration_date": "2026-08-26T03:41:59.825Z",
     "status": "PENDIENTE",
-    "seed": 4
+    "seed": null
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 7,
+  "fields": {
+    "competition_category": 16,
+    "player": 9,
+    "registration_date": "2026-08-26T03:42:18.827Z",
+    "status": "PENDIENTE",
+    "seed": null
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 8,
+  "fields": {
+    "competition_category": 12,
+    "player": 6,
+    "registration_date": "2026-08-26T04:29:38.107Z",
+    "status": "PENDIENTE",
+    "seed": null
+  }
+},
+{
+  "model": "core.registration",
+  "pk": 9,
+  "fields": {
+    "competition_category": 13,
+    "player": 1,
+    "registration_date": "2026-08-26T04:34:41.654Z",
+    "status": "PENDIENTE",
+    "seed": null
   }
 },
 {
@@ -2561,6 +2605,318 @@
     "entity_id": 9,
     "action": "UPDATE",
     "created_at": "2026-08-24T04:35:30.284Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 88,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 4,
+    "action": "DELETE",
+    "created_at": "2026-08-26T03:35:01.257Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 89,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 5,
+    "action": "CREATE",
+    "created_at": "2026-08-26T03:40:02.634Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 90,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 6,
+    "action": "CREATE",
+    "created_at": "2026-08-26T03:41:59.832Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 91,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 7,
+    "action": "CREATE",
+    "created_at": "2026-08-26T03:42:18.834Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 92,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 8,
+    "action": "CREATE",
+    "created_at": "2026-08-26T04:29:38.113Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 93,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Registration",
+    "entity_id": 9,
+    "action": "CREATE",
+    "created_at": "2026-08-26T04:34:41.660Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 94,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Competition",
+    "entity_id": 9,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:22.651Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 95,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 13,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:22.717Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 96,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 14,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:22.830Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 97,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 15,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:22.943Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 98,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 16,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:23.056Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 99,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 17,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:23.166Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 100,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Competition",
+    "entity_id": 9,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.692Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 101,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 13,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.711Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 102,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 14,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.775Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 103,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 15,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.839Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 104,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 16,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.902Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 105,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 17,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:36:47.965Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 106,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "Competition",
+    "entity_id": 9,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.125Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 107,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 13,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.151Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 108,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 14,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.217Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 109,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 15,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.281Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 110,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 16,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.344Z"
+  }
+},
+{
+  "model": "core.auditlog",
+  "pk": 111,
+  "fields": {
+    "user": 12,
+    "username": "admin",
+    "user_name": "admin",
+    "entity_name": "CompetitionCategory",
+    "entity_id": 17,
+    "action": "UPDATE",
+    "created_at": "2026-08-26T04:38:25.408Z"
   }
 }
 ]

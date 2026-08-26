@@ -8,7 +8,13 @@ import { CompetitionFormComponent } from './features/competitions/pages/competit
 import { CompetitionCategoryListComponent } from './features/competition-categories/pages/competition-category-list/competition-category-list';
 import { PlayerListComponent } from './features/players/pages/player-list/player-list';
 import { PlayerFormComponent } from './features/players/pages/player-form/player-form';
+import {
+  RegistrationListComponent
+} from './features/registrations/pages/registration-list/registration-list';
 
+import {
+  RegistrationFormComponent
+} from './features/registrations/pages/registration-form/registration-form';
 
 export const routes: Routes = [
   {
@@ -58,6 +64,21 @@ export const routes: Routes = [
 {
   path: 'players/:id/edit',
   component: PlayerFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'registrations',
+  component: RegistrationListComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'registrations/new',
+  component: RegistrationFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'registrations/:id/edit',
+  component: RegistrationFormComponent,
   canActivate: [authGuard],
 },
 ];

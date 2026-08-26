@@ -17,6 +17,8 @@ from core.models import (
     )
 
 from django.utils import timezone
+from datetime import timedelta
+
 
 
 class HealthAPITest(TestCase):
@@ -1525,11 +1527,12 @@ class CompetitionCategoryAPITest(TestCase):
 class RegistrationAPITest(TestCase):
 
     def setUp(self):
+
         self.client = APIClient()
 
-        # -----------------------------
+        # =================================================
         # ROLES
-        # -----------------------------
+        # =================================================
 
         self.admin_role = Role.objects.create(
             name="Administrador"
@@ -1545,34 +1548,34 @@ class RegistrationAPITest(TestCase):
 
         User = get_user_model()
 
-        # -----------------------------
+        # =================================================
         # USUARIOS
-        # -----------------------------
+        # =================================================
 
         self.admin_user = User.objects.create_user(
-            username="reg_admin",
+            username="admin_registration",
             password="TestPassword123!",
-            email="reg_admin@tenis.cl",
+            email="admin_registration@test.cl",
             role=self.admin_role,
         )
 
         self.organizer_user = User.objects.create_user(
-            username="reg_organizer",
+            username="organizer_registration",
             password="TestPassword123!",
-            email="reg_organizer@tenis.cl",
+            email="organizer_registration@test.cl",
             role=self.organizer_role,
         )
 
         self.player_user = User.objects.create_user(
-            username="reg_player",
+            username="player_registration",
             password="TestPassword123!",
-            email="reg_player@tenis.cl",
+            email="player_registration@test.cl",
             role=self.player_role,
         )
 
-        # -----------------------------
+        # =================================================
         # CATEGORÍAS
-        # -----------------------------
+        # =================================================
 
         self.primera = Category.objects.create(
             name="PRIMERA"
@@ -1582,9 +1585,9 @@ class RegistrationAPITest(TestCase):
             name="SEGUNDA"
         )
 
-        # -----------------------------
-        # PLAYER
-        # -----------------------------
+        # =================================================
+        # PLAYER DEL USUARIO JUGADOR
+        # =================================================
 
         self.player = Player.objects.create(
             user=self.player_user,
@@ -1596,21 +1599,30 @@ class RegistrationAPITest(TestCase):
             phone="+56955555555",
         )
 
-        # -----------------------------
-        # COMPETITION
-        # -----------------------------
+        # =================================================
+        # COMPETENCIA
+        # =================================================
+
+        today = timezone.localdate()
 
         self.competition = Competition.objects.create(
             name="Torneo Registration Test",
             type="ELIMINACION_DIRECTA",
-            start_date="2026-09-01",
-            end_date="2026-09-15",
-            registration_deadline="2026-08-28",
+            registration_deadline=(
+                today + timedelta(days=3)
+            ),
+            start_date=(
+                today + timedelta(days=7)
+            ),
+            end_date=(
+                today + timedelta(days=21)
+            ),
+            status="PENDIENTE",
         )
 
-        # -----------------------------
-        # COMPETITION CATEGORIES
-        # -----------------------------
+        # =================================================
+        # CATEGORÍAS DE LA COMPETENCIA
+        # =================================================
 
         self.competition_primera = (
             CompetitionCategory.objects.create(
@@ -1630,7 +1642,12 @@ class RegistrationAPITest(TestCase):
             )
         )
 
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
     def authenticate(self, user):
+
         response = self.client.post(
             "/api/token/",
             {
@@ -1640,7 +1657,10 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
 
         self.client.credentials(
             HTTP_AUTHORIZATION=(
@@ -1649,37 +1669,60 @@ class RegistrationAPITest(TestCase):
         )
 
     def create_registration(self):
+
         return Registration.objects.create(
-            competition_category=self.competition_primera,
+            competition_category=(
+                self.competition_primera
+            ),
             player=self.player,
+            status="PENDIENTE",
         )
 
-    # -----------------------------
+    # =====================================================
     # AUTENTICACIÓN
-    # -----------------------------
+    # =====================================================
 
-    def test_unauthenticated_user_cannot_list_registrations(self):
+    def test_unauthenticated_cannot_list_registrations(
+        self
+    ):
+
         response = self.client.get(
             "/api/registrations/"
         )
 
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(
+            response.status_code,
+            401
+        )
 
-    # -----------------------------
+    # =====================================================
     # ADMINISTRADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_admin_can_list_registrations(self):
-        self.authenticate(self.admin_user)
+    def test_admin_can_list_registrations(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.get(
             "/api/registrations/"
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
 
-    def test_admin_can_create_registration(self):
-        self.authenticate(self.admin_user)
+    def test_admin_can_create_registration(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1688,60 +1731,388 @@ class RegistrationAPITest(TestCase):
                     self.competition_primera.id
                 ),
                 "player": self.player.id,
+                "status": "PENDIENTE",
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        self.assertEqual(
+            response.data["player"],
+            self.player.id
+        )
+
+    def test_admin_can_update_registration(
+        self
+    ):
+
+        registration = (
+            self.create_registration()
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.patch(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            ),
+            {
+                "status": "CONFIRMADA",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
         self.assertEqual(
             response.data["status"],
-            "PENDIENTE",
+            "CONFIRMADA"
         )
+
+    def test_admin_can_delete_registration(
+        self
+    ):
+
+        registration = (
+            self.create_registration()
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.delete(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            204
+        )
+
+        self.assertFalse(
+            Registration.objects.filter(
+                id=registration.id
+            ).exists()
+        )
+
+    # =====================================================
+    # ORGANIZADOR
+    # =====================================================
+
+    def test_organizer_can_create_registration(
+        self
+    ):
+
+        self.authenticate(
+            self.organizer_user
+        )
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": self.player.id,
+                "status": "PENDIENTE",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+    def test_organizer_can_update_registration(
+        self
+    ):
+
+        registration = (
+            self.create_registration()
+        )
+
+        self.authenticate(
+            self.organizer_user
+        )
+
+        response = self.client.patch(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            ),
+            {
+                "status": "CONFIRMADA",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.data["status"],
+            "CONFIRMADA"
+        )
+
+    def test_organizer_cannot_delete_registration(
+        self
+    ):
+
+        registration = (
+            self.create_registration()
+        )
+
+        self.authenticate(
+            self.organizer_user
+        )
+
+        response = self.client.delete(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403
+        )
+
+    # =====================================================
+    # JUGADOR - LECTURA
+    # =====================================================
+
+    def test_player_can_list_registrations(
+        self
+    ):
+
+        self.authenticate(
+            self.player_user
+        )
+
+        response = self.client.get(
+            "/api/registrations/"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+    # =====================================================
+    # JUGADOR - AUTOINSCRIPCIÓN
+    # =====================================================
+
+    def test_player_can_register_himself(
+        self
+    ):
+
+        self.authenticate(
+            self.player_user
+        )
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        self.assertEqual(
+            response.data["player"],
+            self.player.id
+        )
+
+        self.assertEqual(
+            response.data["status"],
+            "PENDIENTE"
+        )
+
         self.assertIsNone(
             response.data["seed"]
         )
 
-    def test_admin_can_update_registration(self):
-        registration = self.create_registration()
+        self.assertTrue(
+            Registration.objects.filter(
+                competition_category=(
+                    self.competition_primera
+                ),
+                player=self.player,
+            ).exists()
+        )
 
-        self.authenticate(self.admin_user)
+    def test_player_cannot_register_another_player(
+        self
+    ):
 
-        response = self.client.patch(
-            f"/api/registrations/{registration.id}/",
+        User = get_user_model()
+
+        other_user = User.objects.create_user(
+            username="other_player",
+            password="TestPassword123!",
+            email="other_player@test.cl",
+            role=self.player_role,
+        )
+
+        other_player = Player.objects.create(
+            user=other_user,
+            category=self.primera,
+            rut="12345678-5",
+            first_name="Otro",
+            last_name="Jugador",
+            birth_date="1990-01-01",
+            phone="+56912345678",
+        )
+
+        self.authenticate(
+            self.player_user
+        )
+
+        # Intenta manipular el payload enviando
+        # el ID de otro jugador.
+        response = self.client.post(
+            "/api/registrations/",
             {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
+                "player": other_player.id,
+            },
+            format="json",
+        )
+
+        # La petición puede realizarse,
+        # pero Django debe sustituir el player
+        # por el asociado al usuario autenticado.
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        self.assertEqual(
+            response.data["player"],
+            self.player.id
+        )
+
+        self.assertFalse(
+            Registration.objects.filter(
+                competition_category=(
+                    self.competition_primera
+                ),
+                player=other_player,
+            ).exists()
+        )
+
+        self.assertTrue(
+            Registration.objects.filter(
+                competition_category=(
+                    self.competition_primera
+                ),
+                player=self.player,
+            ).exists()
+        )
+
+    def test_player_cannot_choose_status_or_seed(
+        self
+    ):
+
+        self.authenticate(
+            self.player_user
+        )
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_primera.id
+                ),
                 "status": "CONFIRMADA",
                 "seed": 1,
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        # El backend debe forzar estos valores.
         self.assertEqual(
             response.data["status"],
-            "CONFIRMADA",
+            "PENDIENTE"
         )
+
+        self.assertIsNone(
+            response.data["seed"]
+        )
+
+    def test_player_cannot_register_in_different_category(
+        self
+    ):
+
+        self.authenticate(
+            self.player_user
+        )
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_segunda.id
+                ),
+            },
+            format="json",
+        )
+
         self.assertEqual(
-            response.data["seed"],
-            1,
+            response.status_code,
+            400
         )
 
-    def test_admin_can_delete_registration(self):
-        registration = self.create_registration()
+    def test_player_cannot_register_after_deadline(
+        self
+    ):
 
-        self.authenticate(self.admin_user)
-
-        response = self.client.delete(
-            f"/api/registrations/{registration.id}/"
+        self.competition.status = (
+            "ABIERTA"
         )
 
-        self.assertEqual(response.status_code, 204)
+        self.competition.registration_deadline = (
+            timezone.localdate()
+            - timedelta(days=1)
+        )
 
-    # -----------------------------
-    # ORGANIZADOR
-    # -----------------------------
+        self.competition.save()
 
-    def test_organizer_can_create_registration(self):
-        self.authenticate(self.organizer_user)
+        self.authenticate(
+            self.player_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1749,54 +2120,28 @@ class RegistrationAPITest(TestCase):
                 "competition_category": (
                     self.competition_primera.id
                 ),
-                "player": self.player.id,
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, 201)
-
-    def test_organizer_can_update_registration(self):
-        registration = self.create_registration()
-
-        self.authenticate(self.organizer_user)
-
-        response = self.client.patch(
-            f"/api/registrations/{registration.id}/",
-            {
-                "status": "CONFIRMADA",
-            },
-            format="json",
+        self.assertEqual(
+            response.status_code,
+            400
         )
 
-        self.assertEqual(response.status_code, 200)
+    def test_player_cannot_register_when_competition_in_progress(
+        self
+    ):
 
-    def test_organizer_cannot_delete_registration(self):
-        registration = self.create_registration()
-
-        self.authenticate(self.organizer_user)
-
-        response = self.client.delete(
-            f"/api/registrations/{registration.id}/"
+        self.competition.status = (
+            "EN_CURSO"
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.competition.save()
 
-    # -----------------------------
-    # JUGADOR
-    # -----------------------------
-
-    def test_player_can_list_registrations(self):
-        self.authenticate(self.player_user)
-
-        response = self.client.get(
-            "/api/registrations/"
+        self.authenticate(
+            self.player_user
         )
-
-        self.assertEqual(response.status_code, 200)
-
-    def test_player_cannot_create_registration(self):
-        self.authenticate(self.player_user)
 
         response = self.client.post(
             "/api/registrations/",
@@ -1804,45 +2149,78 @@ class RegistrationAPITest(TestCase):
                 "competition_category": (
                     self.competition_primera.id
                 ),
-                "player": self.player.id,
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.status_code,
+            400
+        )
 
-    def test_player_cannot_update_registration(self):
-        registration = self.create_registration()
+    def test_player_cannot_update_registration(
+        self
+    ):
 
-        self.authenticate(self.player_user)
+        registration = (
+            self.create_registration()
+        )
+
+        self.authenticate(
+            self.player_user
+        )
 
         response = self.client.patch(
-            f"/api/registrations/{registration.id}/",
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            ),
             {
                 "status": "CONFIRMADA",
             },
             format="json",
         )
 
-        self.assertEqual(response.status_code, 403)
-
-    def test_player_cannot_delete_registration(self):
-        registration = self.create_registration()
-
-        self.authenticate(self.player_user)
-
-        response = self.client.delete(
-            f"/api/registrations/{registration.id}/"
+        self.assertEqual(
+            response.status_code,
+            403
         )
 
-        self.assertEqual(response.status_code, 403)
+    def test_player_cannot_delete_registration(
+        self
+    ):
 
-    # -----------------------------
-    # REGLA DE NEGOCIO
-    # -----------------------------
+        registration = (
+            self.create_registration()
+        )
 
-    def test_player_cannot_register_in_different_category(self):
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.player_user
+        )
+
+        response = self.client.delete(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403
+        )
+
+    # =====================================================
+    # VALIDACIONES DE NEGOCIO
+    # =====================================================
+
+    def test_cannot_register_player_in_wrong_category(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1855,16 +2233,20 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.status_code,
+            400
+        )
 
-    # -----------------------------
-    # DUPLICADOS
-    # -----------------------------
+    def test_cannot_duplicate_registration(
+        self
+    ):
 
-    def test_duplicate_registration_is_rejected(self):
         self.create_registration()
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1877,14 +2259,18 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.status_code,
+            400
+        )
 
-    # -----------------------------
-    # FECHA AUTOMÁTICA
-    # -----------------------------
+    def test_registration_date_is_generated_automatically(
+        self
+    ):
 
-    def test_registration_date_is_generated_automatically(self):
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1897,16 +2283,75 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
         self.assertIsNotNone(
-            response.data["registration_date"]
+            response.data[
+                "registration_date"
+            ]
         )
-        
-    def test_registration_allowed_when_competition_is_pending(self):
-        self.competition.status = "PENDIENTE"
+
+    def test_registration_date_cannot_be_modified(
+        self
+    ):
+
+        registration = (
+            self.create_registration()
+        )
+
+        original_date = (
+            registration.registration_date
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.patch(
+            (
+                f"/api/registrations/"
+                f"{registration.id}/"
+            ),
+            {
+                "registration_date": (
+                    "2000-01-01T00:00:00Z"
+                ),
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        registration.refresh_from_db()
+
+        self.assertEqual(
+            registration.registration_date,
+            original_date,
+        )
+
+    # =====================================================
+    # ESTADO DE LA COMPETENCIA
+    # =====================================================
+
+    def test_admin_can_register_when_competition_in_progress(
+        self
+    ):
+
+        self.competition.status = (
+            "EN_CURSO"
+        )
+
         self.competition.save()
 
-        self.authenticate(self.organizer_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1921,14 +2366,22 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            201,
+            201
         )
 
-    def test_registration_allowed_when_competition_is_open(self):
-        self.competition.status = "ABIERTA"
+    def test_organizer_cannot_register_when_competition_in_progress(
+        self
+    ):
+
+        self.competition.status = (
+            "EN_CURSO"
+        )
+
         self.competition.save()
 
-        self.authenticate(self.organizer_user)
+        self.authenticate(
+            self.organizer_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1943,14 +2396,22 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            201,
+            400
         )
 
-    def test_admin_can_register_when_competition_is_in_progress(self):
-        self.competition.status = "EN_CURSO"
+    def test_cannot_register_when_competition_finished(
+        self
+    ):
+
+        self.competition.status = (
+            "FINALIZADA"
+        )
+
         self.competition.save()
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1965,14 +2426,22 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            201,
+            400
         )
-        
-    def test_organizer_cannot_register_when_competition_is_in_progress(self):
-        self.competition.status = "EN_CURSO"
+
+    def test_cannot_register_when_competition_cancelled(
+        self
+    ):
+
+        self.competition.status = (
+            "CANCELADA"
+        )
+
         self.competition.save()
 
-        self.authenticate(self.organizer_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -1987,14 +2456,27 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400,
+            400
         )
-        
-    def test_registration_not_allowed_when_competition_is_finished(self):
-        self.competition.status = "FINALIZADA"
+
+    # =====================================================
+    # FECHA LÍMITE
+    # =====================================================
+
+    def test_admin_can_register_after_deadline(
+        self
+    ):
+
+        self.competition.registration_deadline = (
+            timezone.localdate()
+            - timedelta(days=1)
+        )
+
         self.competition.save()
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.admin_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -2009,14 +2491,23 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400,
+            201
         )
-        
-    def test_registration_not_allowed_when_competition_is_cancelled(self):
-        self.competition.status = "CANCELADA"
+
+    def test_organizer_cannot_register_after_deadline(
+        self
+    ):
+
+        self.competition.registration_deadline = (
+            timezone.localdate()
+            - timedelta(days=1)
+        )
+
         self.competition.save()
 
-        self.authenticate(self.admin_user)
+        self.authenticate(
+            self.organizer_user
+        )
 
         response = self.client.post(
             "/api/registrations/",
@@ -2031,48 +2522,46 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400,
+            400
         )
-        
-    def test_registration_not_allowed_when_max_players_is_reached(self):
+
+    # =====================================================
+    # CUPOS
+    # =====================================================
+
+    def test_cannot_register_when_category_is_full(
+        self
+    ):
+
+        # Dejamos capacidad de solo un jugador.
         self.competition_primera.max_players = 1
+        self.competition_primera.minimum_players = 1
+
         self.competition_primera.save()
 
-        self.authenticate(self.admin_user)
+        self.create_registration()
 
-        # Primera inscripción
-        response = self.client.post(
-            "/api/registrations/",
-            {
-                "competition_category": (
-                    self.competition_primera.id
-                ),
-                "player": self.player.id,
-            },
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            201,
-        )
-
-        # Segundo jugador
         User = get_user_model()
 
-        second_player_user = User.objects.create_user(
-            username="second_registration_player",
+        second_user = User.objects.create_user(
+            username="second_player",
             password="TestPassword123!",
-            email="second_registration_player@tenis.cl",
+            email="second_player@test.cl",
             role=self.player_role,
         )
 
         second_player = Player.objects.create(
-            user=second_player_user,
+            user=second_user,
             category=self.primera,
-            rut="66666666-6",
+            rut="11111111-1",
             first_name="Segundo",
             last_name="Jugador",
+            birth_date="1990-01-01",
+            phone="+56911111111",
+        )
+
+        self.authenticate(
+            self.admin_user
         )
 
         response = self.client.post(
@@ -2088,52 +2577,49 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400,
+            400
         )
-        
-    def test_registration_allowed_after_increasing_max_players(self):
+
+    def test_cancelled_registration_does_not_use_slot(
+        self
+    ):
+
         self.competition_primera.max_players = 1
+        self.competition_primera.minimum_players = 1
+
         self.competition_primera.save()
 
-        self.authenticate(self.admin_user)
-
-        # Primera inscripción
-        response = self.client.post(
-            "/api/registrations/",
-            {
-                "competition_category": (
-                    self.competition_primera.id
-                ),
-                "player": self.player.id,
-            },
-            format="json",
+        Registration.objects.create(
+            competition_category=(
+                self.competition_primera
+            ),
+            player=self.player,
+            status="CANCELADA",
         )
 
-        self.assertEqual(response.status_code, 201)
-
-        # Aumentamos el límite
-        self.competition_primera.max_players = 2
-        self.competition_primera.save()
-
-        # Creamos un segundo jugador
         User = get_user_model()
 
-        second_player_user = User.objects.create_user(
-            username="second_registration_player",
+        second_user = User.objects.create_user(
+            username="available_player",
             password="TestPassword123!",
-            email="second_registration_player@tenis.cl",
+            email="available_player@test.cl",
             role=self.player_role,
         )
 
         second_player = Player.objects.create(
-            user=second_player_user,
+            user=second_user,
             category=self.primera,
-            rut="66666666-6",
-            first_name="Segundo",
-            last_name="Jugador",
+            rut="11111111-1",
+            first_name="Jugador",
+            last_name="Disponible",
+            birth_date="1990-01-01",
+            phone="+56911111111",
         )
 
-        # Segunda inscripción
+        self.authenticate(
+            self.admin_user
+        )
+
         response = self.client.post(
             "/api/registrations/",
             {
@@ -2145,7 +2631,85 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+    # =====================================================
+    # INFORMACIÓN DE CUPOS
+    # =====================================================
+
+    def test_competition_category_returns_slot_information(
+        self
+    ):
+
+        self.create_registration()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.get(
+            (
+                "/api/competition-categories/"
+                f"{self.competition_primera.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.data["occupied_slots"],
+            1
+        )
+
+        self.assertEqual(
+            response.data["available_slots"],
+            15
+        )
+
+        self.assertEqual(
+            len(
+                response.data[
+                    "registered_players"
+                ]
+            ),
+            1
+        )
+
+        registered_player = (
+            response.data[
+                "registered_players"
+            ][0]
+        )
+
+        self.assertEqual(
+            registered_player["id"],
+            self.player.id
+        )
+
+        self.assertEqual(
+            registered_player[
+                "first_name"
+            ],
+            "Jugador"
+        )
+
+        self.assertEqual(
+            registered_player[
+                "last_name"
+            ],
+            "Prueba"
+        )
+
+        self.assertEqual(
+            registered_player["status"],
+            "PENDIENTE"
+        )
 class CourtAPITest(TestCase):
 
     def setUp(self):

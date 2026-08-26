@@ -3,7 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../../../environments/environment';
-import { CompetitionCategory } from '../models/competition-category.model';
+import { CompetitionCategory, 
+        CreateCompetitionCategoryRequest,
+        UpdateCompetitionCategoryRequest } from '../models/competition-category.model';
+
+
 
 export interface Category {
   id: number;
@@ -42,22 +46,24 @@ export class CompetitionCategoryService {
     );
   }
 
-  createCompetitionCategory(
-    competitionCategory: Omit<CompetitionCategory, 'id'>
-  ): Observable<CompetitionCategory> {
-    return this.http.post<CompetitionCategory>(
-      `${this.competitionCategoriesUrl}/`,
-      competitionCategory
-    );
-  }
+ createCompetitionCategory(
+  data: CreateCompetitionCategoryRequest
+): Observable<CompetitionCategory> {
+
+  return this.http.post<CompetitionCategory>(
+    `${this.competitionCategoriesUrl}/`,
+    data
+  );
+}
 
   updateCompetitionCategory(
     id: number,
-    competitionCategory: Omit<CompetitionCategory, 'id'>
+    data: UpdateCompetitionCategoryRequest
   ): Observable<CompetitionCategory> {
+
     return this.http.patch<CompetitionCategory>(
       `${this.competitionCategoriesUrl}/${id}/`,
-      competitionCategory
+      data
     );
   }
 }

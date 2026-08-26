@@ -1,8 +1,14 @@
 import re
 
-from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.utils import timezone
 
+from rest_framework import serializers
+
+from authentication.models import Role
 
 from .models import (
     Category,
@@ -13,18 +19,13 @@ from .models import (
     Court,
     Match,
     MatchSet,
-    Standing
+    Standing,
 )
-from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import  transaction
-from django.utils import timezone
-
-from authentication.models import Role
 
 
-
+# =========================================================
+# PLAYER
+# =========================================================
 
 class PlayerSerializer(serializers.ModelSerializer):
 
@@ -116,6 +117,10 @@ class PlayerSerializer(serializers.ModelSerializer):
 
         return value
 
+    # ---------------------------------
+    # Fecha de nacimiento
+    # ---------------------------------
+
     def validate_birth_date(self, value):
 
         if value is None:
@@ -145,12 +150,15 @@ class PlayerSerializer(serializers.ModelSerializer):
 
         return value
 
+    # ---------------------------------
+    # RUT chileno
+    # ---------------------------------
+
     def validate_rut(self, value):
 
         if not value:
             return value
 
-        # Normalizar
         rut = (
             value
             .replace(".", "")
@@ -172,11 +180,11 @@ class PlayerSerializer(serializers.ModelSerializer):
                 "El RUT ingresado no es válido."
             )
 
-        # Cálculo módulo 11
         total = 0
         multiplier = 2
 
         for digit in reversed(body):
+
             total += int(digit) * multiplier
 
             multiplier += 1
@@ -188,8 +196,10 @@ class PlayerSerializer(serializers.ModelSerializer):
 
         if remainder == 11:
             expected_verifier = "0"
+
         elif remainder == 10:
             expected_verifier = "K"
+
         else:
             expected_verifier = str(remainder)
 
@@ -198,9 +208,11 @@ class PlayerSerializer(serializers.ModelSerializer):
                 "El RUT ingresado no es válido."
             )
 
-        # Guardamos siempre el mismo formato
         return f"{int(body)}-{verifier}"
 
+    # ---------------------------------
+    # Teléfono
+    # ---------------------------------
 
     def validate_phone(self, value):
 
@@ -212,7 +224,8 @@ class PlayerSerializer(serializers.ModelSerializer):
             value
         ):
             raise serializers.ValidationError(
-                "El teléfono debe contener un número móvil chileno válido."
+                "El teléfono debe contener un "
+                "número móvil chileno válido."
             )
 
         return value
@@ -223,8 +236,6 @@ class PlayerSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
 
-        # En creación las credenciales
-        # son obligatorias.
         if self.instance is None:
 
             user_data = data.get(
@@ -266,10 +277,10 @@ class PlayerSerializer(serializers.ModelSerializer):
                     errors
                 )
 
-            # Validaciones estándar de contraseña
-            # configuradas en Django.
             try:
-                validate_password(password)
+                validate_password(
+                    password
+                )
 
             except DjangoValidationError as exc:
                 raise serializers.ValidationError(
@@ -287,7 +298,10 @@ class PlayerSerializer(serializers.ModelSerializer):
     # ---------------------------------
 
     @transaction.atomic
-    def create(self, validated_data):
+    def create(
+        self,
+        validated_data
+    ):
 
         User = get_user_model()
 
@@ -350,8 +364,6 @@ class PlayerSerializer(serializers.ModelSerializer):
             {},
         )
 
-        # Por ahora la contraseña no se
-        # modifica desde editar jugador.
         validated_data.pop(
             "password",
             None,
@@ -385,11 +397,17 @@ class PlayerSerializer(serializers.ModelSerializer):
             instance,
             validated_data,
         )
-        
-        
+
+
+# =========================================================
+# COMPETITION
+# =========================================================
+
 class CompetitionSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Competition
+
         fields = [
             "id",
             "name",
@@ -399,9 +417,13 @@ class CompetitionSerializer(serializers.ModelSerializer):
             "status",
             "registration_deadline",
         ]
-        read_only_fields = ["id"]
+
+        read_only_fields = [
+            "id",
+        ]
 
     def validate(self, data):
+
         instance = self.instance
         today = timezone.localdate()
 
@@ -417,11 +439,15 @@ class CompetitionSerializer(serializers.ModelSerializer):
 
         registration_deadline = data.get(
             "registration_deadline",
-            instance.registration_deadline if instance else None,
+            (
+                instance.registration_deadline
+                if instance
+                else None
+            ),
         )
 
         # ---------------------------------
-        # 1. Fecha término >= fecha inicio
+        # 1. Fecha término >= inicio
         # ---------------------------------
 
         if (
@@ -439,8 +465,7 @@ class CompetitionSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 2. Cierre de inscripciones
-        #    <= fecha de inicio
+        # 2. Cierre inscripción <= inicio
         # ---------------------------------
 
         if (
@@ -498,10 +523,14 @@ class CompetitionSerializer(serializers.ModelSerializer):
         else:
 
             if "start_date" in data:
-                new_start_date = data["start_date"]
+
+                new_start_date = data[
+                    "start_date"
+                ]
 
                 if (
-                    new_start_date != instance.start_date
+                    new_start_date
+                    != instance.start_date
                     and new_start_date < today
                 ):
                     raise serializers.ValidationError(
@@ -515,6 +544,7 @@ class CompetitionSerializer(serializers.ModelSerializer):
                     )
 
             if "registration_deadline" in data:
+
                 new_deadline = data[
                     "registration_deadline"
                 ]
@@ -535,41 +565,154 @@ class CompetitionSerializer(serializers.ModelSerializer):
                         }
                     )
 
-        return data     
+        return data
+
+
+# =========================================================
+# CATEGORY
+# =========================================================
+
 class CategorySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Category
+
         fields = [
             "id",
             "name",
         ]
-        read_only_fields = ["id"]
-        
 
-class CompetitionCategorySerializer(serializers.ModelSerializer):
+        read_only_fields = [
+            "id",
+        ]
+
+
+# =========================================================
+# COMPETITION CATEGORY
+# =========================================================
+
+class CompetitionCategorySerializer(
+    serializers.ModelSerializer
+):
+
+    occupied_slots = (
+        serializers.SerializerMethodField()
+    )
+
+    available_slots = (
+        serializers.SerializerMethodField()
+    )
+
+    registered_players = (
+        serializers.SerializerMethodField()
+    )
 
     class Meta:
         model = CompetitionCategory
+
         fields = [
             "id",
             "competition",
             "category",
             "max_players",
             "minimum_players",
+            "occupied_slots",
+            "available_slots",
+            "registered_players",
         ]
-        read_only_fields = ["id"]
+
+        read_only_fields = [
+            "id",
+            "occupied_slots",
+            "available_slots",
+            "registered_players",
+        ]
+
+    def get_occupied_slots(
+        self,
+        obj
+    ):
+
+        return (
+            obj.registrations
+            .exclude(
+                status="CANCELADA"
+            )
+            .count()
+        )
+
+    def get_available_slots(
+        self,
+        obj
+    ):
+
+        occupied = (
+            obj.registrations
+            .exclude(
+                status="CANCELADA"
+            )
+            .count()
+        )
+
+        return max(
+            obj.max_players - occupied,
+            0,
+        )
+
+    def get_registered_players(
+        self,
+        obj
+    ):
+
+        registrations = (
+            obj.registrations
+            .exclude(
+                status="CANCELADA"
+            )
+            .select_related(
+                "player"
+            )
+        )
+
+        return [
+            {
+                "id":
+                    registration.player.id,
+
+                "first_name":
+                    registration.player.first_name,
+
+                "last_name":
+                    registration.player.last_name,
+
+                "status":
+                    registration.status,
+
+            }
+            for registration
+            in registrations
+        ]
 
     def validate(self, data):
+
         instance = self.instance
 
         max_players = data.get(
             "max_players",
-            instance.max_players if instance else None,
+            (
+                instance.max_players
+                if instance
+                else None
+            ),
         )
 
         minimum_players = data.get(
             "minimum_players",
-            instance.minimum_players if instance else None,
+            (
+                instance.minimum_players
+                if instance
+                else None
+            ),
         )
 
         if (
@@ -587,10 +730,22 @@ class CompetitionCategorySerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+# =========================================================
+# REGISTRATION
+# =========================================================
+
 class RegistrationSerializer(serializers.ModelSerializer):
+
+    player = serializers.PrimaryKeyRelatedField(
+        queryset=Player.objects.all(),
+        required=False,
+    )
 
     class Meta:
         model = Registration
+
         fields = [
             "id",
             "competition_category",
@@ -599,6 +754,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             "status",
             "seed",
         ]
+
         read_only_fields = [
             "id",
             "registration_date",
@@ -606,16 +762,73 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
 
-        # ---------------------------------
-        # Obtener valores actuales
-        # ---------------------------------
-
         instance = self.instance
 
-        player = data.get(
-            "player",
-            instance.player if instance else None,
+        request = self.context.get(
+            "request"
         )
+
+        user = (
+            request.user
+            if request is not None
+            else None
+        )
+
+        role = (
+            user.role.name
+            if (
+                user is not None
+                and user.is_authenticated
+            )
+            else None
+        )
+
+        # ---------------------------------
+        # Determinar jugador
+        # ---------------------------------
+
+        if instance is None:
+
+            if role == "Jugador":
+
+                try:
+                    player = user.player
+
+                except Player.DoesNotExist:
+                    raise serializers.ValidationError(
+                        {
+                            "player": (
+                                "El usuario autenticado "
+                                "no tiene un perfil de "
+                                "jugador asociado."
+                            )
+                        }
+                    )
+
+                data["player"] = player
+
+            else:
+
+                player = data.get(
+                    "player"
+                )
+
+                if player is None:
+                    raise serializers.ValidationError(
+                        {
+                            "player": (
+                                "Debe seleccionar "
+                                "un jugador."
+                            )
+                        }
+                    )
+
+        else:
+
+            player = data.get(
+                "player",
+                instance.player,
+            )
 
         competition_category = data.get(
             "competition_category",
@@ -626,31 +839,37 @@ class RegistrationSerializer(serializers.ModelSerializer):
             ),
         )
 
-        # ---------------------------------
-        # 1. El jugador debe pertenecer a
-        #    la categoría de la competencia
-        # ---------------------------------
-
-        if (
-            player is not None
-            and competition_category is not None
-            and player.category_id
-            != competition_category.category_id
-        ):
+        if competition_category is None:
             raise serializers.ValidationError(
                 {
                     "competition_category": (
-                        "El jugador solo puede inscribirse "
-                        "en una categoría que corresponda "
-                        "a su categoría actual."
+                        "Debe seleccionar una "
+                        "categoría de competencia."
                     )
                 }
             )
 
         # ---------------------------------
-        # Las siguientes reglas corresponden
-        # solamente a la creación de una
-        # inscripción.
+        # 1. Categoría jugador
+        # ---------------------------------
+
+        if (
+            player.category_id
+            != competition_category.category_id
+        ):
+            raise serializers.ValidationError(
+                {
+                    "competition_category": (
+                        "El jugador solo puede "
+                        "inscribirse en una categoría "
+                        "que corresponda a su "
+                        "categoría actual."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # Reglas de creación
         # ---------------------------------
 
         if instance is None:
@@ -659,25 +878,15 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 competition_category.competition
             )
 
-            # ---------------------------------
-            # 2. Estado de la competencia
-            # ---------------------------------
-
-            request = self.context.get("request")
-            user = (
-                request.user
-                if request is not None
-                else None
-            )
-
             status = competition.status
 
+            # ---------------------------------
+            # 2. Estado competencia
+            # ---------------------------------
+
             if status == "EN_CURSO":
-                if (
-                    user is None
-                    or not user.is_authenticated
-                    or user.role.name != "Administrador"
-                ):
+
+                if role != "Administrador":
                     raise serializers.ValidationError(
                         {
                             "competition_category": (
@@ -704,14 +913,41 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 )
 
             # ---------------------------------
-            # 3. Cupos máximos
+            # 3. Fecha límite
+            # ---------------------------------
+
+            today = timezone.localdate()
+
+            if (
+                competition.registration_deadline
+                < today
+                and role != "Administrador"
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "competition_category": (
+                            "La fecha límite de "
+                            "inscripción ya ha finalizado. "
+                            "Solo un Administrador puede "
+                            "registrar jugadores después "
+                            "del cierre."
+                        )
+                    }
+                )
+
+            # ---------------------------------
+            # 4. Cupos
             # ---------------------------------
 
             registrations_count = (
                 Registration.objects.filter(
-                    competition_category=competition_category,
+                    competition_category=(
+                        competition_category
+                    ),
                 )
-                .exclude(status="CANCELADA")
+                .exclude(
+                    status="CANCELADA"
+                )
                 .count()
             )
 
@@ -729,24 +965,70 @@ class RegistrationSerializer(serializers.ModelSerializer):
                     }
                 )
 
+            # ---------------------------------
+            # 5. Duplicados
+            # ---------------------------------
+
+            if Registration.objects.filter(
+                competition_category=(
+                    competition_category
+                ),
+                player=player,
+            ).exists():
+
+                raise serializers.ValidationError(
+                    {
+                        "player": (
+                            "El jugador ya se encuentra "
+                            "inscrito en esta categoría."
+                        )
+                    }
+                )
+
+            # ---------------------------------
+            # 6. Jugador no decide estado/seed
+            # ---------------------------------
+
+            if role == "Jugador":
+
+                data["status"] = (
+                    "PENDIENTE"
+                )
+
+                data["seed"] = None
+
         return data
+
+
+# =========================================================
+# COURT
+# =========================================================
 
 class CourtSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Court
+
         fields = [
             "id",
             "name",
             "status",
         ]
-        read_only_fields = ["id"]
-        
-        
+
+        read_only_fields = [
+            "id",
+        ]
+
+
+# =========================================================
+# MATCH
+# =========================================================
+
 class MatchSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Match
+
         fields = [
             "id",
             "competition_category",
@@ -759,21 +1041,22 @@ class MatchSerializer(serializers.ModelSerializer):
             "round",
             "is_walkover",
         ]
-        read_only_fields = ["id"]
+
+        read_only_fields = [
+            "id",
+        ]
 
     def validate(self, data):
-
-    # ---------------------------------
-    # Obtener valores actuales
-    # ---------------------------------
-    # En PATCH, si un campo no viene en data,
-    # usamos el valor que ya tiene la instancia.
 
         instance = self.instance
 
         competition_category = data.get(
             "competition_category",
-            instance.competition_category if instance else None,
+            (
+                instance.competition_category
+                if instance
+                else None
+            ),
         )
 
         player1 = data.get(
@@ -788,7 +1071,11 @@ class MatchSerializer(serializers.ModelSerializer):
 
         winner_player = data.get(
             "winner_player",
-            instance.winner_player if instance else None,
+            (
+                instance.winner_player
+                if instance
+                else None
+            ),
         )
 
         round_number = data.get(
@@ -798,12 +1085,15 @@ class MatchSerializer(serializers.ModelSerializer):
 
         is_walkover = data.get(
             "is_walkover",
-            instance.is_walkover if instance else False,
+            (
+                instance.is_walkover
+                if instance
+                else False
+            ),
         )
 
         # ---------------------------------
-        # 1. Player 1 debe pertenecer
-        #    a la categoría del partido
+        # Player 1 categoría
         # ---------------------------------
 
         if (
@@ -822,8 +1112,7 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 2. Player 2 debe pertenecer
-        #    a la categoría del partido
+        # Player 2 categoría
         # ---------------------------------
 
         if (
@@ -842,8 +1131,7 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 3. Un jugador no puede enfrentarse
-        #    contra sí mismo
+        # Jugador contra sí mismo
         # ---------------------------------
 
         if (
@@ -861,8 +1149,7 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 4. El ganador debe ser uno de
-        #    los jugadores del partido
+        # Ganador válido
         # ---------------------------------
 
         if winner_player is not None:
@@ -870,10 +1157,14 @@ class MatchSerializer(serializers.ModelSerializer):
             valid_winners = []
 
             if player1 is not None:
-                valid_winners.append(player1)
+                valid_winners.append(
+                    player1
+                )
 
             if player2 is not None:
-                valid_winners.append(player2)
+                valid_winners.append(
+                    player2
+                )
 
             if winner_player not in valid_winners:
                 raise serializers.ValidationError(
@@ -886,17 +1177,23 @@ class MatchSerializer(serializers.ModelSerializer):
                 )
 
         # ---------------------------------
-        # 5. Round
+        # Round
         # ---------------------------------
 
         competition_type = None
 
         if competition_category is not None:
+
             competition_type = (
-                competition_category.competition.type
+                competition_category
+                .competition
+                .type
             )
 
-        if competition_type == "ELIMINACION_DIRECTA":
+        if (
+            competition_type
+            == "ELIMINACION_DIRECTA"
+        ):
 
             if round_number is None:
                 raise serializers.ValidationError(
@@ -915,20 +1212,25 @@ class MatchSerializer(serializers.ModelSerializer):
                     {
                         "round": (
                             "La ronda no corresponde "
-                            "a una competencia de escalerilla."
+                            "a una competencia de "
+                            "escalerilla."
                         )
                     }
                 )
 
         # ---------------------------------
-        # 6. Walkover
+        # Walkover
         # ---------------------------------
 
-        if is_walkover and player2 is None:
+        if (
+            is_walkover
+            and player2 is None
+        ):
             raise serializers.ValidationError(
                 {
                     "is_walkover": (
-                        "Un walkover requiere dos jugadores."
+                        "Un walkover requiere "
+                        "dos jugadores."
                     )
                 }
             )
@@ -936,10 +1238,15 @@ class MatchSerializer(serializers.ModelSerializer):
         return data
 
 
+# =========================================================
+# MATCH SET
+# =========================================================
+
 class MatchSetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MatchSet
+
         fields = [
             "id",
             "match",
@@ -948,13 +1255,12 @@ class MatchSetSerializer(serializers.ModelSerializer):
             "games_player2",
             "is_super_tie_break",
         ]
-        read_only_fields = ["id"]
+
+        read_only_fields = [
+            "id",
+        ]
 
     def validate(self, data):
-
-        # ---------------------------------
-        # Obtener valores actuales
-        # ---------------------------------
 
         instance = self.instance
 
@@ -965,21 +1271,33 @@ class MatchSetSerializer(serializers.ModelSerializer):
 
         games_player1 = data.get(
             "games_player1",
-            instance.games_player1 if instance else None,
+            (
+                instance.games_player1
+                if instance
+                else None
+            ),
         )
 
         games_player2 = data.get(
             "games_player2",
-            instance.games_player2 if instance else None,
+            (
+                instance.games_player2
+                if instance
+                else None
+            ),
         )
 
         is_super_tie_break = data.get(
             "is_super_tie_break",
-            instance.is_super_tie_break if instance else False,
+            (
+                instance.is_super_tie_break
+                if instance
+                else False
+            ),
         )
 
         # ---------------------------------
-        # 1. Número de set
+        # Número set
         # ---------------------------------
 
         if set_number < 1:
@@ -993,11 +1311,13 @@ class MatchSetSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 2. Solo el SET 3 puede ser
-        #    super tie-break
+        # Super tie-break solo set 3
         # ---------------------------------
 
-        if is_super_tie_break and set_number != 3:
+        if (
+            is_super_tie_break
+            and set_number != 3
+        ):
             raise serializers.ValidationError(
                 {
                     "is_super_tie_break": (
@@ -1008,10 +1328,13 @@ class MatchSetSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 3. No puede existir empate
+        # No empate
         # ---------------------------------
 
-        if games_player1 == games_player2:
+        if (
+            games_player1
+            == games_player2
+        ):
             raise serializers.ValidationError(
                 {
                     "games": (
@@ -1022,7 +1345,7 @@ class MatchSetSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 4. SUPER TIE-BREAK
+        # Super tie-break
         # ---------------------------------
 
         if is_super_tie_break:
@@ -1061,7 +1384,7 @@ class MatchSetSerializer(serializers.ModelSerializer):
             return data
 
         # ---------------------------------
-        # 5. SET NORMAL
+        # Set normal
         # ---------------------------------
 
         winner = max(
@@ -1074,16 +1397,22 @@ class MatchSetSerializer(serializers.ModelSerializer):
             games_player2,
         )
 
-        # 6-0, 6-1, 6-2, 6-3, 6-4
-        if winner == 6 and loser <= 4:
+        if (
+            winner == 6
+            and loser <= 4
+        ):
             return data
 
-        # 7-5
-        if winner == 7 and loser == 5:
+        if (
+            winner == 7
+            and loser == 5
+        ):
             return data
 
-        # 7-6
-        if winner == 7 and loser == 6:
+        if (
+            winner == 7
+            and loser == 6
+        ):
             return data
 
         raise serializers.ValidationError(
@@ -1094,11 +1423,17 @@ class MatchSetSerializer(serializers.ModelSerializer):
                 )
             }
         )
-        
+
+
+# =========================================================
+# STANDING
+# =========================================================
+
 class StandingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Standing
+
         fields = [
             "id",
             "competition_category",
@@ -1142,8 +1477,7 @@ class StandingSerializer(serializers.ModelSerializer):
         )
 
         # ---------------------------------
-        # El jugador debe pertenecer a la
-        # categoría de la competencia
+        # Categoría compatible
         # ---------------------------------
 
         if (
@@ -1166,12 +1500,14 @@ class StandingSerializer(serializers.ModelSerializer):
         # ---------------------------------
 
         queryset = Standing.objects.filter(
-            competition_category=competition_category,
+            competition_category=(
+                competition_category
+            ),
             player=player,
         )
 
-        # En PATCH excluimos el registro actual
         if self.instance:
+
             queryset = queryset.exclude(
                 pk=self.instance.pk
             )

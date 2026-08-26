@@ -35,4 +35,37 @@ clearTokens(): void {
 isAuthenticated(): boolean {
   return this.getAccessToken() !== null;
 }
+
+getCurrentUserId(): number | null {
+
+  const token =
+    this.getAccessToken();
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+
+    const payload =
+      JSON.parse(
+        atob(
+          token.split('.')[1]
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+        )
+      );
+
+    return payload.user_id ?? null;
+
+  } catch (error) {
+
+    console.error(
+      'No fue posible leer el JWT:',
+      error
+    );
+
+    return null;
+  }
+}
 }
