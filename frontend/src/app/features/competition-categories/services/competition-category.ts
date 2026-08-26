@@ -66,4 +66,13 @@ export class CompetitionCategoryService {
       data
     );
   }
+
+  deleteCompetitionCategory(
+  id: number
+): Observable<void> {
+
+  return this.http.delete<void>(
+    `${this.competitionCategoriesUrl}/${id}/`
+  );
+}
 }

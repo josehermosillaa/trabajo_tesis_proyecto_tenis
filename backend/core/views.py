@@ -111,9 +111,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [CompetitionPermission]
     
 class CompetitionCategoryViewSet(AuditModelViewSet):
-    """
-    API para configurar las categorías de una competencia.
-    """
 
     queryset = CompetitionCategory.objects.select_related(
         "competition",
@@ -121,9 +118,45 @@ class CompetitionCategoryViewSet(AuditModelViewSet):
     ).all()
 
     serializer_class = CompetitionCategorySerializer
+
     permission_classes = [
-    RegistrationPermission
-]
+        CompetitionPermission
+    ]
+
+    def destroy(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
+
+        instance = self.get_object()
+
+        has_active_registrations = (
+            instance.registrations
+            .exclude(
+                status="CANCELADA"
+            )
+            .exists()
+        )
+
+        if has_active_registrations:
+
+            return Response(
+                {
+                    "detail": (
+                        "No se puede eliminar la categoría "
+                        "porque tiene jugadores inscritos."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
+        )
 
 class RegistrationViewSet(AuditModelViewSet):
     """
@@ -139,8 +172,10 @@ class RegistrationViewSet(AuditModelViewSet):
     ).all()
 
     serializer_class = RegistrationSerializer
-    permission_classes = [CompetitionPermission]
-    
+
+    permission_classes = [
+        RegistrationPermission
+    ]
     
 class CourtViewSet(AuditModelViewSet):
 

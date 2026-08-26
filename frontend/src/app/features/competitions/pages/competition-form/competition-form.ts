@@ -319,38 +319,30 @@ export class CompetitionFormComponent implements OnInit {
     );
   }
 
-  toggleCategory(
-    categoryId: number
-  ): void {
-    /*
-     * Por ahora no permitimos quitar una categoría
-     * que ya existe en la competencia.
-     *
-     * Esto evita eliminar accidentalmente una categoría
-     * que podría tener inscripciones.
-     */
-    if (
-      this.isExistingCategory(categoryId)
-    ) {
-      return;
-    }
+toggleCategory(
+  categoryId: number
+): void {
 
-    if (
-      this.isCategorySelected(categoryId)
-    ) {
-      this.selectedCategories =
-        this.selectedCategories.filter(
-          (id) => id !== categoryId
-        );
+  if (
+    this.isCategorySelected(
+      categoryId
+    )
+  ) {
 
-      return;
-    }
+    this.selectedCategories =
+      this.selectedCategories.filter(
+        (id) =>
+          id !== categoryId
+      );
 
-    this.selectedCategories = [
-      ...this.selectedCategories,
-      categoryId,
-    ];
+    return;
   }
+
+  this.selectedCategories = [
+    ...this.selectedCategories,
+    categoryId,
+  ];
+}
 
   /*
    * =========================================================
@@ -584,22 +576,112 @@ export class CompetitionFormComponent implements OnInit {
   private updateCompetitionCategories(
     competitionId: number
   ): void {
+
+    /*
+    * Categorías que existían antes,
+    * pero que el usuario desmarcó.
+    */
+    const categoriesToDelete =
+      this.competitionCategories.filter(
+        (competitionCategory) =>
+          !this.selectedCategories.includes(
+            competitionCategory.category
+          )
+      );
+
+    /*
+    * Primero intentamos eliminar
+    * las categorías desmarcadas.
+    */
+    this.deleteRemovedCategories(
+      categoriesToDelete,
+      0,
+      competitionId
+    );
+  }
+  private deleteRemovedCategories(
+    categoriesToDelete:
+      CompetitionCategory[],
+    index: number,
+    competitionId: number
+  ): void {
+
+    /*
+    * Ya eliminamos todas las
+    * categorías desmarcadas.
+    *
+    * Ahora actualizamos o creamos
+    * las seleccionadas.
+    */
+    if (
+      index >=
+      categoriesToDelete.length
+    ) {
+
+      this.saveSelectedCategories(
+        competitionId
+      );
+
+      return;
+    }
+
+    const competitionCategory =
+      categoriesToDelete[index];
+
+    this.competitionCategoryService
+      .deleteCompetitionCategory(
+        competitionCategory.id
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.deleteRemovedCategories(
+            categoriesToDelete,
+            index + 1,
+            competitionId
+          );
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al eliminar categoría:',
+            error
+          );
+
+          this.errorMessage =
+            this.getBackendErrorMessage(
+              error
+            );
+
+          this.loading = false;
+        },
+      });
+  }
+private saveSelectedCategories(
+    competitionId: number
+  ): void {
+
     const requests =
       this.selectedCategories.map(
         (categoryId) => {
+
           const settings =
             this.categorySettings[
               categoryId
             ];
 
           /*
-           * Si ya existe, hacemos PATCH.
-           */
+          * Si ya existía,
+          * hacemos PATCH.
+          */
           if (
             this.isExistingCategory(
               categoryId
             )
           ) {
+
             const existing =
               this.competitionCategories.find(
                 (item) =>
@@ -608,47 +690,53 @@ export class CompetitionFormComponent implements OnInit {
               );
 
             if (!existing) {
+
               throw new Error(
                 'No se encontró la categoría existente.'
               );
             }
 
-            return this.competitionCategoryService
-              .updateCompetitionCategory(
-                existing.id,
-                {
-                  competition:
-                    competitionId,
+            return (
+              this.competitionCategoryService
+                .updateCompetitionCategory(
+                  existing.id,
+                  {
+                    competition:
+                      competitionId,
 
-                  category:
-                    categoryId,
+                    category:
+                      categoryId,
 
-                  minimum_players:
-                    settings.minimum_players,
+                    minimum_players:
+                      settings.minimum_players,
 
-                  max_players:
-                    settings.max_players,
-                }
-              );
+                    max_players:
+                      settings.max_players,
+                  }
+                )
+            );
           }
 
           /*
-           * Si es nueva, hacemos POST.
-           */
-          return this.competitionCategoryService
-            .createCompetitionCategory({
-              competition:
-                competitionId,
+          * Si es una nueva categoría,
+          * hacemos POST.
+          */
+          return (
+            this.competitionCategoryService
+              .createCompetitionCategory({
+                competition:
+                  competitionId,
 
-              category:
-                categoryId,
+                category:
+                  categoryId,
 
-              minimum_players:
-                settings.minimum_players,
+                minimum_players:
+                  settings.minimum_players,
 
-              max_players:
-                settings.max_players,
-            });
+                max_players:
+                  settings.max_players,
+              })
+          );
         }
       );
 

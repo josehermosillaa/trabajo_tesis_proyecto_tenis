@@ -18,7 +18,6 @@ import {
 
 import {
   CompetitionCategory,
-  RegisteredPlayer,
 } from '../../models/competition-category.model';
 
 import { Player } from '../../../players/models/player.model';
@@ -28,6 +27,10 @@ import { PlayerService } from '../../../players/services/player';
 import { RegistrationService } from '../../../registrations/services/registration';
 
 import { TokenService } from '../../../../core/services/token';
+
+import { CompetitionService } from '../../../competitions/services/competition';
+
+import { Competition } from '../../../competitions/models/competition.model';
 
 
 @Component({
@@ -58,14 +61,21 @@ export class CompetitionCategoryListComponent
   private readonly tokenService =
     inject(TokenService);
 
+  private readonly competitionService =
+    inject(CompetitionService);
+
   private readonly route =
     inject(ActivatedRoute);
 
   private readonly router =
     inject(Router);
 
+
   competitionId:
     number | null = null;
+
+  competition:
+    Competition | null = null;
 
   competitionCategories:
     CompetitionCategory[] = [];
@@ -88,7 +98,29 @@ export class CompetitionCategoryListComponent
 
   successMessage = '';
 
+
   ngOnInit(): void {
+
+    /*
+     * Mensaje recibido al volver,
+     * por ejemplo después de inscribir
+     * un jugador desde RegistrationForm.
+     */
+    const navigationMessage =
+      history.state?.successMessage;
+
+    if (navigationMessage) {
+
+      this.showSuccessMessage(
+        navigationMessage
+      );
+
+      history.replaceState(
+        {},
+        document.title
+      );
+    }
+
 
     const id =
       this.route.snapshot
@@ -106,8 +138,59 @@ export class CompetitionCategoryListComponent
     this.competitionId =
       Number(id);
 
+    /*
+     * Cargamos por separado:
+     *
+     * 1. Datos generales del torneo.
+     * 2. Categorías, cupos e inscritos.
+     */
+    this.loadCompetition();
+
     this.loadData();
   }
+
+
+  // =====================================================
+  // INFORMACIÓN GENERAL DE LA COMPETENCIA
+  // =====================================================
+
+  private loadCompetition(): void {
+
+    if (
+      this.competitionId === null
+    ) {
+      return;
+    }
+
+    this.competitionService
+      .getCompetition(
+        this.competitionId
+      )
+      .subscribe({
+
+        next: (competition) => {
+
+          this.competition =
+            competition;
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al cargar competencia:',
+            error
+          );
+
+          this.errorMessage =
+            'No fue posible cargar la información de la competencia.';
+        },
+      });
+  }
+
+
+  // =====================================================
+  // CATEGORÍAS DE LA COMPETENCIA
+  // =====================================================
 
   loadData(): void {
 
@@ -118,6 +201,7 @@ export class CompetitionCategoryListComponent
     }
 
     this.loading = true;
+
     this.errorMessage = '';
 
     this.competitionCategoryService
@@ -153,6 +237,7 @@ export class CompetitionCategoryListComponent
       });
   }
 
+
   private loadCategories(): void {
 
     this.competitionCategoryService
@@ -182,6 +267,7 @@ export class CompetitionCategoryListComponent
       });
   }
 
+
   private loadPlayers(): void {
 
     this.playerService
@@ -190,7 +276,8 @@ export class CompetitionCategoryListComponent
 
         next: (players) => {
 
-          this.players = players;
+          this.players =
+            players;
 
           this.resolveCurrentPlayer();
 
@@ -212,25 +299,51 @@ export class CompetitionCategoryListComponent
       });
   }
 
-  private resolveCurrentPlayer(): void {
 
-    const userId =
-      this.tokenService
-        .getCurrentUserId();
+  // =====================================================
+  // USUARIO / PLAYER ACTUAL
+  // =====================================================
 
-    if (userId === null) {
+private resolveCurrentPlayer(): void {
 
-      this.currentPlayer = null;
+  const userId =
+    this.tokenService
+      .getCurrentUserId();
 
-      return;
-    }
+  console.log(
+    'User ID del JWT:',
+    userId
+  );
 
-    this.currentPlayer =
-      this.players.find(
-        (player) =>
-          player.user === userId
-      ) ?? null;
+  console.log(
+    'Players recibidos:',
+    this.players
+  );
+
+  if (userId === null) {
+
+    this.currentPlayer = null;
+
+    return;
   }
+
+  this.currentPlayer =
+    this.players.find(
+      (player) =>
+        Number(player.user) ===
+        Number(userId)
+    ) ?? null;
+
+  console.log(
+    'Player actual encontrado:',
+    this.currentPlayer
+  );
+}
+
+
+  // =====================================================
+  // HELPERS
+  // =====================================================
 
   getCategoryName(
     categoryId: number
@@ -248,10 +361,11 @@ export class CompetitionCategoryListComponent
     );
   }
 
+
   /*
-   * Si existe currentPlayer,
-   * consideramos que estamos frente
-   * a una cuenta de Jugador.
+   * Si el usuario autenticado tiene
+   * un Player asociado, consideramos
+   * que estamos frente al rol Jugador.
    */
   isPlayerUser(): boolean {
 
@@ -259,6 +373,7 @@ export class CompetitionCategoryListComponent
       this.currentPlayer !== null
     );
   }
+
 
   isPlayerCategory(
     competitionCategory:
@@ -274,6 +389,7 @@ export class CompetitionCategoryListComponent
       competitionCategory.category
     );
   }
+
 
   isCurrentPlayerRegistered(
     competitionCategory:
@@ -294,6 +410,7 @@ export class CompetitionCategoryListComponent
         )
     );
   }
+
 
   getCurrentRegistrationStatus(
     competitionCategory:
@@ -332,12 +449,11 @@ export class CompetitionCategoryListComponent
     }
   }
 
-  /*
-   * Autoinscripción del jugador.
-   *
-   * No enviamos player.
-   * Django obtiene request.user.player.
-   */
+
+  // =====================================================
+  // AUTOINSCRIPCIÓN JUGADOR
+  // =====================================================
+
   registerMyself(
     competitionCategory:
       CompetitionCategory
@@ -345,13 +461,13 @@ export class CompetitionCategoryListComponent
 
     if (
       !this.currentPlayer
-      || this.registeringCategoryId
-        !== null
+      || this.registeringCategoryId !== null
     ) {
       return;
     }
 
     this.errorMessage = '';
+
     this.successMessage = '';
 
     this.registeringCategoryId =
@@ -375,7 +491,11 @@ export class CompetitionCategoryListComponent
 
           /*
            * Recargamos para actualizar:
-           * cupos e inscritos.
+           *
+           * - cupos usados
+           * - cupos disponibles
+           * - lista de inscritos
+           * - estado del jugador
            */
           this.loadData();
         },
@@ -398,13 +518,11 @@ export class CompetitionCategoryListComponent
       });
   }
 
-  /*
-   * Admin / Organizador.
-   *
-   * Abrimos el formulario administrativo
-   * con competencia y categoría
-   * preseleccionadas.
-   */
+
+  // =====================================================
+  // INSCRIPCIÓN ADMIN / ORGANIZADOR
+  // =====================================================
+
   registerPlayer(
     competitionCategory:
       CompetitionCategory
@@ -414,6 +532,7 @@ export class CompetitionCategoryListComponent
       ['/registrations/new'],
       {
         queryParams: {
+
           competition:
             this.competitionId,
 
@@ -423,6 +542,11 @@ export class CompetitionCategoryListComponent
       }
     );
   }
+
+
+  // =====================================================
+  // EDICIÓN / NAVEGACIÓN
+  // =====================================================
 
   editCompetition(): void {
 
@@ -439,12 +563,18 @@ export class CompetitionCategoryListComponent
     ]);
   }
 
+
   goBack(): void {
 
     this.router.navigate([
       '/competitions',
     ]);
   }
+
+
+  // =====================================================
+  // MENSAJES
+  // =====================================================
 
   private showSuccessMessage(
     message: string
@@ -460,6 +590,7 @@ export class CompetitionCategoryListComponent
     }, 4000);
   }
 
+
   private getBackendErrorMessage(
     error: any
   ): string {
@@ -474,6 +605,14 @@ export class CompetitionCategoryListComponent
       );
     }
 
+    if (
+      typeof backendError ===
+      'string'
+    ) {
+
+      return backendError;
+    }
+
     const messages:
       string[] = [];
 
@@ -485,14 +624,17 @@ export class CompetitionCategoryListComponent
       const value =
         backendError[key];
 
-      if (Array.isArray(value)) {
+      if (
+        Array.isArray(value)
+      ) {
 
         messages.push(
           ...value
         );
 
       } else if (
-        typeof value === 'string'
+        typeof value ===
+        'string'
       ) {
 
         messages.push(

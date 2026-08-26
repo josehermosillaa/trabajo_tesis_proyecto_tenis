@@ -47,16 +47,29 @@ getCurrentUserId(): number | null {
 
   try {
 
+    const payloadPart =
+      token.split('.')[1];
+
+    const normalizedPayload =
+      payloadPart
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
     const payload =
       JSON.parse(
-        atob(
-          token.split('.')[1]
-            .replace(/-/g, '+')
-            .replace(/_/g, '/')
-        )
+        atob(normalizedPayload)
       );
 
-    return payload.user_id ?? null;
+    if (
+      payload.user_id === undefined ||
+      payload.user_id === null
+    ) {
+      return null;
+    }
+
+    return Number(
+      payload.user_id
+    );
 
   } catch (error) {
 

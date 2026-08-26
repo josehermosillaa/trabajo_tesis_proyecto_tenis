@@ -1950,7 +1950,7 @@ class RegistrationAPITest(TestCase):
 
         self.assertEqual(
             response.data["status"],
-            "PENDIENTE"
+            "CONFIRMADA"
         )
 
         self.assertIsNone(
@@ -2065,7 +2065,7 @@ class RegistrationAPITest(TestCase):
         # El backend debe forzar estos valores.
         self.assertEqual(
             response.data["status"],
-            "PENDIENTE"
+            "CONFIRMADA"
         )
 
         self.assertIsNone(

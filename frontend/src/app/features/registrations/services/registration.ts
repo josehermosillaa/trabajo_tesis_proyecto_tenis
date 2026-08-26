@@ -8,9 +8,12 @@ import {
   Registration,
   CreateRegistrationRequest,
   UpdateRegistrationRequest,
-  CompetitionCategory,
   Competition,
 } from '../models/registration.model';
+
+import {
+  CompetitionCategory,
+} from '../../competition-categories/models/competition-category.model';
 
 import { Player } from '../../players/models/player.model';
 

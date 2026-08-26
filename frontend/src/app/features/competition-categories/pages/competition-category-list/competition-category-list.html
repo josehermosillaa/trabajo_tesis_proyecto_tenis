@@ -1,8 +1,11 @@
 <div class="container-fluid py-4">
 
-  <!-- Encabezado -->
+  <!-- ================================================= -->
+  <!-- ENCABEZADO -->
+  <!-- ================================================= -->
+
   <div
-    class="d-flex justify-content-between align-items-center mb-4"
+    class="d-flex justify-content-between align-items-start mb-4"
   >
 
     <div>
@@ -11,12 +14,138 @@
         Categorías de la competencia
       </h1>
 
-      <p class="text-muted mb-0">
-        Categorías, cupos y jugadores inscritos
-      </p>
+
+      <!-- Información de la competencia -->
+      @if (competition) {
+
+        <h2 class="h5 mb-3">
+          {{ competition.name }}
+        </h2>
+
+
+        <div
+          class="d-flex flex-wrap gap-3 text-muted small"
+        >
+
+          <!-- Tipo -->
+          <span>
+
+            <strong>
+              Tipo:
+            </strong>
+
+            @if (
+              competition.type ===
+              'ELIMINACION_DIRECTA'
+            ) {
+
+              Eliminación directa
+
+            } @else {
+
+              Escalerilla
+
+            }
+
+          </span>
+
+
+          <!-- Estado -->
+          <span>
+
+            <strong>
+              Estado:
+            </strong>
+
+            @switch (competition.status) {
+
+              @case ('PENDIENTE') {
+                Pendiente
+              }
+
+              @case ('ABIERTA') {
+                Abierta
+              }
+
+              @case ('EN_CURSO') {
+                En curso
+              }
+
+              @case ('FINALIZADA') {
+                Finalizada
+              }
+
+              @case ('CANCELADA') {
+                Cancelada
+              }
+
+              @default {
+                {{ competition.status }}
+              }
+
+            }
+
+          </span>
+
+
+          <!-- Inicio -->
+          <span>
+
+            <strong>
+              Inicio:
+            </strong>
+
+            {{
+              competition.start_date
+                | date:'dd/MM/yyyy'
+            }}
+
+          </span>
+
+
+          <!-- Término -->
+          <span>
+
+            <strong>
+              Término:
+            </strong>
+
+            {{
+              competition.end_date
+                | date:'dd/MM/yyyy'
+            }}
+
+          </span>
+
+
+          <!-- Cierre inscripción -->
+          <span>
+
+            <strong>
+              Inscripciones hasta:
+            </strong>
+
+            {{
+              competition.registration_deadline
+                | date:'dd/MM/yyyy'
+            }}
+
+          </span>
+
+        </div>
+
+      } @else {
+
+        <p class="text-muted mb-0">
+          Categorías, cupos y jugadores inscritos
+        </p>
+
+      }
 
     </div>
 
+
+    <!-- Acciones encabezado -->
     <div class="d-flex gap-2">
 
       <button
@@ -28,13 +157,6 @@
       </button>
 
 
-      <!--
-        Solo mostramos edición cuando
-        NO estamos usando una cuenta Player.
-
-        La seguridad definitiva sigue
-        estando en Django.
-      -->
       @if (!isPlayerUser()) {
 
         <button
@@ -53,27 +175,42 @@
   </div>
 
 
-  <!-- Éxito -->
+  <!-- ================================================= -->
+  <!-- MENSAJE DE ÉXITO -->
+  <!-- ================================================= -->
+
   @if (successMessage) {
 
-    <div class="alert alert-success">
+    <div
+      class="alert alert-success"
+      role="alert"
+    >
       {{ successMessage }}
     </div>
 
   }
 
 
-  <!-- Error -->
+  <!-- ================================================= -->
+  <!-- ERROR -->
+  <!-- ================================================= -->
+
   @if (errorMessage) {
 
-    <div class="alert alert-danger">
+    <div
+      class="alert alert-danger"
+      role="alert"
+    >
       {{ errorMessage }}
     </div>
 
   }
 
 
-  <!-- Cargando -->
+  <!-- ================================================= -->
+  <!-- CARGANDO -->
+  <!-- ================================================= -->
+
   @if (loading) {
 
     <div class="text-center py-5">
@@ -82,9 +219,11 @@
         class="spinner-border text-danger"
         role="status"
       >
+
         <span class="visually-hidden">
           Cargando...
         </span>
+
       </div>
 
       <p class="mt-3 text-muted">
@@ -96,7 +235,10 @@
   }
 
 
-  <!-- Sin categorías -->
+  <!-- ================================================= -->
+  <!-- SIN CATEGORÍAS -->
+  <!-- ================================================= -->
+
   @if (
     !loading &&
     !errorMessage &&
@@ -113,7 +255,10 @@
   }
 
 
-  <!-- Categorías -->
+  <!-- ================================================= -->
+  <!-- CATEGORÍAS -->
+  <!-- ================================================= -->
+
   @if (
     !loading &&
     competitionCategories.length > 0
@@ -133,7 +278,11 @@
             class="card shadow-sm border-0"
           >
 
-            <!-- Header categoría -->
+
+            <!-- ========================================= -->
+            <!-- HEADER CATEGORÍA -->
+            <!-- ========================================= -->
+
             <div
               class="card-header bg-light d-flex justify-content-between align-items-center"
             >
@@ -150,12 +299,15 @@
 
                 </h2>
 
+
                 <span class="text-muted small">
 
                   Mínimo:
+
                   {{
                     competitionCategory.minimum_players
                   }}
+
                   jugadores
 
                 </span>
@@ -166,12 +318,14 @@
               <!-- Cupos -->
               <div class="text-end">
 
-                <div class="fw-bold">
+                <div class="fw-bold fs-5">
 
                   {{
                     competitionCategory.occupied_slots
                   }}
+
                   /
+
                   {{
                     competitionCategory.max_players
                   }}
@@ -187,9 +341,17 @@
             </div>
 
 
+            <!-- ========================================= -->
+            <!-- CUERPO -->
+            <!-- ========================================= -->
+
             <div class="card-body">
 
-              <!-- Información de cupos -->
+
+              <!-- ======================================= -->
+              <!-- INFORMACIÓN DE CUPOS -->
+              <!-- ======================================= -->
+
               <div class="row mb-4">
 
                 <div class="col-md-4">
@@ -199,9 +361,11 @@
                   </div>
 
                   <div class="fs-5 fw-bold">
+
                     {{
                       competitionCategory.occupied_slots
                     }}
+
                   </div>
 
                 </div>
@@ -243,7 +407,10 @@
               </div>
 
 
-              <!-- Jugadores inscritos -->
+              <!-- ======================================= -->
+              <!-- JUGADORES INSCRITOS -->
+              <!-- ======================================= -->
+
               <h3 class="h6 mb-3">
                 Jugadores inscritos
               </h3>
@@ -256,26 +423,38 @@
               ) {
 
                 <p class="text-muted mb-3">
+
                   Todavía no existen jugadores
                   inscritos en esta categoría.
+
                 </p>
 
               } @else {
 
-                <div class="table-responsive mb-3">
+                <div
+                  class="table-responsive mb-3"
+                >
 
                   <table
-                    class="table table-sm align-middle"
+                    class="table table-sm table-hover align-middle"
                   >
 
                     <thead>
 
                       <tr>
-                        <th>Jugador</th>
-                        <th>Estado</th>
+
+                        <th>
+                          Jugador
+                        </th>
+
+                        <th>
+                          Estado
+                        </th>
+
                       </tr>
 
                     </thead>
+
 
                     <tbody>
 
@@ -288,6 +467,7 @@
 
                         <tr>
 
+                          <!-- Jugador -->
                           <td>
 
                             {{
@@ -301,11 +481,13 @@
                           </td>
 
 
+                          <!-- Estado -->
                           <td>
 
                             @switch (
                               registeredPlayer.status
                             ) {
+
 
                               @case ('CONFIRMADA') {
 
@@ -317,6 +499,7 @@
 
                               }
 
+
                               @case ('PENDIENTE') {
 
                                 <span
@@ -327,14 +510,28 @@
 
                               }
 
+
+                              @case ('CANCELADA') {
+
+                                <span
+                                  class="badge text-bg-danger"
+                                >
+                                  Cancelada
+                                </span>
+
+                              }
+
+
                               @default {
 
                                 <span
                                   class="badge text-bg-secondary"
                                 >
+
                                   {{
                                     registeredPlayer.status
                                   }}
+
                                 </span>
 
                               }
@@ -356,17 +553,21 @@
               }
 
 
-              <!-- ==================== -->
+              <!-- ======================================= -->
               <!-- ACCIONES -->
-              <!-- ==================== -->
+              <!-- ======================================= -->
 
               <div
-                class="d-flex justify-content-end"
+                class="d-flex justify-content-end mt-3"
               >
 
 
+                <!-- ===================================== -->
                 <!-- JUGADOR -->
+                <!-- ===================================== -->
+
                 @if (isPlayerUser()) {
+
 
                   @if (
                     isPlayerCategory(
@@ -374,6 +575,8 @@
                     )
                   ) {
 
+
+                    <!-- Ya inscrito -->
                     @if (
                       isCurrentPlayerRegistered(
                         competitionCategory
@@ -389,16 +592,22 @@
                         Estado:
 
                         <strong>
+
                           {{
                             getCurrentRegistrationStatus(
                               competitionCategory
                             )
                           }}
+
                         </strong>
 
                       </div>
 
-                    } @else if (
+                    }
+
+
+                    <!-- Puede inscribirse -->
+                    @else if (
                       competitionCategory
                         .available_slots > 0
                     ) {
@@ -423,6 +632,7 @@
 
                           <span
                             class="spinner-border spinner-border-sm me-2"
+                            aria-hidden="true"
                           ></span>
 
                           Inscribiendo...
@@ -435,7 +645,11 @@
 
                       </button>
 
-                    } @else {
+                    }
+
+
+                    <!-- Categoría llena -->
+                    @else {
 
                       <span
                         class="badge text-bg-danger"
@@ -450,20 +664,39 @@
                 }
 
 
+                <!-- ===================================== -->
                 <!-- ADMIN / ORGANIZADOR -->
+                <!-- ===================================== -->
+
                 @else {
 
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary"
-                    (click)="
-                      registerPlayer(
-                        competitionCategory
-                      )
-                    "
-                  >
-                    Inscribir jugador
-                  </button>
+
+                  @if (
+                    competitionCategory
+                      .available_slots > 0
+                  ) {
+
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary"
+                      (click)="
+                        registerPlayer(
+                          competitionCategory
+                        )
+                      "
+                    >
+                      Inscribir jugador
+                    </button>
+
+                  } @else {
+
+                    <span
+                      class="badge text-bg-danger"
+                    >
+                      Sin cupos disponibles
+                    </span>
+
+                  }
 
                 }
 

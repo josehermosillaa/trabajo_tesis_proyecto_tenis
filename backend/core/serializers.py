@@ -759,6 +759,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             "id",
             "registration_date",
         ]
+        validators = []
 
     def validate(self, data):
 
@@ -992,7 +993,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             if role == "Jugador":
 
                 data["status"] = (
-                    "PENDIENTE"
+                    "CONFIRMADA"
                 )
 
                 data["seed"] = None

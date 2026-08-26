@@ -22,18 +22,31 @@ import {
 
 import {
   Competition,
-  CompetitionCategory,
   CreateRegistrationRequest,
   UpdateRegistrationRequest,
 } from '../../models/registration.model';
 
+import {
+  CompetitionCategory,
+} from '../../../competition-categories/models/competition-category.model';
+
 import { Player } from '../../../players/models/player.model';
+
+
+
 
 @Component({
   selector: 'app-registration-form',
-  imports: [ReactiveFormsModule],
-  templateUrl: './registration-form.html',
-  styleUrl: './registration-form.scss',
+
+  imports: [
+    ReactiveFormsModule,
+  ],
+
+  templateUrl:
+    './registration-form.html',
+
+  styleUrl:
+    './registration-form.scss',
 })
 export class RegistrationFormComponent
   implements OnInit {
@@ -50,13 +63,16 @@ export class RegistrationFormComponent
   private readonly route =
     inject(ActivatedRoute);
 
+
   loading = false;
+
   errorMessage = '';
 
   isEditMode = false;
 
   registrationId:
     number | null = null;
+
 
   competitions:
     Competition[] = [];
@@ -76,6 +92,7 @@ export class RegistrationFormComponent
   filteredPlayers:
     Player[] = [];
 
+
   readonly registrationForm =
     this.fb.nonNullable.group({
 
@@ -94,12 +111,15 @@ export class RegistrationFormComponent
         Validators.required,
       ],
 
-      status: this.fb.nonNullable.control<
-      'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA'
+      status:
+        this.fb.nonNullable.control<
+          'PENDIENTE'
+          | 'CONFIRMADA'
+          | 'CANCELADA'
         >(
           'PENDIENTE',
           Validators.required
-      ),
+        ),
 
       seed: [
         null as number | null,
@@ -107,14 +127,13 @@ export class RegistrationFormComponent
 
     });
 
+
   ngOnInit(): void {
 
-    this.loadBaseData();
-
     const id =
-      this.route.snapshot.paramMap.get(
-        'id'
-      );
+      this.route.snapshot
+        .paramMap
+        .get('id');
 
     if (id) {
 
@@ -122,25 +141,40 @@ export class RegistrationFormComponent
 
       this.registrationId =
         Number(id);
-
     }
 
+    /*
+     * Cargamos los datos después de determinar
+     * si estamos en modo edición.
+     */
+    this.loadBaseData();
+
+
+    /*
+     * Cambio de competencia.
+     */
     this.registrationForm
       .controls.competition
       .valueChanges
       .subscribe(
         (competitionId) => {
+
           this.onCompetitionChange(
             competitionId
           );
         }
       );
 
+
+    /*
+     * Cambio de categoría.
+     */
     this.registrationForm
       .controls.competition_category
       .valueChanges
       .subscribe(
         (competitionCategoryId) => {
+
           this.onCompetitionCategoryChange(
             competitionCategoryId
           );
@@ -148,9 +182,15 @@ export class RegistrationFormComponent
       );
   }
 
+
+  // =====================================================
+  // CARGA DE DATOS
+  // =====================================================
+
   private loadBaseData(): void {
 
     this.loading = true;
+
     this.errorMessage = '';
 
     this.registrationService
@@ -163,7 +203,6 @@ export class RegistrationFormComponent
             competitions;
 
           this.loadCompetitionCategories();
-
         },
 
         error: (error) => {
@@ -181,6 +220,7 @@ export class RegistrationFormComponent
       });
   }
 
+
   private loadCompetitionCategories(): void {
 
     this.registrationService
@@ -193,7 +233,6 @@ export class RegistrationFormComponent
             competitionCategories;
 
           this.loadCategories();
-
         },
 
         error: (error) => {
@@ -211,6 +250,7 @@ export class RegistrationFormComponent
       });
   }
 
+
   private loadCategories(): void {
 
     this.registrationService
@@ -223,7 +263,6 @@ export class RegistrationFormComponent
             categories;
 
           this.loadPlayers();
-
         },
 
         error: (error) => {
@@ -241,6 +280,7 @@ export class RegistrationFormComponent
       });
   }
 
+
   private loadPlayers(): void {
 
     this.registrationService
@@ -253,8 +293,8 @@ export class RegistrationFormComponent
             players;
 
           if (
-            this.isEditMode &&
-            this.registrationId !== null
+            this.isEditMode
+            && this.registrationId !== null
           ) {
 
             this.loadRegistration(
@@ -267,7 +307,6 @@ export class RegistrationFormComponent
 
             this.loading = false;
           }
-
         },
 
         error: (error) => {
@@ -284,6 +323,11 @@ export class RegistrationFormComponent
         },
       });
   }
+
+
+  // =====================================================
+  // CARGAR INSCRIPCIÓN EN EDICIÓN
+  // =====================================================
 
   private loadRegistration(
     id: number
@@ -312,6 +356,10 @@ export class RegistrationFormComponent
             return;
           }
 
+          /*
+           * Categorías disponibles
+           * de la competencia actual.
+           */
           this.filteredCompetitionCategories =
             this.competitionCategories.filter(
               (item) =>
@@ -319,6 +367,12 @@ export class RegistrationFormComponent
                 competitionCategory.competition
             );
 
+          /*
+           * En edición NO ocultamos inscritos,
+           * porque necesitamos que el jugador
+           * de la inscripción actual siga
+           * apareciendo en el selector.
+           */
           this.filteredPlayers =
             this.players.filter(
               (player) =>
@@ -326,29 +380,29 @@ export class RegistrationFormComponent
                 competitionCategory.category
             );
 
-          this.registrationForm.patchValue({
+          this.registrationForm.patchValue(
+            {
+              competition:
+                competitionCategory.competition,
 
-            competition:
-              competitionCategory.competition,
+              competition_category:
+                registration.competition_category,
 
-            competition_category:
-              registration.competition_category,
+              player:
+                registration.player,
 
-            player:
-              registration.player,
+              status:
+                registration.status,
 
-            status:
-              registration.status,
-
-            seed:
-              registration.seed,
-
-          }, {
-            emitEvent: false,
-          });
+              seed:
+                registration.seed,
+            },
+            {
+              emitEvent: false,
+            }
+          );
 
           this.loading = false;
-
         },
 
         error: (error) => {
@@ -365,6 +419,11 @@ export class RegistrationFormComponent
         },
       });
   }
+
+
+  // =====================================================
+  // QUERY PARAMS
+  // =====================================================
 
   private applyQueryParams(): void {
 
@@ -385,6 +444,9 @@ export class RegistrationFormComponent
     const competitionId =
       Number(competition);
 
+    /*
+     * Preseleccionamos competencia.
+     */
     this.filteredCompetitionCategories =
       this.competitionCategories.filter(
         (item) =>
@@ -422,11 +484,30 @@ export class RegistrationFormComponent
       return;
     }
 
+    /*
+     * Jugadores que ya están inscritos.
+     */
+    const registeredPlayerIds =
+      category.registered_players.map(
+        (player) =>
+          player.id
+      );
+
+    /*
+     * Mostramos únicamente jugadores:
+     *
+     * - de la categoría correcta
+     * - que todavía no estén inscritos
+     */
     this.filteredPlayers =
       this.players.filter(
         (player) =>
           player.category ===
-          category.category
+            category.category
+          &&
+          !registeredPlayerIds.includes(
+            player.id
+          )
       );
 
     this.registrationForm.patchValue(
@@ -434,13 +515,19 @@ export class RegistrationFormComponent
         competition_category:
           competitionCategoryId,
 
-        player: 0,
+        player:
+          0,
       },
       {
         emitEvent: false,
       }
     );
   }
+
+
+  // =====================================================
+  // CAMBIO DE COMPETENCIA
+  // =====================================================
 
   onCompetitionChange(
     competitionId: number
@@ -457,14 +544,22 @@ export class RegistrationFormComponent
 
     this.registrationForm.patchValue(
       {
-        competition_category: 0,
-        player: 0,
+        competition_category:
+          0,
+
+        player:
+          0,
       },
       {
         emitEvent: false,
       }
     );
   }
+
+
+  // =====================================================
+  // CAMBIO DE CATEGORÍA
+  // =====================================================
 
   onCompetitionCategoryChange(
     competitionCategoryId: number
@@ -483,7 +578,8 @@ export class RegistrationFormComponent
 
       this.registrationForm.patchValue(
         {
-          player: 0,
+          player:
+            0,
         },
         {
           emitEvent: false,
@@ -493,22 +589,60 @@ export class RegistrationFormComponent
       return;
     }
 
-    this.filteredPlayers =
-      this.players.filter(
-        (player) =>
-          player.category ===
-          competitionCategory.category
-      );
+
+    /*
+     * En modo edición conservamos
+     * todos los jugadores de la categoría.
+     */
+    if (this.isEditMode) {
+
+      this.filteredPlayers =
+        this.players.filter(
+          (player) =>
+            player.category ===
+            competitionCategory.category
+        );
+
+    } else {
+
+      /*
+       * En creación excluimos jugadores
+       * que ya estén inscritos.
+       */
+      const registeredPlayerIds =
+        competitionCategory.registered_players
+          .map(
+            (player) =>
+              player.id
+          );
+
+      this.filteredPlayers =
+        this.players.filter(
+          (player) =>
+            player.category ===
+              competitionCategory.category
+            &&
+            !registeredPlayerIds.includes(
+              player.id
+            )
+        );
+    }
 
     this.registrationForm.patchValue(
       {
-        player: 0,
+        player:
+          0,
       },
       {
         emitEvent: false,
       }
     );
   }
+
+
+  // =====================================================
+  // HELPERS
+  // =====================================================
 
   getCategoryName(
     categoryId: number
@@ -517,7 +651,8 @@ export class RegistrationFormComponent
     const category =
       this.categories.find(
         (item) =>
-          item.id === categoryId
+          item.id ===
+          categoryId
       );
 
     return (
@@ -525,6 +660,7 @@ export class RegistrationFormComponent
       `Categoría ${categoryId}`
     );
   }
+
 
   getPlayerName(
     player: Player
@@ -534,6 +670,11 @@ export class RegistrationFormComponent
       `${player.first_name} ${player.last_name}`
     );
   }
+
+
+  // =====================================================
+  // SUBMIT
+  // =====================================================
 
   onSubmit(): void {
 
@@ -553,6 +694,7 @@ export class RegistrationFormComponent
       this.registrationForm
         .getRawValue();
 
+
     if (
       formValue.competition <= 0
     ) {
@@ -562,6 +704,7 @@ export class RegistrationFormComponent
 
       return;
     }
+
 
     if (
       formValue.competition_category <= 0
@@ -573,6 +716,7 @@ export class RegistrationFormComponent
       return;
     }
 
+
     if (
       formValue.player <= 0
     ) {
@@ -583,9 +727,10 @@ export class RegistrationFormComponent
       return;
     }
 
+
     if (
-      this.isEditMode &&
-      this.registrationId !== null
+      this.isEditMode
+      && this.registrationId !== null
     ) {
 
       this.updateRegistration();
@@ -596,9 +741,15 @@ export class RegistrationFormComponent
     this.createRegistration();
   }
 
+
+  // =====================================================
+  // CREAR INSCRIPCIÓN
+  // =====================================================
+
   private createRegistration(): void {
 
     this.loading = true;
+
     this.errorMessage = '';
 
     const formValue =
@@ -619,7 +770,6 @@ export class RegistrationFormComponent
 
       seed:
         formValue.seed,
-
     };
 
     this.registrationService
@@ -630,6 +780,44 @@ export class RegistrationFormComponent
 
         next: () => {
 
+          /*
+           * Si llegamos desde:
+           *
+           * Competencia
+           * → Categorías
+           * → Inscribir jugador
+           *
+           * volvemos a la misma competencia.
+           */
+          const competitionId =
+            this.route.snapshot
+              .queryParamMap
+              .get('competition');
+
+          if (competitionId) {
+
+            this.router.navigate(
+              [
+                '/competitions',
+                Number(competitionId),
+                'categories',
+              ],
+              {
+                state: {
+                  successMessage:
+                    'Jugador inscrito correctamente.',
+                },
+              }
+            );
+
+            return;
+          }
+
+          /*
+           * Si llegamos desde el listado
+           * general de inscripciones,
+           * volvemos a /registrations.
+           */
           this.router.navigate(
             ['/registrations'],
             {
@@ -639,7 +827,6 @@ export class RegistrationFormComponent
               },
             }
           );
-
         },
 
         error: (error) => {
@@ -659,9 +846,15 @@ export class RegistrationFormComponent
       });
   }
 
+
+  // =====================================================
+  // ACTUALIZAR INSCRIPCIÓN
+  // =====================================================
+
   private updateRegistration(): void {
 
     this.loading = true;
+
     this.errorMessage = '';
 
     const formValue =
@@ -682,7 +875,6 @@ export class RegistrationFormComponent
 
       seed:
         formValue.seed,
-
     };
 
     this.registrationService
@@ -703,7 +895,6 @@ export class RegistrationFormComponent
               },
             }
           );
-
         },
 
         error: (error) => {
@@ -722,6 +913,11 @@ export class RegistrationFormComponent
         },
       });
   }
+
+
+  // =====================================================
+  // ERRORES BACKEND
+  // =====================================================
 
   private getBackendErrorMessage(
     error: any
@@ -782,7 +978,32 @@ export class RegistrationFormComponent
     );
   }
 
+
+  // =====================================================
+  // CANCELAR
+  // =====================================================
+
   cancel(): void {
+
+    /*
+     * Si llegamos desde una competencia,
+     * Cancelar también debe volver a ella.
+     */
+    const competitionId =
+      this.route.snapshot
+        .queryParamMap
+        .get('competition');
+
+    if (competitionId) {
+
+      this.router.navigate([
+        '/competitions',
+        Number(competitionId),
+        'categories',
+      ]);
+
+      return;
+    }
 
     this.router.navigate([
       '/registrations',
