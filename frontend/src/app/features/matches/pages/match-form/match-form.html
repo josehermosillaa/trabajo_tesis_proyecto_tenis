@@ -1,0 +1,569 @@
+<div class="container py-4">
+
+  <div class="row justify-content-center">
+
+    <div class="col-12 col-xl-9">
+
+      <!-- Encabezado -->
+      <div class="mb-4">
+
+        <h1 class="h3 mb-1">
+
+          @if (isEditMode) {
+
+            Editar partido
+
+          } @else {
+
+            Nuevo partido
+
+          }
+
+        </h1>
+
+        <p class="text-muted mb-0">
+
+          Programación y configuración
+          del partido.
+
+        </p>
+
+      </div>
+
+
+      <!-- Error -->
+      @if (errorMessage) {
+
+        <div
+          class="alert alert-danger"
+        >
+          {{ errorMessage }}
+        </div>
+
+      }
+
+
+      <!-- Cargando -->
+      @if (loading) {
+
+        <div class="text-center py-5">
+
+          <div
+            class="spinner-border text-danger"
+            role="status"
+          >
+
+            <span class="visually-hidden">
+              Cargando...
+            </span>
+
+          </div>
+
+          <p class="text-muted mt-3">
+            Cargando información...
+          </p>
+
+        </div>
+
+      }
+
+
+      @if (!loading) {
+
+        <div
+          class="card shadow-sm border-0"
+        >
+
+          <div class="card-body p-4">
+
+            <form
+              [formGroup]="matchForm"
+              (ngSubmit)="onSubmit()"
+            >
+
+              <!-- =============================== -->
+              <!-- COMPETENCIA -->
+              <!-- =============================== -->
+
+              <div class="mb-3">
+
+                <label
+                  for="competition"
+                  class="form-label"
+                >
+                  Competencia
+                </label>
+
+                <select
+                  id="competition"
+                  class="form-select"
+                  formControlName="competition"
+                >
+
+                  <option [ngValue]="0">
+                    Seleccionar competencia
+                  </option>
+
+                  @for (
+                    competition
+                      of competitions;
+                    track competition.id
+                  ) {
+
+                    <option
+                      [ngValue]="competition.id"
+                    >
+                      {{ competition.name }}
+                    </option>
+
+                  }
+
+                </select>
+
+              </div>
+
+
+              <!-- =============================== -->
+              <!-- CATEGORÍA -->
+              <!-- =============================== -->
+
+              <div class="mb-3">
+
+                <label
+                  for="competitionCategory"
+                  class="form-label"
+                >
+                  Categoría
+                </label>
+
+                <select
+                  id="competitionCategory"
+                  class="form-select"
+                  formControlName="competition_category"
+                >
+
+                  <option [ngValue]="0">
+                    Seleccionar categoría
+                  </option>
+
+                  @for (
+                    competitionCategory
+                      of filteredCompetitionCategories;
+                    track competitionCategory.id
+                  ) {
+
+                    <option
+                      [ngValue]="
+                        competitionCategory.id
+                      "
+                    >
+
+                      {{
+                        getCategoryName(
+                          competitionCategory.category
+                        )
+                      }}
+
+                    </option>
+
+                  }
+
+                </select>
+
+              </div>
+
+
+              <!-- =============================== -->
+              <!-- JUGADORES -->
+              <!-- =============================== -->
+
+              <div class="row">
+
+                <div class="col-md-6 mb-3">
+
+                  <label
+                    for="player1"
+                    class="form-label"
+                  >
+                    Jugador 1
+                  </label>
+
+                  <select
+                    id="player1"
+                    class="form-select"
+                    formControlName="player1"
+                  >
+
+                    <option [ngValue]="0">
+                      Seleccionar jugador
+                    </option>
+
+                    @for (
+                      player of filteredPlayers;
+                      track player.id
+                    ) {
+
+                      <option
+                        [ngValue]="player.id"
+                      >
+                        {{
+                          getPlayerName(
+                            player
+                          )
+                        }}
+                      </option>
+
+                    }
+
+                  </select>
+
+                </div>
+
+
+                <div class="col-md-6 mb-3">
+
+                  <label
+                    for="player2"
+                    class="form-label"
+                  >
+                    Jugador 2
+                  </label>
+
+                  <select
+                    id="player2"
+                    class="form-select"
+                    formControlName="player2"
+                  >
+
+                    <option [ngValue]="null">
+                      BYE
+                    </option>
+
+                    @for (
+                      player of filteredPlayers;
+                      track player.id
+                    ) {
+
+                      <option
+                        [ngValue]="player.id"
+                      >
+                        {{
+                          getPlayerName(
+                            player
+                          )
+                        }}
+                      </option>
+
+                    }
+
+                  </select>
+
+                </div>
+
+              </div>
+
+
+              <!-- Sin jugadores confirmados -->
+              @if (
+                matchForm.controls
+                  .competition_category.value > 0
+                &&
+                filteredPlayers.length === 0
+              ) {
+
+                <div
+                  class="alert alert-warning"
+                >
+                  No existen jugadores con inscripción
+                  confirmada en esta categoría.
+                </div>
+
+              }
+
+
+              <!-- =============================== -->
+              <!-- CANCHA -->
+              <!-- =============================== -->
+
+              <div class="mb-3">
+
+                <label
+                  for="court"
+                  class="form-label"
+                >
+                  Cancha
+                </label>
+
+                <select
+                  id="court"
+                  class="form-select"
+                  formControlName="court"
+                >
+
+                  <option [ngValue]="null">
+                    Sin cancha asignada
+                  </option>
+
+                  @for (
+                    court of courts;
+                    track court.id
+                  ) {
+
+                    <option
+                      [ngValue]="court.id"
+                    >
+
+                      {{ court.name }}
+
+                      @if (
+                        court.status ===
+                        'MAINTENANCE'
+                      ) {
+                        - Mantención
+                      }
+
+                    </option>
+
+                  }
+
+                </select>
+
+              </div>
+
+
+              <!-- =============================== -->
+              <!-- FECHA -->
+              <!-- =============================== -->
+
+              <div class="mb-3">
+
+                <label
+                  for="scheduledDateTime"
+                  class="form-label"
+                >
+                  Fecha y hora
+                </label>
+
+                <input
+                  id="scheduledDateTime"
+                  type="datetime-local"
+                  class="form-control"
+                  formControlName="scheduled_date_time"
+                />
+
+              </div>
+
+
+              <!-- =============================== -->
+              <!-- RONDA -->
+              <!-- =============================== -->
+
+              @if (isEliminationDirect()) {
+
+                <div class="mb-3">
+
+                  <label
+                    for="round"
+                    class="form-label"
+                  >
+                    Ronda
+                  </label>
+
+                  <input
+                    id="round"
+                    type="number"
+                    min="1"
+                    class="form-control"
+                    formControlName="round"
+                  />
+
+                  <div
+                    class="form-text"
+                  >
+                    Ejemplo: 1 para primera ronda,
+                    2 para segunda ronda, etc.
+                  </div>
+
+                </div>
+
+              }
+
+
+              <!-- =============================== -->
+              <!-- ESTADO -->
+              <!-- =============================== -->
+
+              @if (
+                !matchForm.controls
+                  .is_walkover.value
+              ) {
+
+                <div class="mb-3">
+
+                  <label
+                    for="status"
+                    class="form-label"
+                  >
+                    Estado
+                  </label>
+
+                  <select
+                    id="status"
+                    class="form-select"
+                    formControlName="status"
+                  >
+
+                    <option
+                      value="PROGRAMADO"
+                    >
+                      Programado
+                    </option>
+
+                    <option
+                      value="EN_JUEGO"
+                    >
+                      En juego
+                    </option>
+
+                    <option
+                      value="CANCELADO"
+                    >
+                      Cancelado
+                    </option>
+
+                  </select>
+
+                  <div
+                    class="form-text"
+                  >
+                    El estado Finalizado se asignará
+                    automáticamente al registrar
+                    el resultado.
+                  </div>
+
+                </div>
+
+              }
+
+
+              <!-- =============================== -->
+              <!-- WALKOVER -->
+              <!-- =============================== -->
+
+              <div class="form-check mb-3">
+
+                <input
+                  id="walkover"
+                  type="checkbox"
+                  class="form-check-input"
+                  formControlName="is_walkover"
+                />
+
+                <label
+                  for="walkover"
+                  class="form-check-label"
+                >
+                  Partido definido por walkover
+                </label>
+
+              </div>
+
+
+              <!-- Ganador WO -->
+              @if (
+                matchForm.controls
+                  .is_walkover.value
+              ) {
+
+                <div class="mb-4">
+
+                  <label
+                    for="winnerPlayer"
+                    class="form-label"
+                  >
+                    Ganador por walkover
+                  </label>
+
+                  <select
+                    id="winnerPlayer"
+                    class="form-select"
+                    formControlName="winner_player"
+                  >
+
+                    <option [ngValue]="null">
+                      Seleccionar ganador
+                    </option>
+
+                    @for (
+                      player
+                        of getWinnerCandidates();
+                      track player.id
+                    ) {
+
+                      <option
+                        [ngValue]="player.id"
+                      >
+                        {{
+                          getPlayerName(
+                            player
+                          )
+                        }}
+                      </option>
+
+                    }
+
+                  </select>
+
+                </div>
+
+              }
+
+
+              <!-- =============================== -->
+              <!-- BOTONES -->
+              <!-- =============================== -->
+
+              <div
+                class="d-flex justify-content-end gap-2"
+              >
+
+                <button
+                  type="button"
+                  class="btn btn-outline-secondary"
+                  (click)="cancel()"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  class="btn btn-danger"
+                >
+
+                  @if (isEditMode) {
+
+                    Guardar cambios
+
+                  } @else {
+
+                    Crear partido
+
+                  }
+
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      }
+
+    </div>
+
+  </div>
+
+</div>

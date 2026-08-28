@@ -3101,11 +3101,12 @@ class CourtAPITest(TestCase):
 class MatchAPITest(TestCase):
 
     def setUp(self):
+
         self.client = APIClient()
 
-        # -----------------------------
+        # =================================================
         # ROLES
-        # -----------------------------
+        # =================================================
 
         self.admin_role = Role.objects.create(
             name="Administrador"
@@ -3121,9 +3122,9 @@ class MatchAPITest(TestCase):
 
         User = get_user_model()
 
-        # -----------------------------
+        # =================================================
         # USUARIOS
-        # -----------------------------
+        # =================================================
 
         self.admin_user = User.objects.create_user(
             username="match_admin",
@@ -3146,9 +3147,9 @@ class MatchAPITest(TestCase):
             role=self.player_role,
         )
 
-        # -----------------------------
+        # =================================================
         # CATEGORÍAS
-        # -----------------------------
+        # =================================================
 
         self.primera = Category.objects.create(
             name="PRIMERA"
@@ -3158,9 +3159,9 @@ class MatchAPITest(TestCase):
             name="SEGUNDA"
         )
 
-        # -----------------------------
-        # PLAYERS
-        # -----------------------------
+        # =================================================
+        # USUARIOS DE LOS JUGADORES
+        # =================================================
 
         self.player1_user = User.objects.create_user(
             username="match_player1",
@@ -3182,6 +3183,10 @@ class MatchAPITest(TestCase):
             email="match_player3@tenis.cl",
             role=self.player_role,
         )
+
+        # =================================================
+        # PLAYERS
+        # =================================================
 
         self.player1 = Player.objects.create(
             user=self.player1_user,
@@ -3207,33 +3212,39 @@ class MatchAPITest(TestCase):
             last_name="Tres",
         )
 
-        # -----------------------------
+        # =================================================
         # COMPETENCIAS
-        # -----------------------------
+        # =================================================
 
-        self.competition_elimination = Competition.objects.create(
-            name="Torneo Match Eliminación",
-            type="ELIMINACION_DIRECTA",
-            start_date="2026-09-01",
-            end_date="2026-09-15",
-            registration_deadline="2026-08-28",
+        self.competition_elimination = (
+            Competition.objects.create(
+                name="Torneo Match Eliminación",
+                type="ELIMINACION_DIRECTA",
+                start_date="2026-09-01",
+                end_date="2026-09-15",
+                registration_deadline="2026-08-28",
+            )
         )
 
-        self.competition_ladder = Competition.objects.create(
-            name="Torneo Match Escalerilla",
-            type="ESCALERILLA",
-            start_date="2026-10-01",
-            end_date="2026-10-15",
-            registration_deadline="2026-09-28",
+        self.competition_ladder = (
+            Competition.objects.create(
+                name="Torneo Match Escalerilla",
+                type="ESCALERILLA",
+                start_date="2026-10-01",
+                end_date="2026-10-15",
+                registration_deadline="2026-09-28",
+            )
         )
 
-        # -----------------------------
+        # =================================================
         # COMPETITION CATEGORIES
-        # -----------------------------
+        # =================================================
 
         self.elimination_category = (
             CompetitionCategory.objects.create(
-                competition=self.competition_elimination,
+                competition=(
+                    self.competition_elimination
+                ),
                 category=self.primera,
                 max_players=16,
                 minimum_players=4,
@@ -3242,22 +3253,73 @@ class MatchAPITest(TestCase):
 
         self.ladder_category = (
             CompetitionCategory.objects.create(
-                competition=self.competition_ladder,
+                competition=(
+                    self.competition_ladder
+                ),
                 category=self.primera,
                 max_players=16,
                 minimum_players=2,
             )
         )
 
-        # -----------------------------
-        # COURT
-        # -----------------------------
+        # =================================================
+        # INSCRIPCIONES CONFIRMADAS
+        # =================================================
+
+        self.registration_player1_elimination = (
+            Registration.objects.create(
+                competition_category=(
+                    self.elimination_category
+                ),
+                player=self.player1,
+                status="CONFIRMADA",
+            )
+        )
+
+        self.registration_player2_elimination = (
+            Registration.objects.create(
+                competition_category=(
+                    self.elimination_category
+                ),
+                player=self.player2,
+                status="CONFIRMADA",
+            )
+        )
+
+        self.registration_player1_ladder = (
+            Registration.objects.create(
+                competition_category=(
+                    self.ladder_category
+                ),
+                player=self.player1,
+                status="CONFIRMADA",
+            )
+        )
+
+        self.registration_player2_ladder = (
+            Registration.objects.create(
+                competition_category=(
+                    self.ladder_category
+                ),
+                player=self.player2,
+                status="CONFIRMADA",
+            )
+        )
+
+        # =================================================
+        # CANCHA
+        # =================================================
 
         self.court = Court.objects.create(
             name="Cancha Match 1"
         )
 
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
     def authenticate(self, user):
+
         response = self.client.post(
             "/api/token/",
             {
@@ -3279,19 +3341,25 @@ class MatchAPITest(TestCase):
         )
 
     def create_match(self):
+
         return Match.objects.create(
-            competition_category=self.elimination_category,
+            competition_category=(
+                self.elimination_category
+            ),
             court=self.court,
             player1=self.player1,
             player2=self.player2,
             round=1,
         )
 
-    # -----------------------------
+    # =====================================================
     # AUTENTICACIÓN
-    # -----------------------------
+    # =====================================================
 
-    def test_unauthenticated_user_cannot_list_matches(self):
+    def test_unauthenticated_user_cannot_list_matches(
+        self
+    ):
+
         response = self.client.get(
             "/api/matches/"
         )
@@ -3301,11 +3369,12 @@ class MatchAPITest(TestCase):
             401
         )
 
-    # -----------------------------
+    # =====================================================
     # ADMINISTRADOR
-    # -----------------------------
+    # =====================================================
 
     def test_admin_can_list_matches(self):
+
         self.create_match()
 
         self.authenticate(
@@ -3322,6 +3391,7 @@ class MatchAPITest(TestCase):
         )
 
     def test_admin_can_create_match(self):
+
         self.authenticate(
             self.admin_user
         )
@@ -3356,6 +3426,7 @@ class MatchAPITest(TestCase):
         )
 
     def test_admin_can_update_match(self):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3366,7 +3437,9 @@ class MatchAPITest(TestCase):
             f"/api/matches/{match.id}/",
             {
                 "status": "FINALIZADO",
-                "winner_player": self.player1.id,
+                "winner_player": (
+                    self.player1.id
+                ),
             },
             format="json",
         )
@@ -3387,6 +3460,7 @@ class MatchAPITest(TestCase):
         )
 
     def test_admin_can_delete_match(self):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3402,11 +3476,14 @@ class MatchAPITest(TestCase):
             204
         )
 
-    # -----------------------------
+    # =====================================================
     # ORGANIZADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_organizer_can_create_match(self):
+    def test_organizer_can_create_match(
+        self
+    ):
+
         self.authenticate(
             self.organizer_user
         )
@@ -3430,7 +3507,10 @@ class MatchAPITest(TestCase):
             201
         )
 
-    def test_organizer_can_update_match(self):
+    def test_organizer_can_update_match(
+        self
+    ):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3450,7 +3530,10 @@ class MatchAPITest(TestCase):
             200
         )
 
-    def test_organizer_cannot_delete_match(self):
+    def test_organizer_cannot_delete_match(
+        self
+    ):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3466,11 +3549,14 @@ class MatchAPITest(TestCase):
             403
         )
 
-    # -----------------------------
+    # =====================================================
     # JUGADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_player_can_list_matches(self):
+    def test_player_can_list_matches(
+        self
+    ):
+
         self.authenticate(
             self.player_user
         )
@@ -3484,7 +3570,10 @@ class MatchAPITest(TestCase):
             200
         )
 
-    def test_player_cannot_create_match(self):
+    def test_player_cannot_create_match(
+        self
+    ):
+
         self.authenticate(
             self.player_user
         )
@@ -3507,7 +3596,10 @@ class MatchAPITest(TestCase):
             403
         )
 
-    def test_player_cannot_update_match(self):
+    def test_player_cannot_update_match(
+        self
+    ):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3527,7 +3619,10 @@ class MatchAPITest(TestCase):
             403
         )
 
-    def test_player_cannot_delete_match(self):
+    def test_player_cannot_delete_match(
+        self
+    ):
+
         match = self.create_match()
 
         self.authenticate(
@@ -3543,11 +3638,82 @@ class MatchAPITest(TestCase):
             403
         )
 
-    # -----------------------------
-    # REGLAS DE NEGOCIO
-    # -----------------------------
+    # =====================================================
+    # REGLAS DE INSCRIPCIÓN
+    # =====================================================
 
-    def test_elimination_match_requires_round(self):
+    def test_pending_player_cannot_play_match(
+        self
+    ):
+
+        self.registration_player2_elimination.status = (
+            "PENDIENTE"
+        )
+
+        self.registration_player2_elimination.save()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "round": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_cancelled_player_cannot_play_match(
+        self
+    ):
+
+        self.registration_player2_elimination.status = (
+            "CANCELADA"
+        )
+
+        self.registration_player2_elimination.save()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "round": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # =====================================================
+    # MODALIDAD / RONDA
+    # =====================================================
+
+    def test_elimination_match_requires_round(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3569,7 +3735,10 @@ class MatchAPITest(TestCase):
             400
         )
 
-    def test_ladder_match_does_not_use_round(self):
+    def test_ladder_match_does_not_use_round(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3595,7 +3764,40 @@ class MatchAPITest(TestCase):
             response.data["round"]
         )
 
-    def test_player_from_wrong_category_is_rejected(self):
+    def test_ladder_match_rejects_round(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.ladder_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "round": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # =====================================================
+    # CATEGORÍA
+    # =====================================================
+
+    def test_player_from_wrong_category_is_rejected(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3618,7 +3820,14 @@ class MatchAPITest(TestCase):
             400
         )
 
-    def test_player_cannot_play_against_himself(self):
+    # =====================================================
+    # MISMO JUGADOR
+    # =====================================================
+
+    def test_player_cannot_play_against_himself(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3641,7 +3850,14 @@ class MatchAPITest(TestCase):
             400
         )
 
-    def test_winner_must_be_a_match_player(self):
+    # =====================================================
+    # GANADOR
+    # =====================================================
+
+    def test_winner_must_be_a_match_player(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3656,6 +3872,7 @@ class MatchAPITest(TestCase):
                 "player2": self.player2.id,
                 "winner_player": self.player3.id,
                 "round": 1,
+                "status": "FINALIZADO",
             },
             format="json",
         )
@@ -3665,7 +3882,97 @@ class MatchAPITest(TestCase):
             400
         )
 
-    def test_bye_is_valid(self):
+    def test_finished_match_requires_winner(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "round": 1,
+                "status": "FINALIZADO",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_programmed_match_cannot_have_winner(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "winner_player": self.player1.id,
+                "round": 1,
+                "status": "PROGRAMADO",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_in_progress_match_cannot_have_winner(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "winner_player": self.player1.id,
+                "round": 1,
+                "status": "EN_JUEGO",
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # =====================================================
+    # BYE
+    # =====================================================
+
+    def test_bye_is_valid(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3689,7 +3996,10 @@ class MatchAPITest(TestCase):
             201
         )
 
-    def test_bye_cannot_be_walkover(self):
+    def test_bye_cannot_be_walkover(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3713,7 +4023,14 @@ class MatchAPITest(TestCase):
             400
         )
 
-    def test_valid_walkover(self):
+    # =====================================================
+    # WALKOVER
+    # =====================================================
+
+    def test_walkover_requires_winner(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3726,7 +4043,36 @@ class MatchAPITest(TestCase):
                 ),
                 "player1": self.player1.id,
                 "player2": self.player2.id,
-                "winner_player": self.player1.id,
+                "round": 1,
+                "is_walkover": True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_valid_walkover(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player2.id,
+                "winner_player": (
+                    self.player1.id
+                ),
                 "round": 1,
                 "is_walkover": True,
             },
@@ -3737,17 +4083,30 @@ class MatchAPITest(TestCase):
             response.status_code,
             201
         )
-        
-        
+
+        self.assertTrue(
+            response.data["is_walkover"]
+        )
+
+        self.assertEqual(
+            response.data["winner_player"],
+            self.player1.id
+        )
+
+        self.assertEqual(
+            response.data["status"],
+            "FINALIZADO"
+        )     
         
 class MatchSetAPITest(TestCase):
 
     def setUp(self):
+
         self.client = APIClient()
 
-        # -----------------------------
+        # =================================================
         # ROLES
-        # -----------------------------
+        # =================================================
 
         self.admin_role = Role.objects.create(
             name="Administrador"
@@ -3763,9 +4122,9 @@ class MatchSetAPITest(TestCase):
 
         User = get_user_model()
 
-        # -----------------------------
+        # =================================================
         # USUARIOS
-        # -----------------------------
+        # =================================================
 
         self.admin_user = User.objects.create_user(
             username="matchset_admin",
@@ -3788,17 +4147,17 @@ class MatchSetAPITest(TestCase):
             role=self.player_role,
         )
 
-        # -----------------------------
+        # =================================================
         # CATEGORÍA
-        # -----------------------------
+        # =================================================
 
         self.category = Category.objects.create(
             name="PRIMERA"
         )
 
-        # -----------------------------
+        # =================================================
         # JUGADORES
-        # -----------------------------
+        # =================================================
 
         self.player1_user = User.objects.create_user(
             username="matchset_player1",
@@ -3830,9 +4189,9 @@ class MatchSetAPITest(TestCase):
             last_name="Dos",
         )
 
-        # -----------------------------
+        # =================================================
         # COMPETENCIA
-        # -----------------------------
+        # =================================================
 
         self.competition = Competition.objects.create(
             name="Torneo MatchSet",
@@ -3842,9 +4201,9 @@ class MatchSetAPITest(TestCase):
             registration_deadline="2026-08-28",
         )
 
-        # -----------------------------
+        # =================================================
         # COMPETITION CATEGORY
-        # -----------------------------
+        # =================================================
 
         self.competition_category = (
             CompetitionCategory.objects.create(
@@ -3855,32 +4214,64 @@ class MatchSetAPITest(TestCase):
             )
         )
 
-        # -----------------------------
+        # =================================================
+        # INSCRIPCIONES CONFIRMADAS
+        # =================================================
+
+        Registration.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player=self.player1,
+            status="CONFIRMADA",
+        )
+
+        Registration.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player=self.player2,
+            status="CONFIRMADA",
+        )
+
+        # =================================================
         # CANCHA
-        # -----------------------------
+        # =================================================
 
         self.court = Court.objects.create(
             name="Cancha MatchSet 1"
         )
 
-        # -----------------------------
+        # =================================================
         # MATCH
-        # -----------------------------
+        # =================================================
 
         self.match = Match.objects.create(
-            competition_category=self.competition_category,
+            competition_category=(
+                self.competition_category
+            ),
             court=self.court,
             player1=self.player1,
             player2=self.player2,
             round=1,
         )
 
-    def authenticate(self, user):
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
+    def authenticate(
+        self,
+        user
+    ):
+
         response = self.client.post(
             "/api/token/",
             {
                 "username": user.username,
-                "password": "TestPassword123!",
+                "password": (
+                    "TestPassword123!"
+                ),
             },
             format="json",
         )
@@ -3892,15 +4283,57 @@ class MatchSetAPITest(TestCase):
 
         self.client.credentials(
             HTTP_AUTHORIZATION=(
-                f"Bearer {response.data['access']}"
+                f"Bearer "
+                f"{response.data['access']}"
             )
         )
 
-    # -----------------------------
-    # AUTENTICACIÓN
-    # -----------------------------
+    def create_set_1(
+        self,
+        games1=6,
+        games2=4,
+    ):
 
-    def test_unauthenticated_user_cannot_list_match_sets(self):
+        return MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=games1,
+            games_player2=games2,
+        )
+
+    def create_set_2(
+        self,
+        games1=6,
+        games2=4,
+    ):
+
+        return MatchSet.objects.create(
+            match=self.match,
+            set_number=2,
+            games_player1=games1,
+            games_player2=games2,
+        )
+
+    def create_split_sets(self):
+
+        self.create_set_1(
+            6,
+            4,
+        )
+
+        self.create_set_2(
+            3,
+            6,
+        )
+
+    # =====================================================
+    # AUTENTICACIÓN
+    # =====================================================
+
+    def test_unauthenticated_user_cannot_list_match_sets(
+        self
+    ):
+
         response = self.client.get(
             "/api/match-sets/"
         )
@@ -3910,17 +4343,15 @@ class MatchSetAPITest(TestCase):
             401
         )
 
-    # -----------------------------
+    # =====================================================
     # ADMINISTRADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_admin_can_list_match_sets(self):
-        MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
-        )
+    def test_admin_can_list_match_sets(
+        self
+    ):
+
+        self.create_set_1()
 
         self.authenticate(
             self.admin_user
@@ -3935,7 +4366,10 @@ class MatchSetAPITest(TestCase):
             200
         )
 
-    def test_admin_can_create_match_set(self):
+    def test_admin_can_create_match_set(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -3943,11 +4377,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 4,
-                "is_super_tie_break": False,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+
+                "is_super_tie_break":
+                    False,
             },
             format="json",
         )
@@ -3957,27 +4400,12 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-        self.assertEqual(
-            response.data["set_number"],
-            1
-        )
+    def test_admin_can_update_match_set(
+        self
+    ):
 
-        self.assertEqual(
-            response.data["games_player1"],
-            6
-        )
-
-        self.assertEqual(
-            response.data["games_player2"],
-            4
-        )
-
-    def test_admin_can_update_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -3985,10 +4413,16 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.patch(
-            f"/api/match-sets/{match_set.id}/",
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            ),
             {
-                "games_player1": 6,
-                "games_player2": 2,
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    2,
             },
             format="json",
         )
@@ -3998,22 +4432,12 @@ class MatchSetAPITest(TestCase):
             200
         )
 
-        self.assertEqual(
-            response.data["games_player1"],
-            6
-        )
+    def test_admin_can_delete_match_set(
+        self
+    ):
 
-        self.assertEqual(
-            response.data["games_player2"],
-            2
-        )
-
-    def test_admin_can_delete_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -4021,7 +4445,10 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.delete(
-            f"/api/match-sets/{match_set.id}/"
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            )
         )
 
         self.assertEqual(
@@ -4029,11 +4456,14 @@ class MatchSetAPITest(TestCase):
             204
         )
 
-    # -----------------------------
+    # =====================================================
     # ORGANIZADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_organizer_can_create_match_set(self):
+    def test_organizer_can_create_match_set(
+        self
+    ):
+
         self.authenticate(
             self.organizer_user
         )
@@ -4041,10 +4471,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 4,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
             },
             format="json",
         )
@@ -4054,12 +4491,12 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_organizer_can_update_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+    def test_organizer_can_update_match_set(
+        self
+    ):
+
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -4067,10 +4504,16 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.patch(
-            f"/api/match-sets/{match_set.id}/",
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            ),
             {
-                "games_player1": 7,
-                "games_player2": 5,
+                "games_player1":
+                    7,
+
+                "games_player2":
+                    5,
             },
             format="json",
         )
@@ -4080,12 +4523,12 @@ class MatchSetAPITest(TestCase):
             200
         )
 
-    def test_organizer_cannot_delete_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+    def test_organizer_cannot_delete_match_set(
+        self
+    ):
+
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -4093,7 +4536,10 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.delete(
-            f"/api/match-sets/{match_set.id}/"
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            )
         )
 
         self.assertEqual(
@@ -4101,11 +4547,14 @@ class MatchSetAPITest(TestCase):
             403
         )
 
-    # -----------------------------
+    # =====================================================
     # JUGADOR
-    # -----------------------------
+    # =====================================================
 
-    def test_player_can_list_match_sets(self):
+    def test_player_can_list_match_sets(
+        self
+    ):
+
         self.authenticate(
             self.player_user
         )
@@ -4119,7 +4568,10 @@ class MatchSetAPITest(TestCase):
             200
         )
 
-    def test_player_cannot_create_match_set(self):
+    def test_player_cannot_create_match_set(
+        self
+    ):
+
         self.authenticate(
             self.player_user
         )
@@ -4127,10 +4579,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 4,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
             },
             format="json",
         )
@@ -4140,12 +4599,12 @@ class MatchSetAPITest(TestCase):
             403
         )
 
-    def test_player_cannot_update_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+    def test_player_cannot_update_match_set(
+        self
+    ):
+
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -4153,10 +4612,16 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.patch(
-            f"/api/match-sets/{match_set.id}/",
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            ),
             {
-                "games_player1": 7,
-                "games_player2": 5,
+                "games_player1":
+                    7,
+
+                "games_player2":
+                    5,
             },
             format="json",
         )
@@ -4166,12 +4631,12 @@ class MatchSetAPITest(TestCase):
             403
         )
 
-    def test_player_cannot_delete_match_set(self):
-        match_set = MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+    def test_player_cannot_delete_match_set(
+        self
+    ):
+
+        match_set = (
+            self.create_set_1()
         )
 
         self.authenticate(
@@ -4179,7 +4644,10 @@ class MatchSetAPITest(TestCase):
         )
 
         response = self.client.delete(
-            f"/api/match-sets/{match_set.id}/"
+            (
+                f"/api/match-sets/"
+                f"{match_set.id}/"
+            )
         )
 
         self.assertEqual(
@@ -4187,11 +4655,14 @@ class MatchSetAPITest(TestCase):
             403
         )
 
-    # -----------------------------
-    # REGLAS DE MARCADOR
-    # -----------------------------
+    # =====================================================
+    # SET NORMAL
+    # =====================================================
 
-    def test_valid_set_6_4(self):
+    def test_valid_set_6_4(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4199,10 +4670,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 4,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
             },
             format="json",
         )
@@ -4212,7 +4690,10 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_valid_set_7_5(self):
+    def test_valid_set_7_5(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4220,10 +4701,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 7,
-                "games_player2": 5,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    7,
+
+                "games_player2":
+                    5,
             },
             format="json",
         )
@@ -4233,7 +4721,10 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_valid_set_7_6(self):
+    def test_valid_set_7_6(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4241,10 +4732,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 7,
-                "games_player2": 6,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    7,
+
+                "games_player2":
+                    6,
             },
             format="json",
         )
@@ -4254,7 +4752,10 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_invalid_set_6_5(self):
+    def test_invalid_set_6_5(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4262,10 +4763,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 5,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    5,
             },
             format="json",
         )
@@ -4275,7 +4783,10 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    def test_invalid_set_8_6(self):
+    def test_invalid_set_8_6(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4283,10 +4794,17 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 8,
-                "games_player2": 6,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    8,
+
+                "games_player2":
+                    6,
             },
             format="json",
         )
@@ -4296,11 +4814,85 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    # -----------------------------
+    # =====================================================
+    # ORDEN DE SETS
+    # =====================================================
+
+    def test_set_2_requires_set_1(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    2,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_set_3_requires_first_two_sets(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    8,
+
+                "is_super_tie_break":
+                    True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # =====================================================
     # SUPER TIE-BREAK
-    # -----------------------------
+    # =====================================================
 
-    def test_valid_super_tie_break_10_8(self):
+    def test_valid_super_tie_break_10_2(
+        self
+    ):
+
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4308,11 +4900,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 3,
-                "games_player1": 10,
-                "games_player2": 8,
-                "is_super_tie_break": True,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    2,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4322,7 +4923,12 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_valid_super_tie_break_12_10(self):
+    def test_valid_super_tie_break_10_8(
+        self
+    ):
+
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4330,11 +4936,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 3,
-                "games_player1": 12,
-                "games_player2": 10,
-                "is_super_tie_break": True,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    8,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4344,7 +4959,12 @@ class MatchSetAPITest(TestCase):
             201
         )
 
-    def test_invalid_super_tie_break_10_9(self):
+    def test_valid_super_tie_break_11_9(
+        self
+    ):
+
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4352,11 +4972,92 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 3,
-                "games_player1": 10,
-                "games_player2": 9,
-                "is_super_tie_break": True,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    11,
+
+                "games_player2":
+                    9,
+
+                "is_super_tie_break":
+                    True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+    def test_valid_super_tie_break_12_10(
+        self
+    ):
+
+        self.create_split_sets()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    12,
+
+                "games_player2":
+                    10,
+
+                "is_super_tie_break":
+                    True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+    def test_invalid_super_tie_break_10_9(
+        self
+    ):
+
+        self.create_split_sets()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    9,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4366,7 +5067,14 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    def test_super_tie_break_cannot_be_set_1(self):
+    # NUEVO:
+    # El partido habría terminado 10-8.
+    def test_invalid_super_tie_break_11_8(
+        self
+    ):
+
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4374,11 +5082,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 10,
-                "games_player2": 8,
-                "is_super_tie_break": True,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    11,
+
+                "games_player2":
+                    8,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4388,7 +5105,14 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    def test_super_tie_break_cannot_be_set_2(self):
+    # NUEVO:
+    # El caso que detectaste manualmente.
+    def test_invalid_super_tie_break_12_2(
+        self
+    ):
+
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4396,11 +5120,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 2,
-                "games_player1": 10,
-                "games_player2": 8,
-                "is_super_tie_break": True,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    12,
+
+                "games_player2":
+                    2,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4410,11 +5143,15 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    # -----------------------------
-    # VALIDACIONES ADICIONALES
-    # -----------------------------
+    # NUEVO:
+    # Si llegó a 9, debe ganar exactamente
+    # por diferencia de 2.
+    def test_invalid_super_tie_break_12_9(
+        self
+    ):
 
-    def test_set_cannot_end_in_tie(self):
+        self.create_split_sets()
+
         self.authenticate(
             self.admin_user
         )
@@ -4422,10 +5159,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 6,
-                "games_player2": 6,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    12,
+
+                "games_player2":
+                    9,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4435,7 +5182,10 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    def test_set_number_zero_is_invalid(self):
+    def test_super_tie_break_cannot_be_set_1(
+        self
+    ):
+
         self.authenticate(
             self.admin_user
         )
@@ -4443,10 +5193,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 0,
-                "games_player1": 6,
-                "games_player2": 4,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    8,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4456,12 +5216,54 @@ class MatchSetAPITest(TestCase):
             400
         )
 
-    def test_duplicate_set_number_is_rejected(self):
-        MatchSet.objects.create(
-            match=self.match,
-            set_number=1,
-            games_player1=6,
-            games_player2=4,
+    def test_third_set_must_be_super_tie_break(
+        self
+    ):
+
+        self.create_split_sets()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+
+                "is_super_tie_break":
+                    False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_third_set_not_allowed_after_two_zero(
+        self
+    ):
+
+        self.create_set_1(
+            6,
+            4,
+        )
+
+        self.create_set_2(
+            6,
+            3,
         )
 
         self.authenticate(
@@ -4471,10 +5273,20 @@ class MatchSetAPITest(TestCase):
         response = self.client.post(
             "/api/match-sets/",
             {
-                "match": self.match.id,
-                "set_number": 1,
-                "games_player1": 7,
-                "games_player2": 5,
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    10,
+
+                "games_player2":
+                    8,
+
+                "is_super_tie_break":
+                    True,
             },
             format="json",
         )
@@ -4483,7 +5295,481 @@ class MatchSetAPITest(TestCase):
             response.status_code,
             400
         )
-        
+
+    # =====================================================
+    # GANADOR AUTOMÁTICO
+    # =====================================================
+
+    def test_match_finishes_automatically_two_zero(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response1 = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response1.status_code,
+            201
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            "EN_JUEGO"
+        )
+
+        response2 = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    2,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    3,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response2.status_code,
+            201
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            "FINALIZADO"
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player1
+        )
+
+    def test_match_finishes_automatically_with_super_tie_break(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    2,
+
+                "games_player1":
+                    3,
+
+                "games_player2":
+                    6,
+            },
+            format="json",
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    3,
+
+                "games_player1":
+                    8,
+
+                "games_player2":
+                    10,
+
+                "is_super_tie_break":
+                    True,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            201
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            "FINALIZADO"
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player2
+        )
+
+    # =====================================================
+    # DELETE Y RECÁLCULO
+    # =====================================================
+
+    def test_deleting_set_recalculates_match(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response1 = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        response2 = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    2,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    3,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response1.status_code,
+            201
+        )
+
+        self.assertEqual(
+            response2.status_code,
+            201
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            "FINALIZADO"
+        )
+
+        second_set_id = (
+            response2.data["id"]
+        )
+
+        delete_response = (
+            self.client.delete(
+                (
+                    f"/api/match-sets/"
+                    f"{second_set_id}/"
+                )
+            )
+        )
+
+        self.assertEqual(
+            delete_response.status_code,
+            204
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            "EN_JUEGO"
+        )
+
+        self.assertIsNone(
+            self.match.winner_player
+        )
+
+    # =====================================================
+    # BYE / WALKOVER
+    # =====================================================
+
+    def test_sets_cannot_be_created_for_bye(
+        self
+    ):
+
+        bye_match = Match.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            court=self.court,
+            player1=self.player1,
+            player2=None,
+            round=1,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    bye_match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    0,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_sets_cannot_be_created_for_walkover(
+        self
+    ):
+
+        walkover_match = (
+            Match.objects.create(
+                competition_category=(
+                    self.competition_category
+                ),
+                court=self.court,
+                player1=self.player1,
+                player2=self.player2,
+                winner_player=self.player1,
+                round=1,
+                is_walkover=True,
+                status="FINALIZADO",
+            )
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    walkover_match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    0,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # =====================================================
+    # OTRAS VALIDACIONES
+    # =====================================================
+
+    def test_set_cannot_end_in_tie(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    6,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_set_number_zero_is_invalid(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    0,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_set_number_four_is_invalid(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    4,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    4,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    def test_duplicate_set_number_is_rejected(
+        self
+    ):
+
+        self.create_set_1()
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    1,
+
+                "games_player1":
+                    7,
+
+                "games_player2":
+                    5,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
 class StandingAPITest(TestCase):
 
     def setUp(self):

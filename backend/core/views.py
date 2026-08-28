@@ -210,8 +210,25 @@ class MatchSetViewSet(AuditModelViewSet):
     ).all()
 
     serializer_class = MatchSetSerializer
-    permission_classes = [CompetitionPermission]
-    
+
+    permission_classes = [
+        CompetitionPermission
+    ]
+
+    def perform_destroy(
+        self,
+        instance
+    ):
+
+        match = instance.match
+
+        super().perform_destroy(
+            instance
+        )
+
+        MatchSetSerializer.recalculate_match_result(
+            match
+        )
 class StandingViewSet(AuditModelViewSet):
 
     queryset = Standing.objects.select_related(

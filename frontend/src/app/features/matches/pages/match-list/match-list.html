@@ -1,0 +1,545 @@
+<div class="container-fluid py-4">
+
+  <!-- Encabezado -->
+  <div
+    class="d-flex justify-content-between align-items-center mb-4"
+  >
+
+    <div>
+
+      <h1 class="h3 mb-1">
+        Partidos
+      </h1>
+
+      <p class="text-muted mb-0">
+        Gestión de partidos de las competencias
+      </p>
+
+    </div>
+
+
+    <button
+      type="button"
+      class="btn btn-danger"
+      (click)="goToCreate()"
+    >
+      Nuevo partido
+    </button>
+
+  </div>
+
+
+  <!-- Éxito -->
+  @if (successMessage) {
+
+    <div
+      class="alert alert-success"
+    >
+      {{ successMessage }}
+    </div>
+
+  }
+
+
+  <!-- Error -->
+  @if (
+    errorMessage &&
+    !showDeleteModal
+  ) {
+
+    <div
+      class="alert alert-danger"
+    >
+      {{ errorMessage }}
+    </div>
+
+  }
+
+
+  <!-- Cargando -->
+  @if (loading) {
+
+    <div class="text-center py-5">
+
+      <div
+        class="spinner-border text-danger"
+        role="status"
+      >
+
+        <span class="visually-hidden">
+          Cargando...
+        </span>
+
+      </div>
+
+      <p class="mt-3 text-muted">
+        Cargando partidos...
+      </p>
+
+    </div>
+
+  }
+
+
+  <!-- Sin partidos -->
+  @if (
+    !loading &&
+    !errorMessage &&
+    matches.length === 0
+  ) {
+
+    <div class="alert alert-info">
+      No existen partidos registrados.
+    </div>
+
+  }
+
+
+  <!-- Listado -->
+  @if (
+    !loading &&
+    matches.length > 0
+  ) {
+
+    <div
+      class="card shadow-sm border-0"
+    >
+
+      <div class="card-body p-0">
+
+        <div class="table-responsive">
+
+          <table
+            class="table table-hover mb-0 align-middle"
+          >
+
+            <thead class="table-light">
+
+              <tr>
+
+                <th>
+                  Competencia
+                </th>
+
+                <th>
+                  Categoría
+                </th>
+
+                <th>
+                  Jugador 1
+                </th>
+
+                <th>
+                  Jugador 2
+                </th>
+
+                <th>
+                  Ronda
+                </th>
+
+                <th>
+                  Cancha
+                </th>
+
+                <th>
+                  Fecha / hora
+                </th>
+
+                <th>
+                  Estado
+                </th>
+
+                <th
+                  class="text-end"
+                >
+                  Acciones
+                </th>
+
+              </tr>
+
+            </thead>
+
+
+            <tbody>
+
+              @for (
+                match of matches;
+                track match.id
+              ) {
+
+                <tr>
+
+                  <td>
+
+                    <strong>
+                      {{
+                        getCompetitionName(
+                          match.competition_category
+                        )
+                      }}
+                    </strong>
+
+                  </td>
+
+
+                  <td>
+
+                    {{
+                      getCategoryName(
+                        match.competition_category
+                      )
+                    }}
+
+                  </td>
+
+
+                  <td>
+
+                    {{
+                      getPlayerName(
+                        match.player1
+                      )
+                    }}
+
+                  </td>
+
+
+                  <td>
+
+                    {{
+                      getPlayerName(
+                        match.player2
+                      )
+                    }}
+
+                  </td>
+
+
+                  <td>
+
+                    @if (
+                      match.round !== null
+                    ) {
+
+                      {{ match.round }}
+
+                    } @else {
+
+                      —
+
+                    }
+
+                  </td>
+
+
+                  <td>
+
+                    {{
+                      getCourtName(
+                        match.court
+                      )
+                    }}
+
+                  </td>
+
+
+                  <td>
+
+                    @if (
+                      match.scheduled_date_time
+                    ) {
+
+                      {{
+                        match.scheduled_date_time
+                          | date:'dd/MM/yyyy HH:mm'
+                      }}
+
+                    } @else {
+
+                      Sin programación
+
+                    }
+
+                  </td>
+
+
+                  <td>
+
+                    @switch (match.status) {
+
+
+                      @case ('PROGRAMADO') {
+
+                        <span
+                          class="badge text-bg-secondary"
+                        >
+                          Programado
+                        </span>
+
+                      }
+
+
+                      @case ('EN_JUEGO') {
+
+                        <span
+                          class="badge text-bg-warning"
+                        >
+                          En juego
+                        </span>
+
+                      }
+
+
+                      @case ('FINALIZADO') {
+
+                        <span
+                          class="badge text-bg-success"
+                        >
+                          Finalizado
+                        </span>
+
+                      }
+
+
+                      @case ('CANCELADO') {
+
+                        <span
+                          class="badge text-bg-danger"
+                        >
+                          Cancelado
+                        </span>
+
+                      }
+
+                    }
+
+                  </td>
+
+
+                  <td class="text-end">
+
+                    <div
+                      class="d-flex justify-content-end gap-2"
+                    >
+
+
+                      <!-- Resultado -->
+                      @if (
+                        !match.is_walkover &&
+                        match.player2 !== null
+                      ) {
+
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary"
+                          (click)="
+                            goToResult(
+                              match.id
+                            )
+                          "
+                        >
+                          Resultado
+                        </button>
+
+                      }
+
+
+                      <!-- Editar -->
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="
+                          goToEdit(
+                            match.id
+                          )
+                        "
+                        [disabled]="
+                          deletingId === match.id
+                        "
+                      >
+                        Editar
+                      </button>
+
+
+                      <!-- Eliminar -->
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        (click)="
+                          openDeleteModal(
+                            match
+                          )
+                        "
+                        [disabled]="
+                          deletingId === match.id
+                        "
+                      >
+                        Eliminar
+                      </button>
+
+                    </div>
+
+                  </td>
+
+                </tr>
+
+              }
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  }
+
+
+  <!-- Modal eliminación -->
+  @if (
+    showDeleteModal &&
+    matchToDelete
+  ) {
+
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      aria-modal="true"
+    >
+
+      <div
+        class="modal-dialog modal-dialog-centered"
+      >
+
+        <div class="modal-content">
+
+
+          <div class="modal-header">
+
+            <h5 class="modal-title">
+              Eliminar partido
+            </h5>
+
+            <button
+              type="button"
+              class="btn-close"
+              [disabled]="
+                deletingId !== null
+              "
+              (click)="
+                closeDeleteModal()
+              "
+            ></button>
+
+          </div>
+
+
+          <div class="modal-body">
+
+            <p>
+              ¿Está seguro de eliminar
+              este partido?
+            </p>
+
+
+            <p class="fw-bold mb-2">
+
+              {{
+                getPlayerName(
+                  matchToDelete.player1
+                )
+              }}
+
+              vs
+
+              {{
+                getPlayerName(
+                  matchToDelete.player2
+                )
+              }}
+
+            </p>
+
+
+            <p class="text-muted small mb-0">
+              Esta acción no se puede deshacer.
+            </p>
+
+
+            @if (errorMessage) {
+
+              <div
+                class="alert alert-danger mt-3 mb-0"
+              >
+                {{ errorMessage }}
+              </div>
+
+            }
+
+          </div>
+
+
+          <div class="modal-footer">
+
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="
+                deletingId !== null
+              "
+              (click)="
+                closeDeleteModal()
+              "
+            >
+              Cancelar
+            </button>
+
+
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="
+                deletingId !== null
+              "
+              (click)="
+                confirmDelete()
+              "
+            >
+
+              @if (
+                deletingId !== null
+              ) {
+
+                <span
+                  class="spinner-border spinner-border-sm me-2"
+                ></span>
+
+                Eliminando...
+
+              } @else {
+
+                Eliminar
+
+              }
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div
+      class="modal-backdrop fade show"
+    ></div>
+
+  }
+
+</div>

@@ -16,6 +16,18 @@ import {
   RegistrationFormComponent
 } from './features/registrations/pages/registration-form/registration-form';
 
+import {
+  MatchListComponent,
+} from './features/matches/pages/match-list/match-list';
+
+import {
+  MatchFormComponent,
+} from './features/matches/pages/match-form/match-form';
+
+import {
+  MatchResultComponent,
+} from './features/matches/pages/match-result/match-result';
+
 export const routes: Routes = [
   {
     path: '',
@@ -79,6 +91,26 @@ export const routes: Routes = [
 {
   path: 'registrations/:id/edit',
   component: RegistrationFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'matches',
+  component: MatchListComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'matches/new',
+  component: MatchFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'matches/:id/edit',
+  component: MatchFormComponent,
+  canActivate: [authGuard],
+},
+{
+  path: 'matches/:id/result',
+  component: MatchResultComponent,
   canActivate: [authGuard],
 },
 ];

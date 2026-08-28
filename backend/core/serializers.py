@@ -1062,12 +1062,20 @@ class MatchSerializer(serializers.ModelSerializer):
 
         player1 = data.get(
             "player1",
-            instance.player1 if instance else None,
+            (
+                instance.player1
+                if instance
+                else None
+            ),
         )
 
         player2 = data.get(
             "player2",
-            instance.player2 if instance else None,
+            (
+                instance.player2
+                if instance
+                else None
+            ),
         )
 
         winner_player = data.get(
@@ -1079,9 +1087,22 @@ class MatchSerializer(serializers.ModelSerializer):
             ),
         )
 
+        status = data.get(
+            "status",
+            (
+                instance.status
+                if instance
+                else Match.Status.PROGRAMADO
+            ),
+        )
+
         round_number = data.get(
             "round",
-            instance.round if instance else None,
+            (
+                instance.round
+                if instance
+                else None
+            ),
         )
 
         is_walkover = data.get(
@@ -1094,15 +1115,39 @@ class MatchSerializer(serializers.ModelSerializer):
         )
 
         # ---------------------------------
-        # Player 1 categoría
+        # Datos mínimos
+        # ---------------------------------
+
+        if competition_category is None:
+
+            raise serializers.ValidationError(
+                {
+                    "competition_category": (
+                        "Debe indicar la categoría "
+                        "de la competencia."
+                    )
+                }
+            )
+
+        if player1 is None:
+
+            raise serializers.ValidationError(
+                {
+                    "player1": (
+                        "Debe indicar el primer jugador."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 1. Player 1 pertenece a categoría
         # ---------------------------------
 
         if (
-            player1 is not None
-            and competition_category is not None
-            and player1.category_id
+            player1.category_id
             != competition_category.category_id
         ):
+
             raise serializers.ValidationError(
                 {
                     "player1": (
@@ -1113,15 +1158,15 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # Player 2 categoría
+        # 2. Player 2 pertenece a categoría
         # ---------------------------------
 
         if (
             player2 is not None
-            and competition_category is not None
             and player2.category_id
             != competition_category.category_id
         ):
+
             raise serializers.ValidationError(
                 {
                     "player2": (
@@ -1132,14 +1177,71 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # Jugador contra sí mismo
+        # 3. Player 1 debe estar confirmado
+        # ---------------------------------
+
+        player1_confirmed = (
+            Registration.objects.filter(
+                competition_category=(
+                    competition_category
+                ),
+                player=player1,
+                status="CONFIRMADA",
+            )
+            .exists()
+        )
+
+        if not player1_confirmed:
+
+            raise serializers.ValidationError(
+                {
+                    "player1": (
+                        "El jugador debe tener una "
+                        "inscripción confirmada para "
+                        "participar en esta competencia."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 4. Player 2 debe estar confirmado
+        #    cuando exista.
+        # ---------------------------------
+
+        if player2 is not None:
+
+            player2_confirmed = (
+                Registration.objects.filter(
+                    competition_category=(
+                        competition_category
+                    ),
+                    player=player2,
+                    status="CONFIRMADA",
+                )
+                .exists()
+            )
+
+            if not player2_confirmed:
+
+                raise serializers.ValidationError(
+                    {
+                        "player2": (
+                            "El jugador debe tener una "
+                            "inscripción confirmada para "
+                            "participar en esta competencia."
+                        )
+                    }
+                )
+
+        # ---------------------------------
+        # 5. Jugador contra sí mismo
         # ---------------------------------
 
         if (
-            player1 is not None
-            and player2 is not None
+            player2 is not None
             and player1.id == player2.id
         ):
+
             raise serializers.ValidationError(
                 {
                     "player2": (
@@ -1150,46 +1252,44 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # Ganador válido
+        # 6. Ganador válido
         # ---------------------------------
 
         if winner_player is not None:
 
-            valid_winners = []
-
-            if player1 is not None:
-                valid_winners.append(
-                    player1
-                )
+            valid_winners = [
+                player1
+            ]
 
             if player2 is not None:
+
                 valid_winners.append(
                     player2
                 )
 
-            if winner_player not in valid_winners:
+            if (
+                winner_player
+                not in valid_winners
+            ):
+
                 raise serializers.ValidationError(
                     {
                         "winner_player": (
-                            "El ganador debe ser uno de "
-                            "los jugadores del partido."
+                            "El ganador debe ser uno "
+                            "de los jugadores del partido."
                         )
                     }
                 )
 
         # ---------------------------------
-        # Round
+        # 7. Ronda
         # ---------------------------------
 
-        competition_type = None
-
-        if competition_category is not None:
-
-            competition_type = (
-                competition_category
-                .competition
-                .type
-            )
+        competition_type = (
+            competition_category
+            .competition
+            .type
+        )
 
         if (
             competition_type
@@ -1197,6 +1297,7 @@ class MatchSerializer(serializers.ModelSerializer):
         ):
 
             if round_number is None:
+
                 raise serializers.ValidationError(
                     {
                         "round": (
@@ -1206,9 +1307,13 @@ class MatchSerializer(serializers.ModelSerializer):
                     }
                 )
 
-        elif competition_type == "ESCALERILLA":
+        elif (
+            competition_type
+            == "ESCALERILLA"
+        ):
 
             if round_number is not None:
+
                 raise serializers.ValidationError(
                     {
                         "round": (
@@ -1220,25 +1325,76 @@ class MatchSerializer(serializers.ModelSerializer):
                 )
 
         # ---------------------------------
-        # Walkover
+        # 8. Walkover
         # ---------------------------------
 
-        if (
-            is_walkover
-            and player2 is None
+        if is_walkover:
+
+            if player2 is None:
+
+                raise serializers.ValidationError(
+                    {
+                        "is_walkover": (
+                            "Un walkover requiere "
+                            "dos jugadores."
+                        )
+                    }
+                )
+
+            if winner_player is None:
+
+                raise serializers.ValidationError(
+                    {
+                        "winner_player": (
+                            "Un walkover debe indicar "
+                            "al jugador ganador."
+                        )
+                    }
+                )
+
+            # Un WO ya representa un partido
+            # resuelto.
+            data["status"] = (
+                Match.Status.FINALIZADO
+            )
+
+        # ---------------------------------
+        # 9. Partido finalizado
+        # ---------------------------------
+
+        elif (
+            status
+            == Match.Status.FINALIZADO
         ):
+
+            if winner_player is None:
+
+                raise serializers.ValidationError(
+                    {
+                        "winner_player": (
+                            "Un partido finalizado "
+                            "debe tener un ganador."
+                        )
+                    }
+                )
+
+        # ---------------------------------
+        # 10. Partido no finalizado
+        # ---------------------------------
+
+        elif winner_player is not None:
+
             raise serializers.ValidationError(
                 {
-                    "is_walkover": (
-                        "Un walkover requiere "
-                        "dos jugadores."
+                    "winner_player": (
+                        "No se puede asignar ganador "
+                        "a un partido que todavía "
+                        "no está finalizado."
                     )
                 }
             )
 
         return data
-
-
 # =========================================================
 # MATCH SET
 # =========================================================
@@ -1261,13 +1417,139 @@ class MatchSetSerializer(serializers.ModelSerializer):
             "id",
         ]
 
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
+    @staticmethod
+    def get_set_winner(
+        games_player1,
+        games_player2,
+    ):
+
+        if games_player1 > games_player2:
+            return 1
+
+        return 2
+
+    @staticmethod
+    def recalculate_match_result(match):
+
+        sets = (
+            match.sets
+            .all()
+            .order_by("set_number")
+        )
+
+        player1_sets = 0
+        player2_sets = 0
+
+        for match_set in sets:
+
+            if (
+                match_set.games_player1
+                > match_set.games_player2
+            ):
+                player1_sets += 1
+
+            else:
+                player2_sets += 1
+
+        # ---------------------------------
+        # Player 1 ganó el partido
+        # ---------------------------------
+
+        if player1_sets >= 2:
+
+            match.winner_player = (
+                match.player1
+            )
+
+            match.status = (
+                Match.Status.FINALIZADO
+            )
+
+            match.save(
+                update_fields=[
+                    "winner_player",
+                    "status",
+                ]
+            )
+
+            return
+
+        # ---------------------------------
+        # Player 2 ganó el partido
+        # ---------------------------------
+
+        if player2_sets >= 2:
+
+            match.winner_player = (
+                match.player2
+            )
+
+            match.status = (
+                Match.Status.FINALIZADO
+            )
+
+            match.save(
+                update_fields=[
+                    "winner_player",
+                    "status",
+                ]
+            )
+
+            return
+
+        # ---------------------------------
+        # Partido todavía no finalizado
+        # ---------------------------------
+
+        match.winner_player = None
+
+        if sets.exists():
+
+            match.status = (
+                Match.Status.EN_JUEGO
+            )
+
+        else:
+
+            match.status = (
+                Match.Status.PROGRAMADO
+            )
+
+        match.save(
+            update_fields=[
+                "winner_player",
+                "status",
+            ]
+        )
+
+    # =====================================================
+    # VALIDACIÓN
+    # =====================================================
+
     def validate(self, data):
 
         instance = self.instance
 
+        match = data.get(
+            "match",
+            (
+                instance.match
+                if instance
+                else None
+            ),
+        )
+
         set_number = data.get(
             "set_number",
-            instance.set_number if instance else None,
+            (
+                instance.set_number
+                if instance
+                else None
+            ),
         )
 
         games_player1 = data.get(
@@ -1298,44 +1580,124 @@ class MatchSetSerializer(serializers.ModelSerializer):
         )
 
         # ---------------------------------
-        # Número set
+        # 1. Debe existir partido
         # ---------------------------------
 
-        if set_number < 1:
+        if match is None:
+
+            raise serializers.ValidationError(
+                {
+                    "match": (
+                        "Debe indicar el partido."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 2. Partido cancelado
+        # ---------------------------------
+
+        if (
+            match.status
+            == Match.Status.CANCELADO
+        ):
+
+            raise serializers.ValidationError(
+                {
+                    "match": (
+                        "No se pueden registrar sets "
+                        "en un partido cancelado."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 3. Walkover
+        # ---------------------------------
+
+        if match.is_walkover:
+
+            raise serializers.ValidationError(
+                {
+                    "match": (
+                        "No se pueden registrar sets "
+                        "en un partido definido por "
+                        "walkover."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 4. BYE
+        # ---------------------------------
+
+        if match.player2 is None:
+
+            raise serializers.ValidationError(
+                {
+                    "match": (
+                        "No se pueden registrar sets "
+                        "en un partido con BYE."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 5. Número de set
+        # ---------------------------------
+
+        if set_number is None:
+
+            raise serializers.ValidationError(
+                {
+                    "set_number": (
+                        "Debe indicar el número de set."
+                    )
+                }
+            )
+
+        if set_number not in [
+            1,
+            2,
+            3,
+        ]:
+
             raise serializers.ValidationError(
                 {
                     "set_number": (
                         "El número de set debe ser "
-                        "mayor que 0."
+                        "1, 2 o 3."
                     )
                 }
             )
 
         # ---------------------------------
-        # Super tie-break solo set 3
+        # 6. Marcadores requeridos
         # ---------------------------------
 
         if (
-            is_super_tie_break
-            and set_number != 3
+            games_player1 is None
+            or games_player2 is None
         ):
+
             raise serializers.ValidationError(
                 {
-                    "is_super_tie_break": (
-                        "Solo el tercer set puede "
-                        "ser un super tie-break."
+                    "games": (
+                        "Debe indicar el marcador "
+                        "de ambos jugadores."
                     )
                 }
             )
 
         # ---------------------------------
-        # No empate
+        # 7. No empate
         # ---------------------------------
 
         if (
             games_player1
             == games_player2
         ):
+
             raise serializers.ValidationError(
                 {
                     "games": (
@@ -1346,7 +1708,36 @@ class MatchSetSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # Super tie-break
+        # 8. STB solamente en tercer set
+        # ---------------------------------
+
+        if set_number == 3:
+
+            if not is_super_tie_break:
+
+                raise serializers.ValidationError(
+                    {
+                        "is_super_tie_break": (
+                            "El tercer set debe "
+                            "registrarse como un "
+                            "super tie-break."
+                        )
+                    }
+                )
+
+        elif is_super_tie_break:
+
+            raise serializers.ValidationError(
+                {
+                    "is_super_tie_break": (
+                        "Solo el tercer set puede "
+                        "ser un super tie-break."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 9. Validar Super Tie-Break
         # ---------------------------------
 
         if is_super_tie_break:
@@ -1361,7 +1752,9 @@ class MatchSetSerializer(serializers.ModelSerializer):
                 games_player2,
             )
 
+            # Debe alcanzarse al menos 10.
             if winner < 10:
+
                 raise serializers.ValidationError(
                     {
                         "games": (
@@ -1371,61 +1764,356 @@ class MatchSetSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            if winner - loser < 2:
+            # ---------------------------------
+            # Si el perdedor tiene 8 puntos
+            # o menos, el STB termina
+            # necesariamente en 10.
+            #
+            # Ejemplos:
+            # 10-0 ✓
+            # 10-8 ✓
+            # 11-8 ✗
+            # 12-2 ✗
+            # ---------------------------------
+
+            if loser <= 8:
+
+                if winner != 10:
+
+                    raise serializers.ValidationError(
+                        {
+                            "games": (
+                                "Con 8 puntos o menos "
+                                "del perdedor, el super "
+                                "tie-break debe finalizar "
+                                "exactamente en 10 puntos "
+                                "para el ganador."
+                            )
+                        }
+                    )
+
+            # ---------------------------------
+            # Desde 9-9 en adelante,
+            # debe ganarse exactamente
+            # por diferencia de 2.
+            #
+            # 11-9 ✓
+            # 12-10 ✓
+            # 13-11 ✓
+            # 12-9 ✗
+            # ---------------------------------
+
+            else:
+
+                if (
+                    winner - loser
+                    != 2
+                ):
+
+                    raise serializers.ValidationError(
+                        {
+                            "games": (
+                                "Después de 9-9, el "
+                                "super tie-break debe "
+                                "ganarse exactamente por "
+                                "2 puntos de diferencia."
+                            )
+                        }
+                    )
+
+        # ---------------------------------
+        # 10. Set normal
+        # ---------------------------------
+
+        else:
+
+            winner = max(
+                games_player1,
+                games_player2,
+            )
+
+            loser = min(
+                games_player1,
+                games_player2,
+            )
+
+            valid_normal_set = (
+
+                (
+                    winner == 6
+                    and loser <= 4
+                )
+
+                or
+
+                (
+                    winner == 7
+                    and loser == 5
+                )
+
+                or
+
+                (
+                    winner == 7
+                    and loser == 6
+                )
+            )
+
+            if not valid_normal_set:
+
                 raise serializers.ValidationError(
                     {
                         "games": (
-                            "El super tie-break debe "
-                            "ganarse por una diferencia "
-                            "mínima de 2 puntos."
+                            "El resultado no corresponde "
+                            "a un marcador válido de tenis."
                         )
                     }
                 )
 
-            return data
-
         # ---------------------------------
-        # Set normal
+        # Sets existentes
         # ---------------------------------
 
-        winner = max(
-            games_player1,
-            games_player2,
+        existing_sets = (
+            MatchSet.objects.filter(
+                match=match
+            )
         )
 
-        loser = min(
-            games_player1,
-            games_player2,
-        )
+        if instance:
 
-        if (
-            winner == 6
-            and loser <= 4
-        ):
-            return data
-
-        if (
-            winner == 7
-            and loser == 5
-        ):
-            return data
-
-        if (
-            winner == 7
-            and loser == 6
-        ):
-            return data
-
-        raise serializers.ValidationError(
-            {
-                "games": (
-                    "El resultado no corresponde "
-                    "a un marcador válido de tenis."
+            existing_sets = (
+                existing_sets.exclude(
+                    pk=instance.pk
                 )
-            }
+            )
+
+        existing_by_number = {
+            match_set.set_number:
+                match_set
+            for match_set
+            in existing_sets
+        }
+
+        # ---------------------------------
+        # 11. Set duplicado
+        # ---------------------------------
+
+        if (
+            set_number
+            in existing_by_number
+        ):
+
+            raise serializers.ValidationError(
+                {
+                    "set_number": (
+                        "Este número de set ya fue "
+                        "registrado para el partido."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 12. Set 2 requiere Set 1
+        # ---------------------------------
+
+        if (
+            set_number == 2
+            and 1 not in existing_by_number
+        ):
+
+            raise serializers.ValidationError(
+                {
+                    "set_number": (
+                        "No se puede registrar el "
+                        "segundo set antes del primero."
+                    )
+                }
+            )
+
+        # ---------------------------------
+        # 13. Set 3 requiere Sets 1 y 2
+        # ---------------------------------
+
+        if set_number == 3:
+
+            if (
+                1 not in existing_by_number
+                or 2 not in existing_by_number
+            ):
+
+                raise serializers.ValidationError(
+                    {
+                        "set_number": (
+                            "El tercer set solo puede "
+                            "registrarse después de los "
+                            "dos primeros sets."
+                        )
+                    }
+                )
+
+            set1 = existing_by_number[1]
+            set2 = existing_by_number[2]
+
+            set1_winner = (
+                self.get_set_winner(
+                    set1.games_player1,
+                    set1.games_player2,
+                )
+            )
+
+            set2_winner = (
+                self.get_set_winner(
+                    set2.games_player1,
+                    set2.games_player2,
+                )
+            )
+
+            if (
+                set1_winner
+                == set2_winner
+            ):
+
+                raise serializers.ValidationError(
+                    {
+                        "set_number": (
+                            "El tercer set solo puede "
+                            "jugarse cuando el partido "
+                            "está igualado a un set."
+                        )
+                    }
+                )
+
+        # ---------------------------------
+        # 14. Simulación global
+        # ---------------------------------
+
+        simulated_sets = {}
+
+        for (
+            number,
+            existing_set
+        ) in existing_by_number.items():
+
+            simulated_sets[number] = (
+                existing_set.games_player1,
+                existing_set.games_player2,
+            )
+
+        simulated_sets[
+            set_number
+        ] = (
+            games_player1,
+            games_player2,
         )
 
+        numbers = sorted(
+            simulated_sets.keys()
+        )
 
+        expected_numbers = list(
+            range(
+                1,
+                len(numbers) + 1
+            )
+        )
+
+        if (
+            numbers
+            != expected_numbers
+        ):
+
+            raise serializers.ValidationError(
+                {
+                    "set_number": (
+                        "Los sets deben registrarse "
+                        "en orden consecutivo."
+                    )
+                }
+            )
+
+        player1_sets = 0
+        player2_sets = 0
+
+        for number in numbers:
+
+            games1, games2 = (
+                simulated_sets[number]
+            )
+
+            if games1 > games2:
+
+                player1_sets += 1
+
+            else:
+
+                player2_sets += 1
+
+            if (
+                player1_sets >= 2
+                or player2_sets >= 2
+            ):
+
+                if (
+                    number
+                    != numbers[-1]
+                ):
+
+                    raise serializers.ValidationError(
+                        {
+                            "set_number": (
+                                "No se pueden registrar "
+                                "sets posteriores porque "
+                                "el partido ya finalizó."
+                            )
+                        }
+                    )
+
+        return data
+
+    # =====================================================
+    # CREAR
+    # =====================================================
+
+    def create(
+        self,
+        validated_data,
+    ):
+
+        match_set = (
+            super().create(
+                validated_data
+            )
+        )
+
+        self.recalculate_match_result(
+            match_set.match
+        )
+
+        return match_set
+
+    # =====================================================
+    # ACTUALIZAR
+    # =====================================================
+
+    def update(
+        self,
+        instance,
+        validated_data,
+    ):
+
+        match_set = (
+            super().update(
+                instance,
+                validated_data,
+            )
+        )
+
+        self.recalculate_match_result(
+            match_set.match
+        )
+
+        return match_set
 # =========================================================
 # STANDING
 # =========================================================

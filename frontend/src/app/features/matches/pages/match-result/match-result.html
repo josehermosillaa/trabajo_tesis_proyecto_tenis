@@ -1,0 +1,794 @@
+<div class="container py-4">
+
+  <div class="row justify-content-center">
+
+    <div class="col-12 col-xl-9">
+
+
+      <!-- ================================================= -->
+      <!-- ENCABEZADO -->
+      <!-- ================================================= -->
+
+      <div
+        class="d-flex justify-content-between align-items-start mb-4"
+      >
+
+        <div>
+
+          <h1 class="h3 mb-1">
+            Resultado del partido
+          </h1>
+
+          <p class="text-muted mb-0">
+            Registro y corrección de sets
+          </p>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          (click)="goBack()"
+        >
+          Volver
+        </button>
+
+      </div>
+
+
+      <!-- ================================================= -->
+      <!-- ÉXITO -->
+      <!-- ================================================= -->
+
+      @if (successMessage) {
+
+        <div
+          class="alert alert-success"
+        >
+          {{ successMessage }}
+        </div>
+
+      }
+
+
+      <!-- ================================================= -->
+      <!-- ERROR -->
+      <!-- ================================================= -->
+
+      @if (errorMessage) {
+
+        <div
+          class="alert alert-danger"
+        >
+          {{ errorMessage }}
+        </div>
+
+      }
+
+
+      <!-- ================================================= -->
+      <!-- CARGANDO -->
+      <!-- ================================================= -->
+
+      @if (loading) {
+
+        <div class="text-center py-5">
+
+          <div
+            class="spinner-border text-danger"
+            role="status"
+          >
+            <span class="visually-hidden">
+              Cargando...
+            </span>
+          </div>
+
+          <p class="text-muted mt-3">
+            Cargando partido...
+          </p>
+
+        </div>
+
+      }
+
+
+      @if (
+        !loading &&
+        match
+      ) {
+
+
+        <!-- ================================================= -->
+        <!-- INFORMACIÓN PARTIDO -->
+        <!-- ================================================= -->
+
+        <div
+          class="card shadow-sm border-0 mb-4"
+        >
+
+          <div class="card-body p-4">
+
+
+            <div
+              class="row align-items-center text-center"
+            >
+
+
+              <!-- JUGADOR 1 -->
+              <div class="col-md-5">
+
+                <div
+                  class="text-muted small mb-1"
+                >
+                  Jugador 1
+                </div>
+
+                <div class="fs-4 fw-bold">
+
+                  {{
+                    getPlayerName(
+                      match.player1
+                    )
+                  }}
+
+                </div>
+
+              </div>
+
+
+              <!-- VS -->
+              <div class="col-md-2">
+
+                <div
+                  class="fs-5 fw-bold text-muted my-3"
+                >
+                  VS
+                </div>
+
+              </div>
+
+
+              <!-- JUGADOR 2 -->
+              <div class="col-md-5">
+
+                <div
+                  class="text-muted small mb-1"
+                >
+                  Jugador 2
+                </div>
+
+                <div class="fs-4 fw-bold">
+
+                  {{
+                    getPlayerName(
+                      match.player2
+                    )
+                  }}
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <hr>
+
+
+            <div
+              class="d-flex flex-wrap justify-content-center gap-3"
+            >
+
+              <div>
+
+                <strong>
+                  Estado:
+                </strong>
+
+                @switch (match.status) {
+
+
+                  @case ('PROGRAMADO') {
+
+                    <span
+                      class="badge text-bg-secondary"
+                    >
+                      Programado
+                    </span>
+
+                  }
+
+
+                  @case ('EN_JUEGO') {
+
+                    <span
+                      class="badge text-bg-warning"
+                    >
+                      En juego
+                    </span>
+
+                  }
+
+
+                  @case ('FINALIZADO') {
+
+                    <span
+                      class="badge text-bg-success"
+                    >
+                      Finalizado
+                    </span>
+
+                  }
+
+
+                  @case ('CANCELADO') {
+
+                    <span
+                      class="badge text-bg-danger"
+                    >
+                      Cancelado
+                    </span>
+
+                  }
+
+                }
+
+              </div>
+
+
+              @if (
+                match.round !== null
+              ) {
+
+                <div>
+
+                  <strong>
+                    Ronda:
+                  </strong>
+
+                  {{ match.round }}
+
+                </div>
+
+              }
+
+
+              @if (
+                match.is_walkover
+              ) {
+
+                <div>
+
+                  <span
+                    class="badge text-bg-danger"
+                  >
+                    Walkover
+                  </span>
+
+                </div>
+
+              }
+
+            </div>
+
+
+            <!-- GANADOR -->
+            @if (
+              match.status ===
+                'FINALIZADO'
+              &&
+              match.winner_player !== null
+            ) {
+
+              <div
+                class="alert alert-success text-center mt-4 mb-0"
+              >
+
+                Ganador:
+
+                <strong>
+                  {{ getWinnerName() }}
+                </strong>
+
+              </div>
+
+            }
+
+          </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- BYE -->
+        <!-- ================================================= -->
+
+        @if (
+          match.player2 === null
+        ) {
+
+          <div
+            class="alert alert-info"
+          >
+            Este partido corresponde a un
+            <strong>BYE</strong>.
+            No se registran sets.
+          </div>
+
+        }
+
+
+        <!-- ================================================= -->
+        <!-- WALKOVER -->
+        <!-- ================================================= -->
+
+        @if (
+          match.is_walkover
+        ) {
+
+          <div
+            class="alert alert-info"
+          >
+            Este partido fue definido por
+            <strong>walkover</strong>.
+            No se registran sets.
+          </div>
+
+        }
+
+
+        <!-- ================================================= -->
+        <!-- SETS REGISTRADOS -->
+        <!-- ================================================= -->
+
+        @if (
+          !match.is_walkover &&
+          match.player2 !== null
+        ) {
+
+          <div
+            class="card shadow-sm border-0 mb-4"
+          >
+
+            <div class="card-header bg-light">
+
+              <h2 class="h5 mb-0">
+                Sets registrados
+              </h2>
+
+            </div>
+
+
+            <div class="card-body">
+
+
+              @if (
+                matchSets.length === 0
+              ) {
+
+                <p class="text-muted mb-0">
+
+                  Todavía no existen sets
+                  registrados para este partido.
+
+                </p>
+
+              } @else {
+
+                <div class="table-responsive">
+
+                  <table
+                    class="table table-hover align-middle mb-0"
+                  >
+
+                    <thead>
+
+                      <tr>
+
+                        <th>
+                          Set
+                        </th>
+
+                        <th class="text-center">
+
+                          {{
+                            getPlayerName(
+                              match.player1
+                            )
+                          }}
+
+                        </th>
+
+                        <th class="text-center">
+
+                          {{
+                            getPlayerName(
+                              match.player2
+                            )
+                          }}
+
+                        </th>
+
+                        <th>
+                          Tipo
+                        </th>
+
+                        <th>
+                          Ganador
+                        </th>
+
+                        <th class="text-end">
+                          Acciones
+                        </th>
+
+                      </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                      @for (
+                        matchSet
+                          of matchSets;
+                        track matchSet.id
+                      ) {
+
+                        <tr>
+
+                          <td>
+
+                            <strong>
+                              {{ matchSet.set_number }}
+                            </strong>
+
+                          </td>
+
+
+                          <td
+                            class="text-center fs-5"
+                          >
+
+                            {{
+                              matchSet.games_player1
+                            }}
+
+                          </td>
+
+
+                          <td
+                            class="text-center fs-5"
+                          >
+
+                            {{
+                              matchSet.games_player2
+                            }}
+
+                          </td>
+
+
+                          <td>
+
+                            @if (
+                              matchSet
+                                .is_super_tie_break
+                            ) {
+
+                              <span
+                                class="badge text-bg-primary"
+                              >
+                                Super Tie-Break
+                              </span>
+
+                            } @else {
+
+                              <span
+                                class="badge text-bg-secondary"
+                              >
+                                Set
+                              </span>
+
+                            }
+
+                          </td>
+
+
+                          <td>
+
+                            {{
+                              getSetWinner(
+                                matchSet
+                              )
+                            }}
+
+                          </td>
+
+
+                          <td class="text-end">
+
+                            <div
+                              class="d-flex justify-content-end gap-2"
+                            >
+
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                (click)="
+                                  editSet(
+                                    matchSet
+                                  )
+                                "
+                                [disabled]="
+                                  saving ||
+                                  deletingSetId !== null
+                                "
+                              >
+                                Editar
+                              </button>
+
+
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                (click)="
+                                  deleteSet(
+                                    matchSet
+                                  )
+                                "
+                                [disabled]="
+                                  saving ||
+                                  deletingSetId !== null
+                                "
+                              >
+
+                                @if (
+                                  deletingSetId ===
+                                  matchSet.id
+                                ) {
+
+                                  Eliminando...
+
+                                } @else {
+
+                                  Eliminar
+
+                                }
+
+                              </button>
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+
+                      }
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              }
+
+            </div>
+
+          </div>
+
+        }
+
+
+        <!-- ================================================= -->
+        <!-- REGISTRAR / EDITAR SET -->
+        <!-- ================================================= -->
+
+        @if (
+          (
+            canRegisterSet()
+            ||
+            editingSetId !== null
+          )
+          &&
+          !match.is_walkover
+          &&
+          match.player2 !== null
+        ) {
+
+          <div
+            class="card shadow-sm border-0"
+          >
+
+            <div class="card-header bg-light">
+
+              <h2 class="h5 mb-0">
+
+                @if (
+                  editingSetId !== null
+                ) {
+
+                  Editar set
+
+                } @else {
+
+                  Registrar siguiente set
+
+                }
+
+              </h2>
+
+            </div>
+
+
+            <div class="card-body">
+
+              <form
+                [formGroup]="resultForm"
+                (ngSubmit)="onSubmit()"
+              >
+
+
+                <!-- SET NUMBER -->
+                <div class="mb-3">
+
+                  <label
+                    for="setNumber"
+                    class="form-label"
+                  >
+                    Número de set
+                  </label>
+
+                  <input
+                    id="setNumber"
+                    type="number"
+                    class="form-control"
+                    formControlName="set_number"
+                    readonly
+                  />
+
+                </div>
+
+
+                <!-- MARCADOR -->
+                <div class="row">
+
+                  <div class="col-md-6 mb-3">
+
+                    <label
+                      for="gamesPlayer1"
+                      class="form-label"
+                    >
+
+                      {{
+                        getPlayerName(
+                          match.player1
+                        )
+                      }}
+
+                    </label>
+
+                    <input
+                      id="gamesPlayer1"
+                      type="number"
+                      min="0"
+                      class="form-control"
+                      formControlName="games_player1"
+                    />
+
+                  </div>
+
+
+                  <div class="col-md-6 mb-3">
+
+                    <label
+                      for="gamesPlayer2"
+                      class="form-label"
+                    >
+
+                      {{
+                        getPlayerName(
+                          match.player2
+                        )
+                      }}
+
+                    </label>
+
+                    <input
+                      id="gamesPlayer2"
+                      type="number"
+                      min="0"
+                      class="form-control"
+                      formControlName="games_player2"
+                    />
+
+                  </div>
+
+                </div>
+
+
+                <!-- STB -->
+                @if (
+                  resultForm.controls
+                    .set_number.value === 3
+                ) {
+
+                  <div
+                    class="alert alert-info"
+                  >
+
+                    El tercer set corresponde a un
+                    <strong>Super Tie-Break a 10 puntos</strong>,
+                    con diferencia mínima de 2.
+
+                  </div>
+
+                }
+
+
+                <!-- BOTONES -->
+                <div
+                  class="d-flex justify-content-end gap-2"
+                >
+
+                  @if (
+                    editingSetId !== null
+                  ) {
+
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      (click)="cancelEdit()"
+                      [disabled]="saving"
+                    >
+                      Cancelar edición
+                    </button>
+
+                  }
+
+
+                  <button
+                    type="submit"
+                    class="btn btn-danger"
+                    [disabled]="saving"
+                  >
+
+                    @if (saving) {
+
+                      <span
+                        class="spinner-border spinner-border-sm me-2"
+                      ></span>
+
+                      Guardando...
+
+                    } @else if (
+                      editingSetId !== null
+                    ) {
+
+                      Guardar cambios
+
+                    } @else {
+
+                      Registrar set
+
+                    }
+
+                  </button>
+
+                </div>
+
+              </form>
+
+            </div>
+
+          </div>
+
+        }
+
+      }
+
+    </div>
+
+  </div>
+
+</div>
