@@ -33,3 +33,65 @@ export interface UpdateCompetitionCategoryRequest {
   max_players?: number;
   minimum_players?: number;
 }
+
+// =====================================================
+// BRACKET
+// =====================================================
+
+export interface BracketSet {
+  id: number;
+  set_number: number;
+  games_player1: number;
+  games_player2: number;
+  is_super_tie_break: boolean;
+}
+
+export interface BracketMatch {
+  id: number;
+  competition_category: number;
+
+  court: number | null;
+
+  player1: number | null;
+  player2: number | null;
+
+  winner_player: number | null;
+
+  scheduled_date_time: string | null;
+
+  status:
+    | 'PROGRAMADO'
+    | 'EN_JUEGO'
+    | 'FINALIZADO'
+    | 'CANCELADO';
+
+  round: number;
+  bracket_position: number;
+
+  next_match: number | null;
+  next_match_slot: number | null;
+
+  is_walkover: boolean;
+
+  sets: BracketSet[];
+}
+
+export interface BracketResponse {
+  competition_category: number;
+
+  competition: number;
+  competition_name: string;
+
+  category: number;
+  category_name: string;
+
+  generated: boolean;
+
+  matches: BracketMatch[];
+}
+
+export interface GenerateBracketResponse {
+  detail: string;
+  competition_category: number;
+  matches: BracketMatch[];
+}

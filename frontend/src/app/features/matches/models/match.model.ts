@@ -4,7 +4,15 @@ export type MatchStatus =
   | 'FINALIZADO'
   | 'CANCELADO';
 
+
+export type MatchResolutionType =
+  | 'NORMAL'
+  | 'WALKOVER'
+  | 'RETIREMENT';
+
+
 export interface Match {
+
   id: number;
 
   competition_category: number;
@@ -25,6 +33,9 @@ export interface Match {
   round: number | null;
 
   is_walkover: boolean;
+
+  resolution_type:
+    MatchResolutionType;
 }
 
 
@@ -45,6 +56,9 @@ export interface CreateMatchRequest {
   round?: number | null;
 
   is_walkover?: boolean;
+
+  resolution_type?:
+    MatchResolutionType;
 
   winner_player?: number | null;
 }
@@ -68,5 +82,14 @@ export interface UpdateMatchRequest {
 
   is_walkover?: boolean;
 
+  resolution_type?:
+    MatchResolutionType;
+
   winner_player?: number | null;
+}
+
+
+export interface ResolveMatchRequest {
+
+  winner_player: number;
 }

@@ -11,6 +11,8 @@ export interface MatchSet {
   games_player2: number;
 
   is_super_tie_break: boolean;
+
+  is_incomplete: boolean;
 }
 
 
@@ -25,6 +27,8 @@ export interface CreateMatchSetRequest {
   games_player2: number;
 
   is_super_tie_break?: boolean;
+
+  is_incomplete?: boolean;
 }
 
 
@@ -39,4 +43,6 @@ export interface UpdateMatchSetRequest {
   games_player2?: number;
 
   is_super_tie_break?: boolean;
+
+  is_incomplete?: boolean;
 }

@@ -1,0 +1,602 @@
+<div class="container-fluid py-4">
+
+  <!-- ================================================= -->
+  <!-- ENCABEZADO -->
+  <!-- ================================================= -->
+
+  <div
+    class="d-flex justify-content-between align-items-start mb-4"
+  >
+
+    <div>
+
+      <h1 class="h3 mb-1">
+        Cuadro de eliminación directa
+      </h1>
+
+
+      @if (bracket) {
+
+        <h2 class="h5 mb-1">
+
+          {{ bracket.competition_name }}
+
+        </h2>
+
+
+        <p class="text-muted mb-0">
+
+          Categoría:
+
+          <strong>
+            {{ bracket.category_name }}
+          </strong>
+
+        </p>
+
+      }
+
+    </div>
+
+
+    <button
+      type="button"
+      class="btn btn-outline-secondary"
+      (click)="goBack()"
+    >
+      Volver
+    </button>
+
+  </div>
+
+
+  <!-- ================================================= -->
+  <!-- MENSAJES -->
+  <!-- ================================================= -->
+
+  @if (successMessage) {
+
+    <div
+      class="alert alert-success"
+    >
+      {{ successMessage }}
+    </div>
+
+  }
+
+
+  @if (errorMessage) {
+
+    <div
+      class="alert alert-danger"
+    >
+      {{ errorMessage }}
+    </div>
+
+  }
+
+
+  <!-- ================================================= -->
+  <!-- CARGANDO -->
+  <!-- ================================================= -->
+
+  @if (loading) {
+
+    <div class="text-center py-5">
+
+      <div
+        class="spinner-border text-danger"
+        role="status"
+      >
+
+        <span class="visually-hidden">
+          Cargando...
+        </span>
+
+      </div>
+
+
+      <p class="text-muted mt-3">
+
+        Cargando cuadro...
+
+      </p>
+
+    </div>
+
+  }
+
+
+  <!-- ================================================= -->
+  <!-- CUADRO NO GENERADO -->
+  <!-- ================================================= -->
+
+  @if (
+    !loading
+    &&
+    bracket
+    &&
+    !bracket.generated
+  ) {
+
+    <div
+      class="card shadow-sm border-0"
+    >
+
+      <div
+        class="card-body text-center py-5"
+      >
+
+        <h2 class="h5 mb-3">
+
+          El cuadro aún no ha sido generado
+
+        </h2>
+
+
+        <p class="text-muted mb-4">
+
+          El sistema utilizará únicamente
+          jugadores con inscripción confirmada
+          y respetará los cabezas de serie
+          configurados.
+
+        </p>
+
+
+        <button
+          type="button"
+          class="btn btn-danger"
+          (click)="generateBracket()"
+          [disabled]="generating"
+        >
+
+          @if (generating) {
+
+            <span
+              class="spinner-border spinner-border-sm me-2"
+            ></span>
+
+            Generando...
+
+          } @else {
+
+            Generar cuadro
+
+          }
+
+        </button>
+
+      </div>
+
+    </div>
+
+  }
+
+
+  <!-- ================================================= -->
+  <!-- CUADRO -->
+  <!-- ================================================= -->
+
+  @if (
+    !loading
+    &&
+    bracket
+    &&
+    bracket.generated
+  ) {
+
+    <div
+      class="card shadow-sm border-0"
+    >
+
+      <div class="card-body">
+
+
+        <!-- Información -->
+        <div
+          class="d-flex justify-content-between align-items-center mb-4"
+        >
+
+          <div>
+
+            <strong>
+              {{ bracket.matches.length }}
+            </strong>
+
+            partidos en el cuadro
+
+          </div>
+
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="loadBracket()"
+          >
+            Actualizar
+          </button>
+
+        </div>
+
+
+        <!-- ============================================= -->
+        <!-- BRACKET -->
+        <!-- ============================================= -->
+
+        <div
+          class="bracket-container"
+        >
+
+          @for (
+            round of rounds;
+            track round.round
+          ) {
+
+            <section
+              class="round-column"
+            >
+
+              <!-- Título ronda -->
+              <div
+                class="round-title"
+              >
+
+                {{ round.name }}
+
+              </div>
+
+
+              <!-- Partidos -->
+              <div
+                class="round-matches"
+              >
+
+                @for (
+                  match of round.matches;
+                  track match.id
+                ) {
+
+                  <article
+                    class="match-card"
+                  >
+
+
+                    <!-- Partido -->
+                    <div
+                      class="match-number"
+                    >
+
+                      Partido
+                      {{ match.bracket_position }}
+
+                    </div>
+
+
+                    <!-- PLAYER 1 -->
+
+                    <div
+                      class="player-row"
+                      [class.winner]="
+                        isWinner(
+                          match,
+                          match.player1
+                        )
+                      "
+                      [class.pending]="
+                        match.player1 === null
+                        &&
+                        match.round > 1
+                      "
+                    >
+
+                      <span
+                        class="player-name"
+                      >
+
+                        {{
+                          getPlayerName(
+                            match.player1,
+                            match
+                          )
+                        }}
+
+                      </span>
+
+
+                      @if (
+                        getPlayer1Score(
+                          match
+                        )
+                      ) {
+
+                        <span
+                          class="player-score"
+                        >
+
+                          {{
+                            getPlayer1Score(
+                              match
+                            )
+                          }}
+
+                        </span>
+
+                      }
+
+                    </div>
+
+
+                    <!-- PLAYER 2 -->
+
+                    <div
+                      class="player-row"
+                      [class.winner]="
+                        isWinner(
+                          match,
+                          match.player2
+                        )
+                      "
+                      [class.pending]="
+                        match.player2 === null
+                        &&
+                        match.round > 1
+                      "
+                    >
+
+                      <span
+                        class="player-name"
+                      >
+
+                        {{
+                          getPlayerName(
+                            match.player2,
+                            match
+                          )
+                        }}
+
+                      </span>
+
+
+                      @if (
+                        getPlayer2Score(
+                          match
+                        )
+                      ) {
+
+                        <span
+                          class="player-score"
+                        >
+
+                          {{
+                            getPlayer2Score(
+                              match
+                            )
+                          }}
+
+                        </span>
+
+                      }
+
+                    </div>
+
+
+                    <!-- FOOTER -->
+
+                    <div
+                      class="match-footer"
+                    >
+
+                      <div>
+
+                        @switch (
+                          match.status
+                        ) {
+
+
+                          @case ('FINALIZADO') {
+
+                            <span
+                              class="badge text-bg-success"
+                            >
+                              Finalizado
+                            </span>
+
+                          }
+
+
+                          @case ('EN_JUEGO') {
+
+                            <span
+                              class="badge text-bg-warning"
+                            >
+                              En juego
+                            </span>
+
+                          }
+
+
+                          @case ('CANCELADO') {
+
+                            <span
+                              class="badge text-bg-danger"
+                            >
+                              Cancelado
+                            </span>
+
+                          }
+
+
+                          @default {
+
+                            <span
+                              class="badge text-bg-secondary"
+                            >
+                              Programado
+                            </span>
+
+                          }
+
+                        }
+
+                      </div>
+
+
+                      @if (
+                        canPlayMatch(
+                          match
+                        )
+                      ) {
+
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          (click)="
+                            goToResult(
+                              match
+                            )
+                          "
+                        >
+
+                          @if (
+                            match.status ===
+                            'FINALIZADO'
+                          ) {
+
+                            Editar resultado
+
+                          } @else {
+
+                            Resultado
+
+                          }
+
+                        </button>
+
+                      }
+
+                    </div>
+
+
+                    <!-- BYE -->
+
+                    @if (
+                      match.round === 1
+                      &&
+                      (
+                        match.player1 === null
+                        ||
+                        match.player2 === null
+                      )
+                    ) {
+
+                      <div
+                        class="bye-label"
+                      >
+                        Avance automático por BYE
+                      </div>
+
+                    }
+
+                  </article>
+
+                }
+
+              </div>
+
+            </section>
+
+          }
+
+
+          <!-- =========================================== -->
+          <!-- CAMPEÓN -->
+          <!-- =========================================== -->
+
+          <section
+            class="round-column champion-column"
+          >
+
+            <div
+              class="round-title champion-title"
+            >
+              Campeón
+            </div>
+
+
+            <div
+              class="champion-wrapper"
+            >
+
+              <article
+                class="champion-card"
+                [class.champion-defined]="
+                  hasChampion()
+                "
+              >
+
+                <div
+                  class="trophy"
+                  aria-hidden="true"
+                >
+                  🏆
+                </div>
+
+
+                <div
+                  class="champion-label"
+                >
+                  Campeón
+                </div>
+
+
+                <div
+                  class="champion-name"
+                  [class.pending]="
+                    !hasChampion()
+                  "
+                >
+
+                  {{
+                    getChampionName()
+                  }}
+
+                </div>
+
+
+                @if (
+                  hasChampion()
+                ) {
+
+                  <div
+                    class="champion-subtitle"
+                  >
+                    Ganador de la categoría
+                  </div>
+
+                } @else {
+
+                  <div
+                    class="champion-subtitle"
+                  >
+                    Se definirá al finalizar
+                    la final
+                  </div>
+
+                }
+
+              </article>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  }
+
+</div>

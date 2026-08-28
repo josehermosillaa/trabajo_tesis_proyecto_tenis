@@ -9,6 +9,10 @@ import {
 } from '@angular/common';
 
 import {
+  FormsModule,
+} from '@angular/forms';
+
+import {
   FormBuilder,
   ReactiveFormsModule,
   Validators,
@@ -43,6 +47,7 @@ import {
 
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
   ],
 
@@ -90,6 +95,37 @@ export class MatchResultComponent
 
   editingSetId:
     number | null = null;
+
+  /*
+   * Set seleccionado para confirmar
+   * su eliminación mediante modal.
+   */
+  setPendingDelete:
+    MatchSet | null = null;
+      /*
+   * Tipo de resolución pendiente.
+   */
+  resolutionPending:
+    'WALKOVER'
+    | 'RETIREMENT'
+    | null = null;
+
+  /*
+   * Jugador seleccionado como ganador
+   * en WO o Retiro.
+   */
+  resolutionWinnerId:
+    number | null = null;
+
+  resolvingMatch = false;
+
+  /*
+   * Marcador parcial del set actual cuando
+   * el partido finaliza por retiro.
+   */
+  retirementGamesPlayer1 = 0;
+
+  retirementGamesPlayer2 = 0;
 
   errorMessage = '';
 
@@ -414,6 +450,12 @@ export class MatchResultComponent
     }
 
     if (
+      matchSet.is_incomplete
+    ) {
+      return 'Retiro';
+    }
+
+    if (
       matchSet.games_player1 >
       matchSet.games_player2
     ) {
@@ -429,40 +471,36 @@ export class MatchResultComponent
   }
 
 
-  canRegisterSet(): boolean {
+canRegisterSet(): boolean {
 
-    if (!this.match) {
-      return false;
-    }
-
-    if (
-      this.match.is_walkover
-      ||
-      this.match.player2 === null
-      ||
-      this.match.status === 'CANCELADO'
-    ) {
-      return false;
-    }
-
-    /*
-     * Cuando el partido terminó,
-     * no agregamos nuevos sets.
-     *
-     * Sí permitimos editar/eliminar
-     * los ya existentes.
-     */
-    if (
-      this.match.status ===
-      'FINALIZADO'
-    ) {
-      return false;
-    }
-
-    return (
-      this.matchSets.length < 3
-    );
+  if (!this.match) {
+    return false;
   }
+
+  if (
+    this.match.is_walkover
+    ||
+    this.match.resolution_type === 'WALKOVER'
+    ||
+    this.match.resolution_type === 'RETIREMENT'
+    ||
+    this.match.player2 === null
+    ||
+    this.match.status === 'CANCELADO'
+  ) {
+    return false;
+  }
+
+  if (
+    this.match.status === 'FINALIZADO'
+  ) {
+    return false;
+  }
+
+  return (
+    this.matchSets.length < 3
+  );
+}
 
 
   // =====================================================
@@ -714,10 +752,10 @@ export class MatchResultComponent
 
 
   // =====================================================
-  // ELIMINAR SET
+  // MODAL ELIMINAR SET
   // =====================================================
 
-  deleteSet(
+  openDeleteSetModal(
     matchSet: MatchSet
   ): void {
 
@@ -727,14 +765,38 @@ export class MatchResultComponent
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        `¿Eliminar el Set ${matchSet.set_number}?`
-      );
+    this.errorMessage = '';
 
-    if (!confirmed) {
+    this.setPendingDelete =
+      matchSet;
+  }
+
+
+  closeDeleteSetModal(): void {
+
+    if (
+      this.deletingSetId !== null
+    ) {
       return;
     }
+
+    this.setPendingDelete =
+      null;
+  }
+
+
+  confirmDeleteSet(): void {
+
+    if (
+      this.setPendingDelete === null
+      ||
+      this.deletingSetId !== null
+    ) {
+      return;
+    }
+
+    const matchSet =
+      this.setPendingDelete;
 
     this.deletingSetId =
       matchSet.id;
@@ -755,13 +817,23 @@ export class MatchResultComponent
           this.editingSetId =
             null;
 
+          this.setPendingDelete =
+            null;
+
           this.showSuccessMessage(
             'Set eliminado correctamente.'
           );
 
           /*
            * El backend recalcula
-           * automáticamente el Match.
+           * automáticamente:
+           *
+           * status
+           * winner_player
+           *
+           * y, cuando corresponde,
+           * el clasificado de la
+           * siguiente ronda.
            */
           this.loadMatch();
         },
@@ -780,10 +852,472 @@ export class MatchResultComponent
 
           this.deletingSetId =
             null;
+
+          this.setPendingDelete =
+            null;
         },
       });
   }
 
+    // =====================================================
+  // WALKOVER / RETIRO
+  // =====================================================
+
+canRegisterWalkover(): boolean {
+  if (!this.match) {
+    return false;
+  }
+
+  if (
+    this.match.player2 === null
+    ||
+    this.match.status === 'CANCELADO'
+  ) {
+    return false;
+  }
+
+  /*
+   * Si ya es WALKOVER,
+   * permitimos editar el ganador.
+   */
+  if (
+    this.match.resolution_type === 'WALKOVER'
+    ||
+    this.match.is_walkover
+  ) {
+    return true;
+  }
+
+  /*
+   * Un retiro no se transforma
+   * directamente en WO.
+   * Primero debe restablecerse.
+   */
+  if (
+    this.match.resolution_type === 'RETIREMENT'
+  ) {
+    return false;
+  }
+
+  /*
+   * Un WO solamente puede registrarse
+   * si todavía no existen sets.
+   */
+  return this.matchSets.length === 0;
+}
+
+
+canRegisterRetirement(): boolean {
+  if (!this.match) {
+    return false;
+  }
+
+  if (
+    this.match.player2 === null
+    ||
+    this.match.status === 'CANCELADO'
+  ) {
+    return false;
+  }
+
+  /*
+   * Si ya es RETIREMENT,
+   * permitimos editar el ganador.
+   */
+  if (
+    this.match.resolution_type === 'RETIREMENT'
+  ) {
+    return true;
+  }
+
+  /*
+   * Un WO no se transforma
+   * directamente en retiro.
+   */
+  if (
+    this.match.resolution_type === 'WALKOVER'
+    ||
+    this.match.is_walkover
+  ) {
+    return false;
+  }
+
+  /*
+   * El retiro puede producirse en cualquier
+   * momento después de iniciado el partido,
+   * incluso durante el primer set.
+   */
+  return true;
+}
+
+
+openResolutionModal(
+  type: 'WALKOVER' | 'RETIREMENT'
+): void {
+
+  if (!this.match) {
+    return;
+  }
+
+  this.resolutionPending = type;
+
+  /*
+   * Si estamos editando una resolución,
+   * dejamos seleccionado al ganador actual.
+   */
+  this.resolutionWinnerId =
+    this.match.winner_player ?? null;
+
+  if (
+    type === 'RETIREMENT'
+    &&
+    this.match.resolution_type !== 'RETIREMENT'
+  ) {
+    this.retirementGamesPlayer1 = 0;
+    this.retirementGamesPlayer2 = 0;
+  }
+}
+
+
+  closeResolutionModal(): void {
+
+    if (this.resolvingMatch) {
+      return;
+    }
+
+    this.resolutionPending =
+      null;
+
+    this.resolutionWinnerId =
+      null;
+
+    this.retirementGamesPlayer1 =
+      0;
+
+    this.retirementGamesPlayer2 =
+      0;
+  }
+
+
+  selectResolutionWinner(
+    playerId: number
+  ): void {
+
+    if (this.resolvingMatch) {
+      return;
+    }
+
+    this.resolutionWinnerId =
+      playerId;
+  }
+
+
+  confirmResolution(): void {
+
+    if (
+      !this.match
+      ||
+      this.resolutionPending ===
+        null
+      ||
+      this.resolutionWinnerId ===
+        null
+      ||
+      this.resolvingMatch
+    ) {
+      return;
+    }
+
+    this.resolvingMatch = true;
+
+    this.errorMessage = '';
+
+    const resolution =
+      this.resolutionPending;
+
+    /*
+     * WALKOVER y edición de un RETIRO ya existente
+     * no necesitan crear un marcador parcial.
+     */
+    if (
+      resolution === 'WALKOVER'
+      ||
+      this.match.resolution_type ===
+        'RETIREMENT'
+    ) {
+
+      this.sendResolutionRequest(
+        resolution
+      );
+
+      return;
+    }
+
+    /*
+     * RETIRO NUEVO:
+     *
+     * Si existe un marcador parcial distinto de
+     * 0-0, lo guardamos como MatchSet incompleto
+     * antes de finalizar el partido por retiro.
+     *
+     * Si está 0-0, no es necesario crear un set
+     * incompleto: el retiro puede registrarse
+     * igualmente.
+     */
+    const hasPartialScore =
+      (
+        this.retirementGamesPlayer1 > 0
+        ||
+        this.retirementGamesPlayer2 > 0
+      );
+
+    if (!hasPartialScore) {
+
+      this.sendResolutionRequest(
+        'RETIREMENT'
+      );
+
+      return;
+    }
+
+    const nextSetNumber =
+      this.matchSets.length + 1;
+
+    if (
+      nextSetNumber > 3
+    ) {
+
+      this.errorMessage =
+        'No es posible registrar otro set en este partido.';
+
+      this.resolvingMatch =
+        false;
+
+      return;
+    }
+
+    const partialSet:
+      CreateMatchSetRequest = {
+
+      match:
+        this.match.id,
+
+      set_number:
+        nextSetNumber,
+
+      games_player1:
+        this.retirementGamesPlayer1,
+
+      games_player2:
+        this.retirementGamesPlayer2,
+
+      is_super_tie_break:
+        nextSetNumber === 3,
+
+      is_incomplete:
+        true,
+    };
+
+    this.matchService
+      .createMatchSet(
+        partialSet
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.sendResolutionRequest(
+            'RETIREMENT'
+          );
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al registrar marcador parcial:',
+            error
+          );
+
+          this.errorMessage =
+            this.getBackendErrorMessage(
+              error
+            );
+
+          this.resolvingMatch =
+            false;
+        },
+      });
+  }
+
+
+  private sendResolutionRequest(
+    resolution:
+      'WALKOVER'
+      | 'RETIREMENT'
+  ): void {
+
+    if (
+      !this.match
+      ||
+      this.resolutionWinnerId === null
+    ) {
+
+      this.resolvingMatch =
+        false;
+
+      return;
+    }
+
+    const data = {
+      winner_player:
+        this.resolutionWinnerId,
+    };
+
+    const request =
+      resolution === 'WALKOVER'
+        ? this.matchService.walkover(
+            this.match.id,
+            data
+          )
+        : this.matchService.retirement(
+            this.match.id,
+            data
+          );
+
+    request.subscribe({
+
+      next: () => {
+
+        this.resolvingMatch =
+          false;
+
+        this.resolutionPending =
+          null;
+
+        this.resolutionWinnerId =
+          null;
+
+        this.retirementGamesPlayer1 =
+          0;
+
+        this.retirementGamesPlayer2 =
+          0;
+
+        this.editingSetId =
+          null;
+
+        this.showSuccessMessage(
+          resolution === 'WALKOVER'
+            ? (
+              'Walkover guardado correctamente.'
+            )
+            : (
+              'Retiro guardado correctamente.'
+            )
+        );
+
+        this.loadMatch();
+      },
+
+      error: (error) => {
+
+        console.error(
+          'Error al resolver partido:',
+          error
+        );
+
+        this.errorMessage =
+          this.getBackendErrorMessage(
+            error
+          );
+
+        this.resolvingMatch =
+          false;
+      },
+    });
+  }
+
+
+  resetResolution(): void {
+
+    if (
+      !this.match
+      ||
+      this.resolvingMatch
+    ) {
+      return;
+    }
+
+    this.resolvingMatch = true;
+
+    this.errorMessage = '';
+
+    this.matchService
+      .resetResolution(
+        this.match.id
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.resolvingMatch =
+            false;
+
+          this.resolutionPending =
+            null;
+
+          this.resolutionWinnerId =
+            null;
+
+          this.editingSetId =
+            null;
+
+          this.showSuccessMessage(
+            'La resolución especial fue restablecida correctamente.'
+          );
+
+          this.loadMatch();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al restablecer resolución:',
+            error
+          );
+
+          this.errorMessage =
+            this.getBackendErrorMessage(
+              error
+            );
+
+          this.resolvingMatch =
+            false;
+        },
+      });
+  }
+
+
+  getResolutionLabel(): string {
+
+    if (!this.match) {
+      return '';
+    }
+
+    switch (
+      this.match.resolution_type
+    ) {
+
+      case 'WALKOVER':
+        return 'Walkover';
+
+      case 'RETIREMENT':
+        return 'Retiro';
+
+      default:
+        return 'Normal';
+    }
+  }
 
   // =====================================================
   // MENSAJES

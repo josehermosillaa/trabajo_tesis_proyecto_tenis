@@ -19,6 +19,7 @@ import {
   Match,
   CreateMatchRequest,
   UpdateMatchRequest,
+  ResolveMatchRequest
 } from '../models/match.model';
 
 import {
@@ -145,6 +146,39 @@ export class MatchService {
       `${this.matchesUrl}/${id}/`
     );
   }
+
+    // =====================================================
+  // RESOLUCIÓN DE PARTIDO
+  // =====================================================
+
+  walkover(
+    id: number,
+    data: ResolveMatchRequest
+  ): Observable<Match> {
+
+    return this.http.post<Match>(
+      `${this.matchesUrl}/${id}/walkover/`,
+      data
+    );
+  }
+
+
+  retirement(
+    id: number,
+    data: ResolveMatchRequest
+  ): Observable<Match> {
+
+    return this.http.post<Match>(
+      `${this.matchesUrl}/${id}/retirement/`,
+      data
+    );
+  }
+  resetResolution(id: number): Observable<Match> {
+  return this.http.post<Match>(
+    `${this.matchesUrl}/${id}/reset-resolution/`,
+    {}
+  );
+}
 
 
   // =====================================================

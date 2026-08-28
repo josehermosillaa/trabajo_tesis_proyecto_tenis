@@ -15,7 +15,6 @@
       </h1>
 
 
-      <!-- Información de la competencia -->
       @if (competition) {
 
         <h2 class="h5 mb-3">
@@ -57,7 +56,9 @@
               Estado:
             </strong>
 
-            @switch (competition.status) {
+            @switch (
+              competition.status
+            ) {
 
               @case ('PENDIENTE') {
                 Pendiente
@@ -118,7 +119,7 @@
           </span>
 
 
-          <!-- Cierre inscripción -->
+          <!-- Cierre de inscripción -->
           <span>
 
             <strong>
@@ -137,7 +138,10 @@
       } @else {
 
         <p class="text-muted mb-0">
-          Categorías, cupos y jugadores inscritos
+
+          Categorías, cupos y jugadores
+          inscritos
+
         </p>
 
       }
@@ -185,7 +189,9 @@
       class="alert alert-success"
       role="alert"
     >
+
       {{ successMessage }}
+
     </div>
 
   }
@@ -201,7 +207,9 @@
       class="alert alert-danger"
       role="alert"
     >
+
       {{ errorMessage }}
+
     </div>
 
   }
@@ -226,6 +234,7 @@
 
       </div>
 
+
       <p class="mt-3 text-muted">
         Cargando categorías...
       </p>
@@ -240,8 +249,10 @@
   <!-- ================================================= -->
 
   @if (
-    !loading &&
-    !errorMessage &&
+    !loading
+    &&
+    !errorMessage
+    &&
     competitionCategories.length === 0
   ) {
 
@@ -260,7 +271,8 @@
   <!-- ================================================= -->
 
   @if (
-    !loading &&
+    !loading
+    &&
     competitionCategories.length > 0
   ) {
 
@@ -315,7 +327,6 @@
               </div>
 
 
-              <!-- Cupos -->
               <div class="text-end">
 
                 <div class="fw-bold fs-5">
@@ -331,6 +342,7 @@
                   }}
 
                 </div>
+
 
                 <small class="text-muted">
                   cupos utilizados
@@ -349,7 +361,7 @@
 
 
               <!-- ======================================= -->
-              <!-- INFORMACIÓN DE CUPOS -->
+              <!-- CUPOS -->
               <!-- ======================================= -->
 
               <div class="row mb-4">
@@ -558,15 +570,40 @@
               <!-- ======================================= -->
 
               <div
-                class="d-flex justify-content-end mt-3"
+                class="d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3"
               >
+
+
+                <!-- ===================================== -->
+                <!-- VER CUADRO -->
+                <!-- ===================================== -->
+
+                @if (
+                  isDirectElimination()
+                ) {
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-success"
+                    (click)="
+                      goToDetail(
+                        competitionCategory
+                      )
+                    "
+                  >
+                    Ver cuadro
+                  </button>
+
+                }
 
 
                 <!-- ===================================== -->
                 <!-- JUGADOR -->
                 <!-- ===================================== -->
 
-                @if (isPlayerUser()) {
+                @if (
+                  isPlayerUser()
+                ) {
 
 
                   @if (

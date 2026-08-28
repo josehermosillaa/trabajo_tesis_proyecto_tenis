@@ -43,9 +43,7 @@
 
       @if (successMessage) {
 
-        <div
-          class="alert alert-success"
-        >
+        <div class="alert alert-success">
           {{ successMessage }}
         </div>
 
@@ -58,9 +56,7 @@
 
       @if (errorMessage) {
 
-        <div
-          class="alert alert-danger"
-        >
+        <div class="alert alert-danger">
           {{ errorMessage }}
         </div>
 
@@ -118,9 +114,7 @@
               <!-- JUGADOR 1 -->
               <div class="col-md-5">
 
-                <div
-                  class="text-muted small mb-1"
-                >
+                <div class="text-muted small mb-1">
                   Jugador 1
                 </div>
 
@@ -152,9 +146,7 @@
               <!-- JUGADOR 2 -->
               <div class="col-md-5">
 
-                <div
-                  class="text-muted small mb-1"
-                >
+                <div class="text-muted small mb-1">
                   Jugador 2
                 </div>
 
@@ -188,7 +180,6 @@
 
                 @switch (match.status) {
 
-
                   @case ('PROGRAMADO') {
 
                     <span
@@ -198,7 +189,6 @@
                     </span>
 
                   }
-
 
                   @case ('EN_JUEGO') {
 
@@ -210,7 +200,6 @@
 
                   }
 
-
                   @case ('FINALIZADO') {
 
                     <span
@@ -220,7 +209,6 @@
                     </span>
 
                   }
-
 
                   @case ('CANCELADO') {
 
@@ -254,7 +242,10 @@
               }
 
 
+              <!-- WALKOVER -->
               @if (
+                match.resolution_type === 'WALKOVER'
+                ||
                 match.is_walkover
               ) {
 
@@ -270,13 +261,30 @@
 
               }
 
+
+              <!-- RETIRO -->
+              @if (
+                match.resolution_type === 'RETIREMENT'
+              ) {
+
+                <div>
+
+                  <span
+                    class="badge text-bg-warning"
+                  >
+                    Retiro
+                  </span>
+
+                </div>
+
+              }
+
             </div>
 
 
             <!-- GANADOR -->
             @if (
-              match.status ===
-                'FINALIZADO'
+              match.status === 'FINALIZADO'
               &&
               match.winner_player !== null
             ) {
@@ -301,6 +309,144 @@
 
 
         <!-- ================================================= -->
+        <!-- RESOLUCIÓN ESPECIAL -->
+        <!-- ================================================= -->
+
+        @if (
+          canRegisterWalkover()
+          ||
+          canRegisterRetirement()
+        ) {
+
+          <div
+            class="card shadow-sm border-0 mb-4"
+          >
+
+            <div class="card-body">
+
+              <div
+                class="d-flex flex-wrap justify-content-between align-items-center gap-3"
+              >
+
+                <div>
+
+                  <h2 class="h5 mb-1">
+                    Resolución especial
+                  </h2>
+
+                  <p class="text-muted mb-0">
+                    Registre o corrija un walkover
+                    o retiro cuando corresponda.
+                  </p>
+
+                </div>
+
+
+                <div class="d-flex gap-2">
+
+
+                  <!-- WALKOVER -->
+                  @if (
+                    canRegisterWalkover()
+                  ) {
+
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger"
+                      (click)="
+                        openResolutionModal(
+                          'WALKOVER'
+                        )
+                      "
+                      [disabled]="resolvingMatch"
+                    >
+                      @if (
+                        match.resolution_type === 'WALKOVER'
+                        ||
+                        match.is_walkover
+                      ) {
+                        Editar Walkover
+                      } @else {
+                        Registrar Walkover
+                      }
+                    </button>
+
+                  }
+
+
+                  <!-- RETIRO -->
+                  @if (
+                    canRegisterRetirement()
+                  ) {
+
+                    <button
+                      type="button"
+                      class="btn btn-outline-warning"
+                      (click)="
+                        openResolutionModal(
+                          'RETIREMENT'
+                        )
+                      "
+                      [disabled]="resolvingMatch"
+                    >
+                      @if (
+                        match.resolution_type === 'RETIREMENT'
+                      ) {
+                        Editar Retiro
+                      } @else {
+                        Registrar Retiro
+                      }
+                    </button>
+
+                  }
+
+
+                  @if (
+                    match.resolution_type === 'WALKOVER'
+                    ||
+                    match.resolution_type === 'RETIREMENT'
+                    ||
+                    match.is_walkover
+                  ) {
+
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      (click)="resetResolution()"
+                      [disabled]="resolvingMatch"
+                    >
+
+                      @if (resolvingMatch) {
+
+                        <span
+                          class="spinner-border spinner-border-sm me-2"
+                        >
+                        </span>
+
+                        Restableciendo...
+
+                      } @else {
+
+                        Restablecer a normal
+
+                      }
+
+                    </button>
+
+                  }
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        }
+
+
+        <!-- ================================================= -->
         <!-- BYE -->
         <!-- ================================================= -->
 
@@ -308,12 +454,12 @@
           match.player2 === null
         ) {
 
-          <div
-            class="alert alert-info"
-          >
+          <div class="alert alert-info">
+
             Este partido corresponde a un
             <strong>BYE</strong>.
             No se registran sets.
+
           </div>
 
         }
@@ -324,15 +470,38 @@
         <!-- ================================================= -->
 
         @if (
+          match.resolution_type === 'WALKOVER'
+          ||
           match.is_walkover
         ) {
 
-          <div
-            class="alert alert-info"
-          >
+          <div class="alert alert-info">
+
             Este partido fue definido por
             <strong>walkover</strong>.
             No se registran sets.
+
+          </div>
+
+        }
+
+
+        <!-- ================================================= -->
+        <!-- RETIRO -->
+        <!-- ================================================= -->
+
+        @if (
+          match.resolution_type === 'RETIREMENT'
+        ) {
+
+          <div class="alert alert-warning">
+
+            Este partido fue finalizado por
+            <strong>retiro</strong>.
+
+            Los sets disputados se conservan
+            como parte del resultado.
+
           </div>
 
         }
@@ -343,7 +512,10 @@
         <!-- ================================================= -->
 
         @if (
-          !match.is_walkover &&
+          match.resolution_type !== 'WALKOVER'
+          &&
+          !match.is_walkover
+          &&
           match.player2 !== null
         ) {
 
@@ -430,8 +602,7 @@
                     <tbody>
 
                       @for (
-                        matchSet
-                          of matchSets;
+                        matchSet of matchSets;
                         track matchSet.id
                       ) {
 
@@ -449,30 +620,31 @@
                           <td
                             class="text-center fs-5"
                           >
-
-                            {{
-                              matchSet.games_player1
-                            }}
-
+                            {{ matchSet.games_player1 }}
                           </td>
 
 
                           <td
                             class="text-center fs-5"
                           >
-
-                            {{
-                              matchSet.games_player2
-                            }}
-
+                            {{ matchSet.games_player2 }}
                           </td>
 
 
                           <td>
 
                             @if (
-                              matchSet
-                                .is_super_tie_break
+                              matchSet.is_incomplete
+                            ) {
+
+                              <span
+                                class="badge text-bg-warning"
+                              >
+                                Parcial - Retiro
+                              </span>
+
+                            } @else if (
+                              matchSet.is_super_tie_break
                             ) {
 
                               <span
@@ -521,7 +693,8 @@
                                 "
                                 [disabled]="
                                   saving ||
-                                  deletingSetId !== null
+                                  deletingSetId !== null ||
+                                  match.resolution_type === 'RETIREMENT'
                                 "
                               >
                                 Editar
@@ -532,19 +705,19 @@
                                 type="button"
                                 class="btn btn-sm btn-outline-danger"
                                 (click)="
-                                  deleteSet(
+                                  openDeleteSetModal(
                                     matchSet
                                   )
                                 "
                                 [disabled]="
                                   saving ||
-                                  deletingSetId !== null
+                                  deletingSetId !== null ||
+                                  match.resolution_type === 'RETIREMENT'
                                 "
                               >
 
                                 @if (
-                                  deletingSetId ===
-                                  matchSet.id
+                                  deletingSetId === matchSet.id
                                 ) {
 
                                   Eliminando...
@@ -590,6 +763,10 @@
             ||
             editingSetId !== null
           )
+          &&
+          match.resolution_type !== 'WALKOVER'
+          &&
+          match.resolution_type !== 'RETIREMENT'
           &&
           !match.is_walkover
           &&
@@ -713,12 +890,14 @@
                     .set_number.value === 3
                 ) {
 
-                  <div
-                    class="alert alert-info"
-                  >
+                  <div class="alert alert-info">
 
                     El tercer set corresponde a un
-                    <strong>Super Tie-Break a 10 puntos</strong>,
+
+                    <strong>
+                      Super Tie-Break a 10 puntos
+                    </strong>,
+
                     con diferencia mínima de 2.
 
                   </div>
@@ -790,5 +969,468 @@
     </div>
 
   </div>
+
+
+  <!-- ================================================= -->
+  <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+  <!-- ================================================= -->
+
+  @if (
+    setPendingDelete !== null
+  ) {
+
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+    >
+
+      <div
+        class="modal-dialog modal-dialog-centered"
+      >
+
+        <div
+          class="modal-content shadow"
+        >
+
+
+          <!-- HEADER -->
+          <div class="modal-header">
+
+            <h5 class="modal-title">
+              Eliminar set
+            </h5>
+
+
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Cerrar"
+              (click)="closeDeleteSetModal()"
+              [disabled]="
+                deletingSetId !== null
+              "
+            >
+            </button>
+
+          </div>
+
+
+          <!-- BODY -->
+          <div class="modal-body">
+
+            <p>
+
+              ¿Está seguro de eliminar el
+
+              <strong>
+                Set {{ setPendingDelete.set_number }}
+              </strong>
+
+              ?
+
+            </p>
+
+
+            <div
+              class="alert alert-warning mb-0"
+            >
+
+              Esta acción puede modificar el
+              resultado y el ganador del partido.
+
+            </div>
+
+          </div>
+
+
+          <!-- FOOTER -->
+          <div class="modal-footer">
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="closeDeleteSetModal()"
+              [disabled]="
+                deletingSetId !== null
+              "
+            >
+              Cancelar
+            </button>
+
+
+            <button
+              type="button"
+              class="btn btn-danger"
+              (click)="confirmDeleteSet()"
+              [disabled]="
+                deletingSetId !== null
+              "
+            >
+
+              @if (
+                deletingSetId !== null
+              ) {
+
+                <span
+                  class="spinner-border spinner-border-sm me-2"
+                >
+                </span>
+
+                Eliminando...
+
+              } @else {
+
+                Eliminar set
+
+              }
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- Fondo oscuro -->
+    <div
+      class="modal-backdrop fade show"
+    >
+    </div>
+
+  }
+
+
+  <!-- ================================================= -->
+  <!-- MODAL WALKOVER / RETIRO -->
+  <!-- ================================================= -->
+
+  @if (
+    resolutionPending !== null
+    &&
+    match
+  ) {
+
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+    >
+
+      <div
+        class="modal-dialog modal-dialog-centered"
+      >
+
+        <div
+          class="modal-content shadow"
+        >
+
+
+          <!-- HEADER -->
+          <div class="modal-header">
+
+            <h5 class="modal-title">
+
+              @if (
+                resolutionPending === 'WALKOVER'
+              ) {
+
+                @if (
+                  match.resolution_type === 'WALKOVER'
+                  ||
+                  match.is_walkover
+                ) {
+                  Editar walkover
+                } @else {
+                  Registrar walkover
+                }
+
+              } @else {
+
+                @if (
+                  match.resolution_type === 'RETIREMENT'
+                ) {
+                  Editar retiro
+                } @else {
+                  Registrar retiro
+                }
+
+              }
+
+            </h5>
+
+
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Cerrar"
+              (click)="closeResolutionModal()"
+              [disabled]="resolvingMatch"
+            >
+            </button>
+
+          </div>
+
+
+          <!-- BODY -->
+          <div class="modal-body">
+
+
+            @if (
+              resolutionPending === 'WALKOVER'
+            ) {
+
+              <p>
+                Seleccione al jugador que
+                <strong>se presentó</strong>
+                y será declarado ganador.
+              </p>
+
+              <div
+                class="alert alert-warning"
+              >
+                El partido finalizará por
+                walkover sin registrar sets.
+              </div>
+
+            } @else {
+
+              <p>
+                Seleccione al jugador que será
+                declarado ganador debido al
+                <strong>retiro del rival</strong>.
+              </p>
+
+              <div
+                class="alert alert-warning"
+              >
+                Los sets registrados hasta este
+                momento serán conservados.
+              </div>
+
+
+              @if (
+                match.resolution_type !== 'RETIREMENT'
+              ) {
+
+                <div class="border rounded p-3 mb-3">
+
+                  <h6 class="mb-1">
+                    Marcador parcial del set actual
+                  </h6>
+
+                  <p class="text-muted small mb-3">
+
+                    @if (
+                      matchSets.length === 0
+                    ) {
+                      Set 1
+                    } @else {
+                      Set {{ matchSets.length + 1 }}
+                    }
+
+                    — deje 0-0 si el retiro ocurrió
+                    antes de disputarse algún game.
+
+                  </p>
+
+
+                  <div class="row">
+
+                    <div class="col-6">
+
+                      <label
+                        for="retirementGamesPlayer1"
+                        class="form-label"
+                      >
+                        {{
+                          getPlayerName(
+                            match.player1
+                          )
+                        }}
+                      </label>
+
+                      <input
+                        id="retirementGamesPlayer1"
+                        type="number"
+                        min="0"
+                        class="form-control"
+                        [(ngModel)]="
+                          retirementGamesPlayer1
+                        "
+                        [disabled]="resolvingMatch"
+                      />
+
+                    </div>
+
+
+                    <div class="col-6">
+
+                      <label
+                        for="retirementGamesPlayer2"
+                        class="form-label"
+                      >
+                        {{
+                          getPlayerName(
+                            match.player2
+                          )
+                        }}
+                      </label>
+
+                      <input
+                        id="retirementGamesPlayer2"
+                        type="number"
+                        min="0"
+                        class="form-control"
+                        [(ngModel)]="
+                          retirementGamesPlayer2
+                        "
+                        [disabled]="resolvingMatch"
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              }
+
+            }
+
+
+            <!-- SELECCIONAR GANADOR -->
+            <div class="d-grid gap-2">
+
+
+              <!-- JUGADOR 1 -->
+              <button
+                type="button"
+                class="btn"
+                [class.btn-danger]="
+                  resolutionWinnerId === match.player1
+                "
+                [class.btn-outline-secondary]="
+                  resolutionWinnerId !== match.player1
+                "
+                (click)="
+                  selectResolutionWinner(
+                    match.player1
+                  )
+                "
+                [disabled]="resolvingMatch"
+              >
+
+                {{
+                  getPlayerName(
+                    match.player1
+                  )
+                }}
+
+              </button>
+
+
+              <!-- JUGADOR 2 -->
+              @if (
+                match.player2 !== null
+              ) {
+
+                <button
+                  type="button"
+                  class="btn"
+                  [class.btn-danger]="
+                    resolutionWinnerId === match.player2
+                  "
+                  [class.btn-outline-secondary]="
+                    resolutionWinnerId !== match.player2
+                  "
+                  (click)="
+                    selectResolutionWinner(
+                      match.player2
+                    )
+                  "
+                  [disabled]="resolvingMatch"
+                >
+
+                  {{
+                    getPlayerName(
+                      match.player2
+                    )
+                  }}
+
+                </button>
+
+              }
+
+            </div>
+
+          </div>
+
+
+          <!-- FOOTER -->
+          <div class="modal-footer">
+
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="closeResolutionModal()"
+              [disabled]="resolvingMatch"
+            >
+              Cancelar
+            </button>
+
+
+            <button
+              type="button"
+              class="btn btn-danger"
+              (click)="confirmResolution()"
+              [disabled]="
+                resolutionWinnerId === null
+                ||
+                resolvingMatch
+              "
+            >
+
+              @if (
+                resolvingMatch
+              ) {
+
+                <span
+                  class="spinner-border spinner-border-sm me-2"
+                >
+                </span>
+
+                Guardando...
+
+              } @else {
+
+                Guardar resultado
+
+              }
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- Fondo oscuro -->
+    <div
+      class="modal-backdrop fade show"
+    >
+    </div>
+
+  }
 
 </div>

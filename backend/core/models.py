@@ -241,36 +241,46 @@ class Registration(models.Model):
 
 class Match(models.Model):
 
-    class Status(
-        models.TextChoices
-    ):
-
+    class Status(models.TextChoices):
         PROGRAMADO = (
             "PROGRAMADO",
-            "Programado",
+            "Programado"
         )
-
         EN_JUEGO = (
             "EN_JUEGO",
-            "En juego",
+            "En juego"
         )
-
         FINALIZADO = (
             "FINALIZADO",
-            "Finalizado",
+            "Finalizado"
         )
-
         CANCELADO = (
             "CANCELADO",
-            "Cancelado",
+            "Cancelado"
         )
 
-    competition_category = (
-        models.ForeignKey(
-            CompetitionCategory,
-            on_delete=models.CASCADE,
-            related_name="matches",
+    # =====================================================
+    # FORMA EN QUE TERMINÓ EL PARTIDO
+    # =====================================================
+
+    class ResolutionType(models.TextChoices):
+        NORMAL = (
+            "NORMAL",
+            "Normal"
         )
+        WALKOVER = (
+            "WALKOVER",
+            "Walkover"
+        )
+        RETIREMENT = (
+            "RETIREMENT",
+            "Retiro"
+        )
+
+    competition_category = models.ForeignKey(
+        CompetitionCategory,
+        on_delete=models.CASCADE,
+        related_name="matches",
     )
 
     court = models.ForeignKey(
@@ -281,23 +291,10 @@ class Match(models.Model):
         blank=True,
     )
 
-    # =====================================================
-    # JUGADORES
-    # =====================================================
-
-    # /*
-    #  * player1 ahora puede ser NULL porque
-    #  * los partidos de rondas futuras son
-    #  * creados antes de conocer al ganador
-    #  * de la ronda anterior.
-    #  */
-
     player1 = models.ForeignKey(
         Player,
         on_delete=models.PROTECT,
-        related_name=(
-            "matches_as_player1"
-        ),
+        related_name="matches_as_player1",
         null=True,
         blank=True,
     )
@@ -305,28 +302,22 @@ class Match(models.Model):
     player2 = models.ForeignKey(
         Player,
         on_delete=models.PROTECT,
-        related_name=(
-            "matches_as_player2"
-        ),
+        related_name="matches_as_player2",
         null=True,
         blank=True,
     )
 
-    winner_player = (
-        models.ForeignKey(
-            Player,
-            on_delete=models.PROTECT,
-            related_name="matches_won",
-            null=True,
-            blank=True,
-        )
+    winner_player = models.ForeignKey(
+        Player,
+        on_delete=models.PROTECT,
+        related_name="matches_won",
+        null=True,
+        blank=True,
     )
 
-    scheduled_date_time = (
-        models.DateTimeField(
-            null=True,
-            blank=True,
-        )
+    scheduled_date_time = models.DateTimeField(
+        null=True,
+        blank=True,
     )
 
     status = models.CharField(
@@ -335,35 +326,14 @@ class Match(models.Model):
         default=Status.PROGRAMADO,
     )
 
-    # =====================================================
-    # ESTRUCTURA DEL CUADRO
-    # =====================================================
-
-    round = (
-        models.PositiveIntegerField(
-            null=True,
-            blank=True,
-        )
+    round = models.PositiveIntegerField(
+        null=True,
+        blank=True,
     )
 
-    # /*
-    #  * Posición del partido dentro de
-    #  * su ronda.
-    #  *
-    #  * Ejemplo cuadro de 8:
-    #  *
-    #  * ronda 1:
-    #  * bracket_position 1, 2, 3, 4
-    #  *
-    #  * semifinal:
-    #  * bracket_position 1, 2
-    #  *
-    #  * final:
-    #  * bracket_position 1
-    #  *
-    #  * Esto permitirá dibujar el bracket
-    #  * siempre en el orden correcto.
-    #  */
+    # =====================================================
+    # BRACKET
+    # =====================================================
 
     bracket_position = (
         models.PositiveIntegerField(
@@ -372,74 +342,42 @@ class Match(models.Model):
         )
     )
 
-    # /*
-    #  * Partido al que avanzará
-    #  * el ganador.
-    #  */
-
-    next_match = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        related_name="source_matches",
-        null=True,
-        blank=True,
+    next_match = (
+        models.ForeignKey(
+            "self",
+            on_delete=models.SET_NULL,
+            null=True,
+            blank=True,
+            related_name="previous_matches",
+        )
     )
-
-    # /*
-    #  * Indica en qué lado entra
-    #  * el ganador en next_match:
-    #  *
-    #  * 1 -> player1
-    #  * 2 -> player2
-    #  */
 
     next_match_slot = (
         models.PositiveSmallIntegerField(
             null=True,
             blank=True,
             choices=[
-                (
-                    1,
-                    "Jugador 1",
-                ),
-                (
-                    2,
-                    "Jugador 2",
-                ),
+                (1, "Jugador 1"),
+                (2, "Jugador 2"),
             ],
         )
     )
 
-    is_walkover = (
-        models.BooleanField(
-            default=False,
-        )
+    # =====================================================
+    # RESOLUCIÓN DEL PARTIDO
+    # =====================================================
+
+    resolution_type = models.CharField(
+        max_length=20,
+        choices=ResolutionType.choices,
+        default=ResolutionType.NORMAL,
     )
 
-    class Meta:
-
-        ordering = [
-            "competition_category",
-            "round",
-            "bracket_position",
-            "id",
-        ]
-
-        constraints = [
-
-            models.UniqueConstraint(
-                fields=[
-                    "competition_category",
-                    "round",
-                    "bracket_position",
-                ],
-                name=(
-                    "unique_match_"
-                    "bracket_position"
-                ),
-            ),
-
-        ]
+    # Lo mantenemos temporalmente para no romper
+    # código, tests y frontend existentes.
+    is_walkover = models.BooleanField(
+        default=False,
+    )
 
     def __str__(self):
 
@@ -459,8 +397,8 @@ class Match(models.Model):
             f"{player1_name} vs "
             f"{player2_name}"
         )
-
-
+        
+        
 class Court(models.Model):
 
     class Status(
@@ -523,6 +461,16 @@ class MatchSet(models.Model):
         )
     )
 
+    # =====================================================
+    # SET INCOMPLETO
+    # =====================================================
+
+    is_incomplete = (
+        models.BooleanField(
+            default=False,
+        )
+    )
+
     class Meta:
 
         constraints = [
@@ -545,8 +493,6 @@ class MatchSet(models.Model):
             f"{self.match} - "
             f"Set {self.set_number}"
         )
-
-
 class Standing(models.Model):
 
     competition_category = (

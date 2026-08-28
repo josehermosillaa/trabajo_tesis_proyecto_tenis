@@ -4,7 +4,9 @@ import {
   inject,
 } from '@angular/core';
 
-import { CommonModule } from '@angular/common';
+import {
+  CommonModule,
+} from '@angular/common';
 
 import {
   ActivatedRoute,
@@ -20,17 +22,29 @@ import {
   CompetitionCategory,
 } from '../../models/competition-category.model';
 
-import { Player } from '../../../players/models/player.model';
+import {
+  Player,
+} from '../../../players/models/player.model';
 
-import { PlayerService } from '../../../players/services/player';
+import {
+  PlayerService,
+} from '../../../players/services/player';
 
-import { RegistrationService } from '../../../registrations/services/registration';
+import {
+  RegistrationService,
+} from '../../../registrations/services/registration';
 
-import { TokenService } from '../../../../core/services/token';
+import {
+  TokenService,
+} from '../../../../core/services/token';
 
-import { CompetitionService } from '../../../competitions/services/competition';
+import {
+  CompetitionService,
+} from '../../../competitions/services/competition';
 
-import { Competition } from '../../../competitions/models/competition.model';
+import {
+  Competition,
+} from '../../../competitions/models/competition.model';
 
 
 @Component({
@@ -50,25 +64,39 @@ export class CompetitionCategoryListComponent
   implements OnInit {
 
   private readonly competitionCategoryService =
-    inject(CompetitionCategoryService);
+    inject(
+      CompetitionCategoryService
+    );
 
   private readonly playerService =
-    inject(PlayerService);
+    inject(
+      PlayerService
+    );
 
   private readonly registrationService =
-    inject(RegistrationService);
+    inject(
+      RegistrationService
+    );
 
   private readonly tokenService =
-    inject(TokenService);
+    inject(
+      TokenService
+    );
 
   private readonly competitionService =
-    inject(CompetitionService);
+    inject(
+      CompetitionService
+    );
 
   private readonly route =
-    inject(ActivatedRoute);
+    inject(
+      ActivatedRoute
+    );
 
   private readonly router =
-    inject(Router);
+    inject(
+      Router
+    );
 
 
   competitionId:
@@ -99,17 +127,18 @@ export class CompetitionCategoryListComponent
   successMessage = '';
 
 
+  // =====================================================
+  // INIT
+  // =====================================================
+
   ngOnInit(): void {
 
-    /*
-     * Mensaje recibido al volver,
-     * por ejemplo después de inscribir
-     * un jugador desde RegistrationForm.
-     */
     const navigationMessage =
       history.state?.successMessage;
 
-    if (navigationMessage) {
+    if (
+      navigationMessage
+    ) {
 
       this.showSuccessMessage(
         navigationMessage
@@ -127,6 +156,7 @@ export class CompetitionCategoryListComponent
         .paramMap
         .get('id');
 
+
     if (!id) {
 
       this.errorMessage =
@@ -135,15 +165,11 @@ export class CompetitionCategoryListComponent
       return;
     }
 
+
     this.competitionId =
       Number(id);
 
-    /*
-     * Cargamos por separado:
-     *
-     * 1. Datos generales del torneo.
-     * 2. Categorías, cupos e inscritos.
-     */
+
     this.loadCompetition();
 
     this.loadData();
@@ -151,7 +177,7 @@ export class CompetitionCategoryListComponent
 
 
   // =====================================================
-  // INFORMACIÓN GENERAL DE LA COMPETENCIA
+  // COMPETENCIA
   // =====================================================
 
   private loadCompetition(): void {
@@ -162,19 +188,24 @@ export class CompetitionCategoryListComponent
       return;
     }
 
+
     this.competitionService
       .getCompetition(
         this.competitionId
       )
       .subscribe({
 
-        next: (competition) => {
+        next: (
+          competition
+        ) => {
 
           this.competition =
             competition;
         },
 
-        error: (error) => {
+        error: (
+          error
+        ) => {
 
           console.error(
             'Error al cargar competencia:',
@@ -189,7 +220,7 @@ export class CompetitionCategoryListComponent
 
 
   // =====================================================
-  // CATEGORÍAS DE LA COMPETENCIA
+  // DATOS
   // =====================================================
 
   loadData(): void {
@@ -200,9 +231,13 @@ export class CompetitionCategoryListComponent
       return;
     }
 
-    this.loading = true;
 
-    this.errorMessage = '';
+    this.loading =
+      true;
+
+    this.errorMessage =
+      '';
+
 
     this.competitionCategoryService
       .getCompetitionCategories()
@@ -214,15 +249,23 @@ export class CompetitionCategoryListComponent
 
           this.competitionCategories =
             competitionCategories.filter(
-              (item) =>
-                item.competition ===
-                this.competitionId
+              (
+                item
+              ) =>
+                Number(
+                  item.competition
+                ) ===
+                Number(
+                  this.competitionId
+                )
             );
 
           this.loadCategories();
         },
 
-        error: (error) => {
+        error: (
+          error
+        ) => {
 
           console.error(
             'Error al cargar categorías de competencia:',
@@ -232,7 +275,8 @@ export class CompetitionCategoryListComponent
           this.errorMessage =
             'No fue posible cargar las categorías.';
 
-          this.loading = false;
+          this.loading =
+            false;
         },
       });
   }
@@ -244,7 +288,9 @@ export class CompetitionCategoryListComponent
       .getCategories()
       .subscribe({
 
-        next: (categories) => {
+        next: (
+          categories
+        ) => {
 
           this.categories =
             categories;
@@ -252,7 +298,9 @@ export class CompetitionCategoryListComponent
           this.loadPlayers();
         },
 
-        error: (error) => {
+        error: (
+          error
+        ) => {
 
           console.error(
             'Error al cargar categorías:',
@@ -262,7 +310,8 @@ export class CompetitionCategoryListComponent
           this.errorMessage =
             'No fue posible cargar las categorías.';
 
-          this.loading = false;
+          this.loading =
+            false;
         },
       });
   }
@@ -274,17 +323,22 @@ export class CompetitionCategoryListComponent
       .getPlayers()
       .subscribe({
 
-        next: (players) => {
+        next: (
+          players
+        ) => {
 
           this.players =
             players;
 
           this.resolveCurrentPlayer();
 
-          this.loading = false;
+          this.loading =
+            false;
         },
 
-        error: (error) => {
+        error: (
+          error
+        ) => {
 
           console.error(
             'Error al cargar jugadores:',
@@ -294,55 +348,52 @@ export class CompetitionCategoryListComponent
           this.errorMessage =
             'No fue posible cargar los jugadores.';
 
-          this.loading = false;
+          this.loading =
+            false;
         },
       });
   }
 
 
   // =====================================================
-  // USUARIO / PLAYER ACTUAL
+  // JUGADOR ACTUAL
   // =====================================================
 
-private resolveCurrentPlayer(): void {
+  private resolveCurrentPlayer(): void {
 
-  const userId =
-    this.tokenService
-      .getCurrentUserId();
+    const userId =
+      this.tokenService
+        .getCurrentUserId();
 
-  console.log(
-    'User ID del JWT:',
-    userId
-  );
 
-  console.log(
-    'Players recibidos:',
-    this.players
-  );
+    if (
+      userId === null
+    ) {
 
-  if (userId === null) {
+      this.currentPlayer =
+        null;
 
-    this.currentPlayer = null;
+      return;
+    }
 
-    return;
+
+    this.currentPlayer =
+      this.players.find(
+        (
+          player
+        ) =>
+          Number(
+            player.user
+          ) ===
+          Number(
+            userId
+          )
+      ) ?? null;
   }
 
-  this.currentPlayer =
-    this.players.find(
-      (player) =>
-        Number(player.user) ===
-        Number(userId)
-    ) ?? null;
-
-  console.log(
-    'Player actual encontrado:',
-    this.currentPlayer
-  );
-}
-
 
   // =====================================================
-  // HELPERS
+  // CATEGORÍA
   // =====================================================
 
   getCategoryName(
@@ -351,9 +402,17 @@ private resolveCurrentPlayer(): void {
 
     const category =
       this.categories.find(
-        (item) =>
-          item.id === categoryId
+        (
+          item
+        ) =>
+          Number(
+            item.id
+          ) ===
+          Number(
+            categoryId
+          )
       );
+
 
     return (
       category?.name ??
@@ -362,15 +421,30 @@ private resolveCurrentPlayer(): void {
   }
 
 
-  /*
-   * Si el usuario autenticado tiene
-   * un Player asociado, consideramos
-   * que estamos frente al rol Jugador.
-   */
-  isPlayerUser(): boolean {
+  // =====================================================
+  // TIPO DE COMPETENCIA
+  // =====================================================
+
+  isDirectElimination():
+    boolean {
 
     return (
-      this.currentPlayer !== null
+      this.competition?.type ===
+      'ELIMINACION_DIRECTA'
+    );
+  }
+
+
+  // =====================================================
+  // USUARIO
+  // =====================================================
+
+  isPlayerUser():
+    boolean {
+
+    return (
+      this.currentPlayer !==
+      null
     );
   }
 
@@ -380,13 +454,20 @@ private resolveCurrentPlayer(): void {
       CompetitionCategory
   ): boolean {
 
-    if (!this.currentPlayer) {
+    if (
+      !this.currentPlayer
+    ) {
       return false;
     }
 
+
     return (
-      this.currentPlayer.category ===
-      competitionCategory.category
+      Number(
+        this.currentPlayer.category
+      ) ===
+      Number(
+        competitionCategory.category
+      )
     );
   }
 
@@ -396,17 +477,26 @@ private resolveCurrentPlayer(): void {
       CompetitionCategory
   ): boolean {
 
-    if (!this.currentPlayer) {
+    if (
+      !this.currentPlayer
+    ) {
       return false;
     }
+
 
     return (
       competitionCategory
         .registered_players
         .some(
-          (player) =>
-            player.id ===
-            this.currentPlayer!.id
+          (
+            player
+          ) =>
+            Number(
+              player.id
+            ) ===
+            Number(
+              this.currentPlayer!.id
+            )
         )
     );
   }
@@ -417,41 +507,59 @@ private resolveCurrentPlayer(): void {
       CompetitionCategory
   ): string {
 
-    if (!this.currentPlayer) {
+    if (
+      !this.currentPlayer
+    ) {
       return '';
     }
+
 
     const registeredPlayer =
       competitionCategory
         .registered_players
         .find(
-          (player) =>
-            player.id ===
-            this.currentPlayer!.id
+          (
+            player
+          ) =>
+            Number(
+              player.id
+            ) ===
+            Number(
+              this.currentPlayer!.id
+            )
         );
 
-    if (!registeredPlayer) {
+
+    if (
+      !registeredPlayer
+    ) {
       return '';
     }
+
 
     switch (
       registeredPlayer.status
     ) {
 
       case 'CONFIRMADA':
+
         return 'Confirmada';
 
+
       case 'CANCELADA':
+
         return 'Cancelada';
 
+
       default:
+
         return 'Pendiente';
     }
   }
 
 
   // =====================================================
-  // AUTOINSCRIPCIÓN JUGADOR
+  // AUTOINSCRIPCIÓN
   // =====================================================
 
   registerMyself(
@@ -461,23 +569,31 @@ private resolveCurrentPlayer(): void {
 
     if (
       !this.currentPlayer
-      || this.registeringCategoryId !== null
+      ||
+      this.registeringCategoryId !==
+        null
     ) {
       return;
     }
 
-    this.errorMessage = '';
 
-    this.successMessage = '';
+    this.errorMessage =
+      '';
+
+    this.successMessage =
+      '';
 
     this.registeringCategoryId =
       competitionCategory.id;
 
+
     this.registrationService
-      .createRegistration({
-        competition_category:
-          competitionCategory.id,
-      })
+      .createRegistration(
+        {
+          competition_category:
+            competitionCategory.id,
+        }
+      )
       .subscribe({
 
         next: () => {
@@ -489,18 +605,12 @@ private resolveCurrentPlayer(): void {
             'Inscripción realizada correctamente.'
           );
 
-          /*
-           * Recargamos para actualizar:
-           *
-           * - cupos usados
-           * - cupos disponibles
-           * - lista de inscritos
-           * - estado del jugador
-           */
           this.loadData();
         },
 
-        error: (error) => {
+        error: (
+          error
+        ) => {
 
           console.error(
             'Error al realizar inscripción:',
@@ -529,7 +639,9 @@ private resolveCurrentPlayer(): void {
   ): void {
 
     this.router.navigate(
-      ['/registrations/new'],
+      [
+        '/registrations/new',
+      ],
       {
         queryParams: {
 
@@ -545,16 +657,44 @@ private resolveCurrentPlayer(): void {
 
 
   // =====================================================
-  // EDICIÓN / NAVEGACIÓN
+  // VER CUADRO
+  // =====================================================
+
+  goToDetail(
+    competitionCategory:
+      CompetitionCategory
+  ): void {
+
+    if (
+      this.competitionId ===
+      null
+    ) {
+      return;
+    }
+
+
+    this.router.navigate([
+      '/competitions',
+      this.competitionId,
+      'categories',
+      competitionCategory.id,
+    ]);
+  }
+
+
+  // =====================================================
+  // EDITAR COMPETENCIA
   // =====================================================
 
   editCompetition(): void {
 
     if (
-      this.competitionId === null
+      this.competitionId ===
+      null
     ) {
       return;
     }
+
 
     this.router.navigate([
       '/competitions',
@@ -563,6 +703,10 @@ private resolveCurrentPlayer(): void {
     ]);
   }
 
+
+  // =====================================================
+  // VOLVER
+  // =====================================================
 
   goBack(): void {
 
@@ -583,11 +727,16 @@ private resolveCurrentPlayer(): void {
     this.successMessage =
       message;
 
-    setTimeout(() => {
 
-      this.successMessage = '';
+    setTimeout(
+      () => {
 
-    }, 4000);
+        this.successMessage =
+          '';
+
+      },
+      4000
+    );
   }
 
 
@@ -598,12 +747,16 @@ private resolveCurrentPlayer(): void {
     const backendError =
       error?.error;
 
-    if (!backendError) {
+
+    if (
+      !backendError
+    ) {
 
       return (
         'No fue posible realizar la inscripción.'
       );
     }
+
 
     if (
       typeof backendError ===
@@ -613,19 +766,26 @@ private resolveCurrentPlayer(): void {
       return backendError;
     }
 
+
     const messages:
       string[] = [];
 
+
     for (
       const key of
-      Object.keys(backendError)
+      Object.keys(
+        backendError
+      )
     ) {
 
       const value =
         backendError[key];
 
+
       if (
-        Array.isArray(value)
+        Array.isArray(
+          value
+        )
       ) {
 
         messages.push(
@@ -642,6 +802,7 @@ private resolveCurrentPlayer(): void {
         );
       }
     }
+
 
     return (
       messages.length > 0

@@ -23,6 +23,9 @@ from rest_framework.exceptions import ValidationError
 
 from core.services.bracket_service import BracketService
 from core.serializers import MatchSetSerializer
+
+from django.urls import reverse
+from rest_framework import status
 class HealthAPITest(TestCase):
 
     def test_health_endpoint(self):
@@ -5772,6 +5775,170 @@ class MatchSetAPITest(TestCase):
             400
         )
 
+    def test_cannot_delete_set_2_when_set_3_exists(
+        self
+    ):
+        """
+        No se puede eliminar el Set 2
+        si ya existe un Set 3.
+        """
+
+        match = Match.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player1=self.player1,
+            player2=self.player2,
+            round=1,
+            status=(
+                Match.Status.PROGRAMADO
+            ),
+        )
+
+        MatchSet.objects.create(
+            match=match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+            is_super_tie_break=False,
+        )
+
+        set2 = MatchSet.objects.create(
+            match=match,
+            set_number=2,
+            games_player1=4,
+            games_player2=6,
+            is_super_tie_break=False,
+        )
+
+        set3 = MatchSet.objects.create(
+            match=match,
+            set_number=3,
+            games_player1=10,
+            games_player2=8,
+            is_super_tie_break=True,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.delete(
+            (
+                f"/api/match-sets/"
+                f"{set2.id}/"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.assertTrue(
+            MatchSet.objects.filter(
+                pk=set2.id
+            ).exists()
+        )
+
+        self.assertTrue(
+            MatchSet.objects.filter(
+                pk=set3.id
+            ).exists()
+        )
+
+        self.assertIn(
+            "detail",
+            response.data,
+        )
+
+        self.assertIn(
+            "sets posteriores",
+            str(
+                response.data[
+                    "detail"
+                ]
+            ),
+        )
+        
+    def test_can_delete_last_registered_set(
+            self
+        ):
+            """
+            Sí se puede eliminar el último
+            set registrado del partido.
+            """
+
+            match = Match.objects.create(
+                competition_category=(
+                    self.competition_category
+                ),
+                player1=self.player1,
+                player2=self.player2,
+                round=1,
+                status=(
+                    Match.Status.PROGRAMADO
+                ),
+            )
+
+            set1 = MatchSet.objects.create(
+                match=match,
+                set_number=1,
+                games_player1=6,
+                games_player2=4,
+                is_super_tie_break=False,
+            )
+
+            set2 = MatchSet.objects.create(
+                match=match,
+                set_number=2,
+                games_player1=4,
+                games_player2=6,
+                is_super_tie_break=False,
+            )
+
+            set3 = MatchSet.objects.create(
+                match=match,
+                set_number=3,
+                games_player1=10,
+                games_player2=8,
+                is_super_tie_break=True,
+            )
+
+            self.authenticate(
+                self.admin_user
+            )
+
+            response = self.client.delete(
+                (
+                    f"/api/match-sets/"
+                    f"{set3.id}/"
+                )
+            )
+
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_204_NO_CONTENT,
+            )
+
+            self.assertFalse(
+                MatchSet.objects.filter(
+                    pk=set3.id
+                ).exists()
+            )
+
+            self.assertTrue(
+                MatchSet.objects.filter(
+                    pk=set1.id
+                ).exists()
+            )
+
+            self.assertTrue(
+                MatchSet.objects.filter(
+                    pk=set2.id
+                ).exists()
+            )
+
 class StandingAPITest(TestCase):
 
     def setUp(self):
@@ -8408,4 +8575,798 @@ class BracketServiceTest(TestCase):
         self.assertEqual(
             final_match_count,
             7,
+        )
+        
+class MatchResolutionAPITest(TestCase):
+
+    def setUp(self):
+
+        self.client = APIClient()
+
+        # =================================================
+        # ROLES
+        # =================================================
+
+        self.admin_role = Role.objects.create(
+            name="Administrador"
+        )
+
+        self.player_role = Role.objects.create(
+            name="Jugador"
+        )
+
+        User = get_user_model()
+
+        # =================================================
+        # ADMIN
+        # =================================================
+
+        self.admin_user = User.objects.create_user(
+            username="resolution_admin",
+            password="TestPassword123!",
+            email="resolution_admin@tenis.cl",
+            role=self.admin_role,
+        )
+
+        # =================================================
+        # CATEGORÍA
+        # =================================================
+
+        self.category = Category.objects.create(
+            name="RESOLUTION_CATEGORY"
+        )
+
+        # =================================================
+        # JUGADORES
+        # =================================================
+
+        self.player1_user = User.objects.create_user(
+            username="resolution_player1",
+            password="TestPassword123!",
+            email="resolution_player1@tenis.cl",
+            role=self.player_role,
+        )
+
+        self.player2_user = User.objects.create_user(
+            username="resolution_player2",
+            password="TestPassword123!",
+            email="resolution_player2@tenis.cl",
+            role=self.player_role,
+        )
+
+        self.player3_user = User.objects.create_user(
+            username="resolution_player3",
+            password="TestPassword123!",
+            email="resolution_player3@tenis.cl",
+            role=self.player_role,
+        )
+
+        self.player1 = Player.objects.create(
+            user=self.player1_user,
+            category=self.category,
+            rut="51111111-1",
+            first_name="Jugador",
+            last_name="Uno",
+        )
+
+        self.player2 = Player.objects.create(
+            user=self.player2_user,
+            category=self.category,
+            rut="52222222-2",
+            first_name="Jugador",
+            last_name="Dos",
+        )
+
+        self.player3 = Player.objects.create(
+            user=self.player3_user,
+            category=self.category,
+            rut="53333333-3",
+            first_name="Jugador",
+            last_name="Tres",
+        )
+
+        # =================================================
+        # COMPETENCIA ELIMINACIÓN DIRECTA
+        # =================================================
+
+        self.competition = Competition.objects.create(
+            name="Torneo Resoluciones",
+            type="ELIMINACION_DIRECTA",
+            start_date="2026-09-01",
+            end_date="2026-09-15",
+            registration_deadline="2026-08-28",
+        )
+
+        self.competition_category = (
+            CompetitionCategory.objects.create(
+                competition=self.competition,
+                category=self.category,
+                max_players=16,
+                minimum_players=2,
+            )
+        )
+
+        # =================================================
+        # INSCRIPCIONES
+        # =================================================
+
+        for player in [
+            self.player1,
+            self.player2,
+            self.player3,
+        ]:
+
+            Registration.objects.create(
+                competition_category=(
+                    self.competition_category
+                ),
+                player=player,
+                status="CONFIRMADA",
+            )
+
+        # =================================================
+        # PARTIDO BASE
+        # =================================================
+
+        self.match = Match.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player1=self.player1,
+            player2=self.player2,
+            round=1,
+            bracket_position=1,
+            status=(
+                Match.Status.PROGRAMADO
+            ),
+        )
+
+    # =====================================================
+    # AUTH
+    # =====================================================
+
+    def authenticate(
+        self,
+        user
+    ):
+
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": user.username,
+                "password": (
+                    "TestPassword123!"
+                ),
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.client.credentials(
+            HTTP_AUTHORIZATION=(
+                f"Bearer "
+                f"{response.data['access']}"
+            )
+        )
+
+    # =====================================================
+    # WALKOVER
+    # =====================================================
+
+    def test_walkover_without_sets_is_allowed(
+        self
+    ):
+        """
+        Un partido sin sets puede terminar
+        por walkover.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/walkover/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player1,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.WALKOVER,
+        )
+
+        self.assertTrue(
+            self.match.is_walkover
+        )
+
+    def test_walkover_with_existing_sets_is_rejected(
+        self
+    ):
+        """
+        Si ya existe juego registrado,
+        no corresponde WO sino Retiro.
+        """
+
+        MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+            is_super_tie_break=False,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/walkover/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.NORMAL,
+        )
+
+    def test_walkover_requires_winner(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/walkover/"
+            ),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.assertIn(
+            "winner_player",
+            response.data,
+        )
+
+    def test_walkover_winner_must_be_match_player(
+        self
+    ):
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/walkover/"
+            ),
+            {
+                "winner_player":
+                    self.player3.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    # =====================================================
+    # RETIRO
+    # =====================================================
+
+    def test_retirement_without_sets_is_rejected(
+        self
+    ):
+        """
+        Si no hubo juego debe utilizarse WO.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_retirement_with_existing_set_is_allowed(
+        self
+    ):
+        """
+        El retiro conserva lo jugado
+        y finaliza el partido.
+        """
+
+        match_set = MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+            is_super_tie_break=False,
+        )
+
+        self.match.status = (
+            Match.Status.EN_JUEGO
+        )
+
+        self.match.save(
+            update_fields=[
+                "status",
+            ]
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player1,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.RETIREMENT,
+        )
+
+        self.assertFalse(
+            self.match.is_walkover
+        )
+
+        # El set disputado debe conservarse.
+        self.assertTrue(
+            MatchSet.objects.filter(
+                pk=match_set.id
+            ).exists()
+        )
+
+    def test_retirement_winner_must_be_match_player(
+        self
+    ):
+
+        MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player3.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    # =====================================================
+    # AVANCE EN ELIMINACIÓN DIRECTA
+    # =====================================================
+
+    def test_walkover_winner_advances_in_direct_elimination(
+        self
+    ):
+        """
+        El ganador por WO debe avanzar
+        automáticamente al siguiente partido.
+        """
+
+        next_match = Match.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player1=None,
+            player2=None,
+            round=2,
+            bracket_position=1,
+            status=(
+                Match.Status.PROGRAMADO
+            ),
+        )
+
+        self.match.next_match = (
+            next_match
+        )
+
+        self.match.next_match_slot = 1
+
+        self.match.save(
+            update_fields=[
+                "next_match",
+                "next_match_slot",
+            ]
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/walkover/"
+            ),
+            {
+                "winner_player":
+                    self.player2.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        next_match.refresh_from_db()
+
+        self.assertEqual(
+            next_match.player1,
+            self.player2,
+        )
+
+    def test_retirement_winner_advances_in_direct_elimination(
+        self
+    ):
+        """
+        El ganador por retiro también
+        debe avanzar automáticamente.
+        """
+
+        next_match = Match.objects.create(
+            competition_category=(
+                self.competition_category
+            ),
+            player1=None,
+            player2=None,
+            round=2,
+            bracket_position=1,
+        )
+
+        self.match.next_match = (
+            next_match
+        )
+
+        self.match.next_match_slot = 2
+
+        self.match.status = (
+            Match.Status.EN_JUEGO
+        )
+
+        self.match.save(
+            update_fields=[
+                "next_match",
+                "next_match_slot",
+                "status",
+            ]
+        )
+
+        MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=4,
+            games_player2=6,
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        next_match.refresh_from_db()
+
+        self.assertEqual(
+            next_match.player2,
+            self.player1,
+        )
+
+    # =====================================================
+    # ESCALERILLA
+    # =====================================================
+
+    def test_walkover_does_not_propagate_bracket_in_ladder(
+        self
+    ):
+        """
+        En escalerilla el WO finaliza el partido,
+        pero no utiliza la lógica de bracket.
+        """
+
+        ladder_competition = (
+            Competition.objects.create(
+                name="Escalerilla Resolución",
+                type="ESCALERILLA",
+                start_date="2026-09-01",
+                end_date="2026-09-30",
+                registration_deadline="2026-08-28",
+            )
+        )
+
+        ladder_category = (
+            CompetitionCategory.objects.create(
+                competition=(
+                    ladder_competition
+                ),
+                category=self.category,
+                max_players=16,
+                minimum_players=2,
+            )
+        )
+
+        for player in [
+            self.player1,
+            self.player2,
+        ]:
+
+            Registration.objects.create(
+                competition_category=(
+                    ladder_category
+                ),
+                player=player,
+                status="CONFIRMADA",
+            )
+
+        fake_next_match = (
+            Match.objects.create(
+                competition_category=(
+                    ladder_category
+                ),
+                player1=None,
+                player2=None,
+                round=None,
+            )
+        )
+
+        ladder_match = (
+            Match.objects.create(
+                competition_category=(
+                    ladder_category
+                ),
+                player1=self.player1,
+                player2=self.player2,
+                round=None,
+                next_match=(
+                    fake_next_match
+                ),
+                next_match_slot=1,
+            )
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{ladder_match.id}/walkover/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        ladder_match.refresh_from_db()
+
+        fake_next_match.refresh_from_db()
+
+        self.assertEqual(
+            ladder_match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            ladder_match.winner_player,
+            self.player1,
+        )
+
+        self.assertEqual(
+            ladder_match.resolution_type,
+            Match.ResolutionType.WALKOVER,
+        )
+
+        # No debe propagarse a un bracket.
+        self.assertIsNone(
+            fake_next_match.player1
+        )
+
+        self.assertIsNone(
+            fake_next_match.player2
+        )
+
+    # =====================================================
+    # BLOQUEAR SETS DESPUÉS DE RETIRO
+    # =====================================================
+
+    def test_cannot_add_sets_after_retirement(
+        self
+    ):
+
+        MatchSet.objects.create(
+            match=self.match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+
+        self.match.status = (
+            Match.Status.EN_JUEGO
+        )
+
+        self.match.save(
+            update_fields=[
+                "status",
+            ]
+        )
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        retirement_response = (
+            self.client.post(
+                (
+                    f"/api/matches/"
+                    f"{self.match.id}/retirement/"
+                ),
+                {
+                    "winner_player":
+                        self.player1.id,
+                },
+                format="json",
+            )
+        )
+
+        self.assertEqual(
+            retirement_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    2,
+
+                "games_player1":
+                    6,
+
+                "games_player2":
+                    3,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
         )
