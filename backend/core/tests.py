@@ -19,8 +19,10 @@ from core.models import (
 from django.utils import timezone
 from datetime import timedelta
 
+from rest_framework.exceptions import ValidationError
 
-
+from core.services.bracket_service import BracketService
+from core.serializers import MatchSetSerializer
 class HealthAPITest(TestCase):
 
     def test_health_endpoint(self):
@@ -6745,4 +6747,1665 @@ class AuditLogAPITest(TestCase):
         self.assertEqual(
             AuditLog.objects.count(),
             initial_count
+        )
+        
+class BracketServiceTest(TestCase):
+
+    def setUp(self):
+
+        self.admin_role = Role.objects.create(
+            name="Administrador"
+        )
+
+        self.player_role = Role.objects.create(
+            name="Jugador"
+        )
+
+        User = get_user_model()
+
+        self.category = Category.objects.create(
+            name="PRIMERA"
+        )
+
+        self.competition = Competition.objects.create(
+            name="Torneo Bracket",
+            type="ELIMINACION_DIRECTA",
+            start_date="2026-09-01",
+            end_date="2026-09-30",
+            registration_deadline="2026-08-28",
+        )
+
+        self.competition_category = (
+            CompetitionCategory.objects.create(
+                competition=self.competition,
+                category=self.category,
+                max_players=64,
+                minimum_players=2,
+            )
+        )
+
+        self.users = []
+        self.players = []
+
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
+    def create_players(
+        self,
+        amount,
+        with_seeds=False,
+    ):
+
+        created = []
+
+        start_index = (
+            len(self.players) + 1
+        )
+
+        for index in range(
+            start_index,
+            start_index + amount,
+        ):
+
+            user = (
+                get_user_model()
+                .objects
+                .create_user(
+                    username=(
+                        f"bracket_player_{index}"
+                    ),
+                    password=(
+                        "TestPassword123!"
+                    ),
+                    email=(
+                        f"bracket_player_{index}"
+                        "@tenis.cl"
+                    ),
+                    role=self.player_role,
+                )
+            )
+
+            player = Player.objects.create(
+                user=user,
+                category=self.category,
+                rut=(
+                    f"{10000000 + index}-K"
+                ),
+                first_name="Jugador",
+                last_name=str(index),
+            )
+
+            seed = (
+                index
+                if with_seeds
+                else None
+            )
+
+            registration = (
+                Registration.objects.create(
+                    competition_category=(
+                        self.competition_category
+                    ),
+                    player=player,
+                    status="CONFIRMADA",
+                    seed=seed,
+                )
+            )
+
+            self.users.append(
+                user
+            )
+
+            self.players.append(
+                player
+            )
+
+            created.append(
+                registration
+            )
+
+        return created
+
+    def get_first_round_matches(self):
+
+        return list(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+            ).order_by(
+                "bracket_position"
+            )
+        )
+
+    def get_seed_pairs_from_first_round(self):
+
+        registrations = {
+            registration.player_id:
+                registration.seed
+            for registration
+            in Registration.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                status="CONFIRMADA",
+            )
+        }
+
+        pairs = []
+
+        for match in (
+            self.get_first_round_matches()
+        ):
+
+            seed1 = (
+                registrations.get(
+                    match.player1_id
+                )
+                if match.player1_id
+                else None
+            )
+
+            seed2 = (
+                registrations.get(
+                    match.player2_id
+                )
+                if match.player2_id
+                else None
+            )
+
+            pairs.append(
+                (
+                    seed1,
+                    seed2,
+                )
+            )
+
+        return pairs
+
+    # =====================================================
+    # TAMAÑO DEL CUADRO
+    # =====================================================
+
+    def test_calculate_bracket_size_5_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                5
+            )
+        )
+
+        self.assertEqual(
+            result,
+            8
+        )
+
+    def test_calculate_bracket_size_8_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                8
+            )
+        )
+
+        self.assertEqual(
+            result,
+            8
+        )
+
+    def test_calculate_bracket_size_9_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                9
+            )
+        )
+
+        self.assertEqual(
+            result,
+            16
+        )
+
+    def test_calculate_bracket_size_16_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                16
+            )
+        )
+
+        self.assertEqual(
+            result,
+            16
+        )
+
+    def test_calculate_bracket_size_33_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                33
+            )
+        )
+
+        self.assertEqual(
+            result,
+            64
+        )
+
+    def test_calculate_bracket_size_64_players(self):
+
+        result = (
+            BracketService
+            ._calculate_bracket_size(
+                64
+            )
+        )
+
+        self.assertEqual(
+            result,
+            64
+        )
+
+    # =====================================================
+    # VALIDACIONES
+    # =====================================================
+
+    def test_cannot_generate_bracket_for_ladder(self):
+
+        self.competition.type = (
+            "ESCALERILLA"
+        )
+
+        self.competition.save()
+
+        self.create_players(
+            4
+        )
+
+        with self.assertRaises(
+            ValidationError
+        ):
+
+            BracketService.generate_bracket(
+                self.competition_category
+            )
+
+    def test_cannot_generate_without_minimum_players(self):
+
+        self.competition_category.minimum_players = (
+            4
+        )
+
+        self.competition_category.save()
+
+        self.create_players(
+            2
+        )
+
+        with self.assertRaises(
+            ValidationError
+        ):
+
+            BracketService.generate_bracket(
+                self.competition_category
+            )
+
+    def test_duplicate_seed_is_rejected(self):
+
+        registrations = (
+            self.create_players(
+                4
+            )
+        )
+
+        registrations[0].seed = 1
+        registrations[0].save()
+
+        registrations[1].seed = 1
+        registrations[1].save()
+
+        with self.assertRaises(
+            ValidationError
+        ):
+
+            BracketService.generate_bracket(
+                self.competition_category
+            )
+
+    def test_seed_greater_than_player_count_is_rejected(
+        self
+    ):
+
+        registrations = (
+            self.create_players(
+                4
+            )
+        )
+
+        registrations[0].seed = 8
+        registrations[0].save()
+
+        with self.assertRaises(
+            ValidationError
+        ):
+
+            BracketService.generate_bracket(
+                self.competition_category
+            )
+
+    def test_only_confirmed_registrations_are_used(self):
+
+        registrations = (
+            self.create_players(
+                4
+            )
+        )
+
+        registrations[3].status = (
+            "PENDIENTE"
+        )
+
+        registrations[3].save()
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        player_ids_in_bracket = set()
+
+        for match in (
+            self.get_first_round_matches()
+        ):
+
+            if match.player1_id:
+
+                player_ids_in_bracket.add(
+                    match.player1_id
+                )
+
+            if match.player2_id:
+
+                player_ids_in_bracket.add(
+                    match.player2_id
+                )
+
+        self.assertNotIn(
+            registrations[3].player_id,
+            player_ids_in_bracket
+        )
+
+    # =====================================================
+    # ESTRUCTURA 8 JUGADORES
+    # =====================================================
+
+    def test_generate_8_player_bracket_creates_7_matches(
+        self
+    ):
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        self.assertEqual(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            ).count(),
+            7
+        )
+
+    def test_generate_8_player_bracket_creates_three_rounds(
+        self
+    ):
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        self.assertEqual(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+            ).count(),
+            4
+        )
+
+        self.assertEqual(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=2,
+            ).count(),
+            2
+        )
+
+        self.assertEqual(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=3,
+            ).count(),
+            1
+        )
+
+    # =====================================================
+    # TODOS CON SEED - 8
+    # =====================================================
+
+    def test_full_seeded_bracket_8_players_has_expected_pairs(
+        self
+    ):
+
+        self.create_players(
+            8,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        pairs = (
+            self.get_seed_pairs_from_first_round()
+        )
+
+        normalized_pairs = {
+            frozenset(pair)
+            for pair in pairs
+        }
+
+        expected = {
+            frozenset((1, 8)),
+            frozenset((2, 7)),
+            frozenset((3, 6)),
+            frozenset((4, 5)),
+        }
+
+        self.assertEqual(
+            normalized_pairs,
+            expected
+        )
+
+    def test_seed_1_and_2_are_in_opposite_halves_for_8(
+        self
+    ):
+
+        self.create_players(
+            8,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        registrations = {
+            registration.player_id:
+                registration.seed
+            for registration
+            in Registration.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            )
+        }
+
+        seed1_match_index = None
+        seed2_match_index = None
+
+        for index, match in enumerate(
+            first_round
+        ):
+
+            seeds = {
+                registrations.get(
+                    match.player1_id
+                ),
+                registrations.get(
+                    match.player2_id
+                ),
+            }
+
+            if 1 in seeds:
+                seed1_match_index = index
+
+            if 2 in seeds:
+                seed2_match_index = index
+
+        self.assertIsNotNone(
+            seed1_match_index
+        )
+
+        self.assertIsNotNone(
+            seed2_match_index
+        )
+
+        self.assertLess(
+            seed1_match_index,
+            2
+        )
+
+        self.assertGreaterEqual(
+            seed2_match_index,
+            2
+        )
+
+    # =====================================================
+    # TODOS CON SEED - 16
+    # =====================================================
+
+    def test_full_seeded_bracket_16_players_has_expected_pairs(
+        self
+    ):
+
+        self.create_players(
+            16,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        pairs = (
+            self.get_seed_pairs_from_first_round()
+        )
+
+        normalized_pairs = {
+            frozenset(pair)
+            for pair in pairs
+        }
+
+        expected = {
+            frozenset((1, 16)),
+            frozenset((2, 15)),
+            frozenset((3, 14)),
+            frozenset((4, 13)),
+            frozenset((5, 12)),
+            frozenset((6, 11)),
+            frozenset((7, 10)),
+            frozenset((8, 9)),
+        }
+
+        self.assertEqual(
+            normalized_pairs,
+            expected
+        )
+
+    def test_seed_1_and_2_are_in_opposite_halves_for_16(
+        self
+    ):
+
+        self.create_players(
+            16,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        seed_by_player = {
+            registration.player_id:
+                registration.seed
+            for registration
+            in Registration.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            )
+        }
+
+        seed1_index = None
+        seed2_index = None
+
+        for index, match in enumerate(
+            first_round
+        ):
+
+            seeds = {
+                seed_by_player.get(
+                    match.player1_id
+                ),
+                seed_by_player.get(
+                    match.player2_id
+                ),
+            }
+
+            if 1 in seeds:
+                seed1_index = index
+
+            if 2 in seeds:
+                seed2_index = index
+
+        self.assertIsNotNone(
+            seed1_index
+        )
+
+        self.assertIsNotNone(
+            seed2_index
+        )
+
+        # 8 partidos:
+        # primera mitad = índices 0..3
+        # segunda mitad = índices 4..7
+
+        self.assertLess(
+            seed1_index,
+            4
+        )
+
+        self.assertGreaterEqual(
+            seed2_index,
+            4
+        )
+
+    # =====================================================
+    # TODOS CON SEED - 64
+    # =====================================================
+
+    def test_full_seeded_bracket_64_players_pairs_1_with_64(
+        self
+    ):
+
+        self.competition_category.minimum_players = (
+            2
+        )
+
+        self.competition_category.max_players = (
+            64
+        )
+
+        self.competition_category.save()
+
+        self.create_players(
+            64,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        pairs = (
+            self.get_seed_pairs_from_first_round()
+        )
+
+        normalized_pairs = {
+            frozenset(pair)
+            for pair in pairs
+        }
+
+        self.assertIn(
+            frozenset((1, 64)),
+            normalized_pairs
+        )
+
+        self.assertIn(
+            frozenset((2, 63)),
+            normalized_pairs
+        )
+
+        self.assertIn(
+            frozenset((32, 33)),
+            normalized_pairs
+        )
+
+    def test_seed_1_and_2_are_in_opposite_halves_for_64(
+        self
+    ):
+
+        self.competition_category.max_players = (
+            64
+        )
+
+        self.competition_category.save()
+
+        self.create_players(
+            64,
+            with_seeds=True,
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        seed_by_player = {
+            registration.player_id:
+                registration.seed
+            for registration
+            in Registration.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            )
+        }
+
+        seed1_index = None
+        seed2_index = None
+
+        for index, match in enumerate(
+            first_round
+        ):
+
+            seeds = {
+                seed_by_player.get(
+                    match.player1_id
+                ),
+                seed_by_player.get(
+                    match.player2_id
+                ),
+            }
+
+            if 1 in seeds:
+                seed1_index = index
+
+            if 2 in seeds:
+                seed2_index = index
+
+        self.assertIsNotNone(
+            seed1_index
+        )
+
+        self.assertIsNotNone(
+            seed2_index
+        )
+
+        # 32 partidos primera ronda.
+        # Mitad superior: 0..15.
+        # Mitad inferior: 16..31.
+
+        self.assertLess(
+            seed1_index,
+            16
+        )
+
+        self.assertGreaterEqual(
+            seed2_index,
+            16
+        )
+
+    # =====================================================
+    # ALGUNOS SEEDS
+    # =====================================================
+
+    def test_partial_seeding_does_not_match_seed_1_against_seed_2(
+        self
+    ):
+
+        registrations = (
+            self.create_players(
+                8
+            )
+        )
+
+        registrations[0].seed = 1
+        registrations[0].save()
+
+        registrations[1].seed = 2
+        registrations[1].save()
+
+        registrations[2].seed = 3
+        registrations[2].save()
+
+        registrations[3].seed = 4
+        registrations[3].save()
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        pairs = (
+            self.get_seed_pairs_from_first_round()
+        )
+
+        for pair in pairs:
+
+            existing_seeds = [
+                seed
+                for seed in pair
+                if seed is not None
+            ]
+
+            self.assertFalse(
+                1 in existing_seeds
+                and 2 in existing_seeds
+            )
+
+            self.assertFalse(
+                3 in existing_seeds
+                and 4 in existing_seeds
+            )
+
+    # =====================================================
+    # BYE
+    # =====================================================
+
+    def test_6_players_generate_8_player_bracket_with_two_byes(
+        self
+    ):
+
+        self.create_players(
+            6
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        bye_matches = [
+            match
+            for match in first_round
+            if (
+                (
+                    match.player1 is None
+                    and match.player2 is not None
+                )
+                or
+                (
+                    match.player1 is not None
+                    and match.player2 is None
+                )
+            )
+        ]
+
+        self.assertEqual(
+            len(bye_matches),
+            2
+        )
+
+    def test_bye_match_is_finished_automatically(
+        self
+    ):
+
+        self.create_players(
+            6
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        bye_matches = [
+            match
+            for match in first_round
+            if (
+                match.player1 is None
+                or match.player2 is None
+            )
+            and (
+                match.player1 is not None
+                or match.player2 is not None
+            )
+        ]
+
+        self.assertGreater(
+            len(bye_matches),
+            0
+        )
+
+        for match in bye_matches:
+
+            self.assertEqual(
+                match.status,
+                Match.Status.FINALIZADO
+            )
+
+            self.assertIsNotNone(
+                match.winner_player
+            )
+
+    def test_bye_winner_advances_to_next_round(
+        self
+    ):
+
+        self.create_players(
+            6
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        bye_match = next(
+            match
+            for match
+            in self.get_first_round_matches()
+            if (
+                (
+                    match.player1 is None
+                    and match.player2 is not None
+                )
+                or
+                (
+                    match.player1 is not None
+                    and match.player2 is None
+                )
+            )
+        )
+
+        bye_match.refresh_from_db()
+
+        next_match = (
+            bye_match.next_match
+        )
+
+        self.assertIsNotNone(
+            next_match
+        )
+
+        next_match.refresh_from_db()
+
+        if (
+            bye_match.next_match_slot
+            == 1
+        ):
+
+            self.assertEqual(
+                next_match.player1,
+                bye_match.winner_player
+            )
+
+        else:
+
+            self.assertEqual(
+                next_match.player2,
+                bye_match.winner_player
+            )
+
+    # =====================================================
+    # NEXT MATCH
+    # =====================================================
+
+    def test_first_round_matches_are_connected_to_second_round(
+        self
+    ):
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        first_round = (
+            self.get_first_round_matches()
+        )
+
+        for match in first_round:
+
+            self.assertIsNotNone(
+                match.next_match
+            )
+
+            self.assertIn(
+                match.next_match_slot,
+                [
+                    1,
+                    2,
+                ]
+            )
+
+            self.assertEqual(
+                match.next_match.round,
+                2
+            )
+
+    def test_final_has_no_next_match(
+        self
+    ):
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        final = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=3,
+                bracket_position=1,
+            )
+        )
+
+        self.assertIsNone(
+            final.next_match
+        )
+
+        self.assertIsNone(
+            final.next_match_slot
+        )
+
+    # =====================================================
+    # REGENERACIÓN
+    # =====================================================
+
+    def test_bracket_cannot_be_generated_twice(
+        self
+    ):
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        with self.assertRaises(
+            ValidationError
+        ):
+
+            BracketService.generate_bracket(
+                self.competition_category
+            )
+        # =====================================================
+    # AVANCE AUTOMÁTICO POR RESULTADO
+    # =====================================================
+
+    def _register_straight_sets_win(
+        self,
+        match,
+        winner=1,
+    ):
+        """
+        Registra un resultado 2-0 utilizando
+        MatchSetSerializer.
+
+        winner:
+            1 -> gana player1
+            2 -> gana player2
+        """
+
+        if winner == 1:
+
+            set1 = {
+                "match": match.id,
+                "set_number": 1,
+                "games_player1": 6,
+                "games_player2": 3,
+                "is_super_tie_break": False,
+            }
+
+            set2 = {
+                "match": match.id,
+                "set_number": 2,
+                "games_player1": 6,
+                "games_player2": 4,
+                "is_super_tie_break": False,
+            }
+
+        else:
+
+            set1 = {
+                "match": match.id,
+                "set_number": 1,
+                "games_player1": 3,
+                "games_player2": 6,
+                "is_super_tie_break": False,
+            }
+
+            set2 = {
+                "match": match.id,
+                "set_number": 2,
+                "games_player1": 4,
+                "games_player2": 6,
+                "is_super_tie_break": False,
+            }
+
+        serializer1 = MatchSetSerializer(
+            data=set1
+        )
+
+        self.assertTrue(
+            serializer1.is_valid(),
+            serializer1.errors,
+        )
+
+        serializer1.save()
+
+        serializer2 = MatchSetSerializer(
+            data=set2
+        )
+
+        self.assertTrue(
+            serializer2.is_valid(),
+            serializer2.errors,
+        )
+
+        serializer2.save()
+
+        match.refresh_from_db()
+
+    def test_match_winner_advances_to_next_round(
+        self
+    ):
+        """
+        Ganador de cuartos debe aparecer
+        automáticamente en semifinal.
+        """
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        match = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+                bracket_position=1,
+            )
+        )
+
+        expected_winner = (
+            match.player1
+        )
+
+        self._register_straight_sets_win(
+            match,
+            winner=1,
+        )
+
+        self.assertEqual(
+            match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            match.winner_player,
+            expected_winner,
+        )
+
+        next_match = (
+            match.next_match
+        )
+
+        next_match.refresh_from_db()
+
+        if match.next_match_slot == 1:
+
+            self.assertEqual(
+                next_match.player1,
+                expected_winner,
+            )
+
+        else:
+
+            self.assertEqual(
+                next_match.player2,
+                expected_winner,
+            )
+
+    def test_player2_can_advance_to_next_round(self):
+        """
+        El avance no depende de que gane player1.
+        """
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        match = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+                bracket_position=1,
+            )
+        )
+
+        expected_winner = (
+            match.player2
+        )
+
+        self.assertIsNotNone(
+            expected_winner
+        )
+
+
+
+        self._register_straight_sets_win(
+            match,
+            winner=2,
+        )
+
+        match.refresh_from_db()
+
+
+
+        next_match = (
+            Match.objects.get(
+                pk=match.next_match_id
+            )
+        )
+
+
+
+        self.assertEqual(
+            match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            match.winner_player,
+            expected_winner,
+        )
+
+        if (
+            match.next_match_slot == 1
+        ):
+
+            self.assertEqual(
+                next_match.player1,
+                expected_winner,
+            )
+
+        else:
+
+            self.assertEqual(
+                next_match.player2,
+                expected_winner,
+            )
+    def test_semifinal_winner_advances_to_final(
+        self
+    ):
+        """
+        Se juegan dos cuartos que alimentan
+        una semifinal.
+
+        Después se juega esa semifinal y
+        el ganador debe aparecer en la final.
+        """
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        quarter1 = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+                bracket_position=1,
+            )
+        )
+
+        quarter2 = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+                bracket_position=2,
+            )
+        )
+
+        self._register_straight_sets_win(
+            quarter1,
+            winner=1,
+        )
+
+        self._register_straight_sets_win(
+            quarter2,
+            winner=1,
+        )
+
+        semifinal = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=2,
+                bracket_position=1,
+            )
+        )
+
+        semifinal.refresh_from_db()
+
+        self.assertIsNotNone(
+            semifinal.player1
+        )
+
+        self.assertIsNotNone(
+            semifinal.player2
+        )
+
+        expected_winner = (
+            semifinal.player1
+        )
+
+        self._register_straight_sets_win(
+            semifinal,
+            winner=1,
+        )
+
+        final = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=3,
+                bracket_position=1,
+            )
+        )
+
+        final.refresh_from_db()
+
+        self.assertEqual(
+            semifinal.winner_player,
+            expected_winner,
+        )
+
+        if semifinal.next_match_slot == 1:
+
+            self.assertEqual(
+                final.player1,
+                expected_winner,
+            )
+
+        else:
+
+            self.assertEqual(
+                final.player2,
+                expected_winner,
+            )
+
+    def test_complete_8_player_bracket_produces_champion(
+        self
+    ):
+        """
+        Simula un cuadro completo de 8 jugadores:
+
+        4 cuartos
+        2 semifinales
+        1 final
+
+        El ganador de la final queda campeón
+        y no tiene partido siguiente.
+        """
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        # ---------------------------------
+        # CUARTOS
+        # ---------------------------------
+
+        quarterfinals = list(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+            ).order_by(
+                "bracket_position"
+            )
+        )
+
+        self.assertEqual(
+            len(quarterfinals),
+            4,
+        )
+
+        for match in quarterfinals:
+
+            self._register_straight_sets_win(
+                match,
+                winner=1,
+            )
+
+        # ---------------------------------
+        # SEMIFINALES
+        # ---------------------------------
+
+        semifinals = list(
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=2,
+            ).order_by(
+                "bracket_position"
+            )
+        )
+
+        self.assertEqual(
+            len(semifinals),
+            2,
+        )
+
+        for semifinal in semifinals:
+
+            semifinal.refresh_from_db()
+
+            self.assertIsNotNone(
+                semifinal.player1
+            )
+
+            self.assertIsNotNone(
+                semifinal.player2
+            )
+
+            self._register_straight_sets_win(
+                semifinal,
+                winner=1,
+            )
+
+        # ---------------------------------
+        # FINAL
+        # ---------------------------------
+
+        final = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=3,
+                bracket_position=1,
+            )
+        )
+
+        final.refresh_from_db()
+
+        self.assertIsNotNone(
+            final.player1
+        )
+
+        self.assertIsNotNone(
+            final.player2
+        )
+
+        expected_champion = (
+            final.player1
+        )
+
+        self._register_straight_sets_win(
+            final,
+            winner=1,
+        )
+
+        final.refresh_from_db()
+
+        # ---------------------------------
+        # CAMPEÓN
+        # ---------------------------------
+
+        self.assertEqual(
+            final.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            final.winner_player,
+            expected_champion,
+        )
+
+        self.assertIsNone(
+            final.next_match
+        )
+
+        self.assertIsNone(
+            final.next_match_slot
+        )
+
+    def test_final_winner_does_not_create_extra_match(
+        self
+    ):
+        """
+        Ganar la final no debe crear otra ronda
+        ni otro partido.
+        """
+
+        self.create_players(
+            8
+        )
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        initial_match_count = (
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            ).count()
+        )
+
+        self.assertEqual(
+            initial_match_count,
+            7,
+        )
+
+        # Cuartos
+        for match in (
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=1,
+            ).order_by(
+                "bracket_position"
+            )
+        ):
+
+            self._register_straight_sets_win(
+                match,
+                winner=1,
+            )
+
+        # Semifinales
+        for match in (
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=2,
+            ).order_by(
+                "bracket_position"
+            )
+        ):
+
+            match.refresh_from_db()
+
+            self._register_straight_sets_win(
+                match,
+                winner=1,
+            )
+
+        final = (
+            Match.objects.get(
+                competition_category=(
+                    self.competition_category
+                ),
+                round=3,
+                bracket_position=1,
+            )
+        )
+
+        final.refresh_from_db()
+
+        self._register_straight_sets_win(
+            final,
+            winner=1,
+        )
+
+        final_match_count = (
+            Match.objects.filter(
+                competition_category=(
+                    self.competition_category
+                )
+            ).count()
+        )
+
+        self.assertEqual(
+            final_match_count,
+            7,
         )

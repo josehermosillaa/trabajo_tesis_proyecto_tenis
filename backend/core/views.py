@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
-
+from rest_framework.decorators import action
 # from rest_framework.permissions import IsAuthenticated
 from core.utils import create_audit_log
 from .models import (
@@ -31,6 +31,9 @@ from .permissions import (
     PlayerPermission,
     CompetitionPermission,
     RegistrationPermission,
+)
+from .services.bracket_service import (
+    BracketService,
 )
 
 class HealthAPIView(APIView):
@@ -110,18 +113,30 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [CompetitionPermission]
     
-class CompetitionCategoryViewSet(AuditModelViewSet):
+class CompetitionCategoryViewSet(
+    AuditModelViewSet
+):
 
-    queryset = CompetitionCategory.objects.select_related(
-        "competition",
-        "category",
-    ).all()
+    queryset = (
+        CompetitionCategory.objects
+        .select_related(
+            "competition",
+            "category",
+        )
+        .all()
+    )
 
-    serializer_class = CompetitionCategorySerializer
+    serializer_class = (
+        CompetitionCategorySerializer
+    )
 
     permission_classes = [
         CompetitionPermission
     ]
+
+    # =====================================================
+    # ELIMINAR CATEGORÍA
+    # =====================================================
 
     def destroy(
         self,
@@ -130,7 +145,9 @@ class CompetitionCategoryViewSet(AuditModelViewSet):
         **kwargs,
     ):
 
-        instance = self.get_object()
+        instance = (
+            self.get_object()
+        )
 
         has_active_registrations = (
             instance.registrations
@@ -149,7 +166,9 @@ class CompetitionCategoryViewSet(AuditModelViewSet):
                         "porque tiene jugadores inscritos."
                     )
                 },
-                status=status.HTTP_400_BAD_REQUEST,
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                ),
             )
 
         return super().destroy(
@@ -158,6 +177,205 @@ class CompetitionCategoryViewSet(AuditModelViewSet):
             **kwargs,
         )
 
+    # =====================================================
+    # GENERAR CUADRO
+    # =====================================================
+
+    @action(
+        detail=True,
+        methods=[
+            "post",
+        ],
+        url_path="generate-bracket",
+    )
+    def generate_bracket(
+        self,
+        request,
+        pk=None,
+    ):
+        """
+        Genera automáticamente el cuadro
+        de eliminación directa.
+
+        Solo usa inscripciones CONFIRMADAS.
+
+        BracketService valida:
+
+        - tipo ELIMINACION_DIRECTA
+        - mínimo de jugadores
+        - máximo de jugadores
+        - seeds
+        - cuadro previamente generado
+        """
+
+        competition_category = (
+            self.get_object()
+        )
+
+        BracketService.generate_bracket(
+            competition_category
+        )
+
+        matches = (
+            Match.objects
+            .filter(
+                competition_category=(
+                    competition_category
+                )
+            )
+            .select_related(
+                "competition_category",
+                "player1",
+                "player2",
+                "winner_player",
+                "court",
+                "next_match",
+            )
+            .prefetch_related(
+                "sets"
+            )
+            .order_by(
+                "round",
+                "bracket_position",
+            )
+        )
+
+        serializer = (
+            MatchSerializer(
+                matches,
+                many=True,
+            )
+        )
+
+        return Response(
+            {
+                "detail": (
+                    "Cuadro generado correctamente."
+                ),
+                "competition_category": (
+                    competition_category.id
+                ),
+                "matches": (
+                    serializer.data
+                ),
+            },
+            status=(
+                status.HTTP_201_CREATED
+            ),
+        )
+
+    # =====================================================
+    # CONSULTAR CUADRO
+    # =====================================================
+
+    @action(
+        detail=True,
+        methods=[
+            "get",
+        ],
+        url_path="bracket",
+    )
+    def bracket(
+        self,
+        request,
+        pk=None,
+    ):
+        """
+        Devuelve el cuadro completo ordenado
+        por ronda y posición.
+        """
+
+        competition_category = (
+            self.get_object()
+        )
+
+        if (
+            competition_category
+            .competition
+            .type
+            != "ELIMINACION_DIRECTA"
+        ):
+
+            return Response(
+                {
+                    "detail": (
+                        "Esta categoría pertenece a una "
+                        "competencia que no utiliza cuadro "
+                        "de eliminación directa."
+                    )
+                },
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                ),
+            )
+
+        matches = (
+            Match.objects
+            .filter(
+                competition_category=(
+                    competition_category
+                )
+            )
+            .select_related(
+                "competition_category",
+                "player1",
+                "player2",
+                "winner_player",
+                "court",
+                "next_match",
+            )
+            .prefetch_related(
+                "sets"
+            )
+            .order_by(
+                "round",
+                "bracket_position",
+            )
+        )
+
+        serializer = (
+            MatchSerializer(
+                matches,
+                many=True,
+            )
+        )
+
+        return Response(
+            {
+                "competition_category": (
+                    competition_category.id
+                ),
+                "competition": (
+                    competition_category
+                    .competition
+                    .id
+                ),
+                "competition_name": (
+                    competition_category
+                    .competition
+                    .name
+                ),
+                "category": (
+                    competition_category
+                    .category
+                    .id
+                ),
+                "category_name": (
+                    competition_category
+                    .category
+                    .name
+                ),
+                "generated": (
+                    matches.exists()
+                ),
+                "matches": (
+                    serializer.data
+                ),
+            },
+            status=(
+                status.HTTP_200_OK
+            ),
+        )
 class RegistrationViewSet(AuditModelViewSet):
     """
     API para la gestión de inscripciones.

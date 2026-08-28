@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from rest_framework import serializers
-
+from core.services.bracket_service import BracketService
 from authentication.models import Role
 
 from .models import (
@@ -1027,6 +1027,10 @@ class CourtSerializer(serializers.ModelSerializer):
 
 class MatchSerializer(serializers.ModelSerializer):
 
+    sets = serializers.SerializerMethodField(
+        read_only=True
+    )
+
     class Meta:
         model = Match
 
@@ -1040,14 +1044,61 @@ class MatchSerializer(serializers.ModelSerializer):
             "scheduled_date_time",
             "status",
             "round",
+            "bracket_position",
+            "next_match",
+            "next_match_slot",
             "is_walkover",
+            "sets",
         ]
 
         read_only_fields = [
             "id",
+            "bracket_position",
+            "next_match",
+            "next_match_slot",
+            "sets",
         ]
 
-    def validate(self, data):
+    # =====================================================
+    # SETS PARA VISUALIZACIÓN DEL CUADRO
+    # =====================================================
+
+    def get_sets(
+        self,
+        obj,
+    ):
+
+        return [
+            {
+                "id": match_set.id,
+                "set_number": (
+                    match_set.set_number
+                ),
+                "games_player1": (
+                    match_set.games_player1
+                ),
+                "games_player2": (
+                    match_set.games_player2
+                ),
+                "is_super_tie_break": (
+                    match_set.is_super_tie_break
+                ),
+            }
+            for match_set in (
+                obj.sets
+                .all()
+                .order_by("set_number")
+            )
+        ]
+
+    # =====================================================
+    # VALIDACIÓN
+    # =====================================================
+
+    def validate(
+        self,
+        data,
+    ):
 
         instance = self.instance
 
@@ -1129,7 +1180,22 @@ class MatchSerializer(serializers.ModelSerializer):
                 }
             )
 
-        if player1 is None:
+        # /*
+        #  * IMPORTANTE:
+        #  *
+        #  * Los partidos generados automáticamente
+        #  * para rondas futuras pueden tener
+        #  * player1/player2 en null.
+        #  *
+        #  * Sin embargo, un partido creado
+        #  * manualmente desde la API sigue
+        #  * necesitando player1.
+        #  */
+
+        if (
+            player1 is None
+            and instance is None
+        ):
 
             raise serializers.ValidationError(
                 {
@@ -1144,7 +1210,8 @@ class MatchSerializer(serializers.ModelSerializer):
         # ---------------------------------
 
         if (
-            player1.category_id
+            player1 is not None
+            and player1.category_id
             != competition_category.category_id
         ):
 
@@ -1180,32 +1247,33 @@ class MatchSerializer(serializers.ModelSerializer):
         # 3. Player 1 debe estar confirmado
         # ---------------------------------
 
-        player1_confirmed = (
-            Registration.objects.filter(
-                competition_category=(
-                    competition_category
-                ),
-                player=player1,
-                status="CONFIRMADA",
-            )
-            .exists()
-        )
+        if player1 is not None:
 
-        if not player1_confirmed:
-
-            raise serializers.ValidationError(
-                {
-                    "player1": (
-                        "El jugador debe tener una "
-                        "inscripción confirmada para "
-                        "participar en esta competencia."
-                    )
-                }
+            player1_confirmed = (
+                Registration.objects.filter(
+                    competition_category=(
+                        competition_category
+                    ),
+                    player=player1,
+                    status="CONFIRMADA",
+                )
+                .exists()
             )
+
+            if not player1_confirmed:
+
+                raise serializers.ValidationError(
+                    {
+                        "player1": (
+                            "El jugador debe tener una "
+                            "inscripción confirmada para "
+                            "participar en esta competencia."
+                        )
+                    }
+                )
 
         # ---------------------------------
         # 4. Player 2 debe estar confirmado
-        #    cuando exista.
         # ---------------------------------
 
         if player2 is not None:
@@ -1238,7 +1306,8 @@ class MatchSerializer(serializers.ModelSerializer):
         # ---------------------------------
 
         if (
-            player2 is not None
+            player1 is not None
+            and player2 is not None
             and player1.id == player2.id
         ):
 
@@ -1257,9 +1326,13 @@ class MatchSerializer(serializers.ModelSerializer):
 
         if winner_player is not None:
 
-            valid_winners = [
-                player1
-            ]
+            valid_winners = []
+
+            if player1 is not None:
+
+                valid_winners.append(
+                    player1
+                )
 
             if player2 is not None:
 
@@ -1352,8 +1425,6 @@ class MatchSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            # Un WO ya representa un partido
-            # resuelto.
             data["status"] = (
                 Match.Status.FINALIZADO
             )
@@ -1455,9 +1526,9 @@ class MatchSetSerializer(serializers.ModelSerializer):
             else:
                 player2_sets += 1
 
-        # ---------------------------------
-        # Player 1 ganó el partido
-        # ---------------------------------
+        # =====================================================
+        # PLAYER 1 GANÓ
+        # =====================================================
 
         if player1_sets >= 2:
 
@@ -1476,11 +1547,23 @@ class MatchSetSerializer(serializers.ModelSerializer):
                 ]
             )
 
+            # ---------------------------------
+            # Eliminación directa:
+            # avanzar ganador al siguiente match.
+            #
+            # En escalerilla este método
+            # simplemente retorna sin hacer nada.
+            # ---------------------------------
+
+            BracketService.advance_winner(
+                match
+            )
+
             return
 
-        # ---------------------------------
-        # Player 2 ganó el partido
-        # ---------------------------------
+        # =====================================================
+        # PLAYER 2 GANÓ
+        # =====================================================
 
         if player2_sets >= 2:
 
@@ -1499,11 +1582,20 @@ class MatchSetSerializer(serializers.ModelSerializer):
                 ]
             )
 
+            # ---------------------------------
+            # MUY IMPORTANTE:
+            # también debe avanzar player2.
+            # ---------------------------------
+
+            BracketService.advance_winner(
+                match
+            )
+
             return
 
-        # ---------------------------------
-        # Partido todavía no finalizado
-        # ---------------------------------
+        # =====================================================
+        # PARTIDO TODAVÍA NO FINALIZADO
+        # =====================================================
 
         match.winner_player = None
 
@@ -1525,7 +1617,6 @@ class MatchSetSerializer(serializers.ModelSerializer):
                 "status",
             ]
         )
-
     # =====================================================
     # VALIDACIÓN
     # =====================================================
