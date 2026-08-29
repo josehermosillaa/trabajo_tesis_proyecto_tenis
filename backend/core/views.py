@@ -735,10 +735,25 @@ class MatchViewSet(
         """
         Finaliza un partido por RETIRO.
 
-        Los sets ya registrados se conservan.
+        Reglas:
 
-        En esta primera versión debe existir
-        al menos un set completo registrado.
+        - deben existir dos jugadores;
+        - puede ocurrir aunque no exista un set completo;
+        - puede conservar sets completos e incompletos;
+        - debe indicarse ganador;
+        - finaliza inmediatamente;
+        - en eliminación directa avanza al ganador.
+
+        Un retiro puede ocurrir, por ejemplo:
+
+            5-2 RET
+
+            6-4, 2-1 RET
+
+            6-4, 4-6, 5-3 RET
+
+        También puede registrarse sin marcador parcial
+        cuando el retiro ocurre al comienzo del partido.
         """
 
         match = (
@@ -775,27 +790,27 @@ class MatchViewSet(
                 ),
             )
 
-        # ---------------------------------
-        # Debe existir juego
-        # ---------------------------------
+        # # ---------------------------------
+        # # Debe existir juego
+        # # ---------------------------------
 
-        if (
-            not match.sets.exists()
-        ):
+        # if (
+        #     not match.sets.exists()
+        # ):
 
-            return Response(
-                {
-                    "detail": (
-                        "No se puede registrar un retiro "
-                        "sin sets disputados. Si el jugador "
-                        "no se presentó, debe registrar "
-                        "un walkover."
-                    )
-                },
-                status=(
-                    status.HTTP_400_BAD_REQUEST
-                ),
-            )
+        #     return Response(
+        #         {
+        #             "detail": (
+        #                 "No se puede registrar un retiro "
+        #                 "sin sets disputados. Si el jugador "
+        #                 "no se presentó, debe registrar "
+        #                 "un walkover."
+        #             )
+        #         },
+        #         status=(
+        #             status.HTTP_400_BAD_REQUEST
+        #         ),
+        #     )
 
         # ---------------------------------
         # Partido cancelado
@@ -1033,6 +1048,7 @@ class MatchViewSet(
                 status.HTTP_200_OK
             ),
         )
+
 class MatchSetViewSet(
     AuditModelViewSet
 ):

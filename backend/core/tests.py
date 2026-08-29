@@ -8743,7 +8743,7 @@ class MatchResolutionAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            200
+            status.HTTP_200_OK,
         )
 
         self.client.credentials(
@@ -8751,6 +8751,44 @@ class MatchResolutionAPITest(TestCase):
                 f"Bearer "
                 f"{response.data['access']}"
             )
+        )
+
+    # =====================================================
+    # HELPER CREAR SET POR API
+    # =====================================================
+
+    def create_set_via_api(
+        self,
+        *,
+        set_number,
+        games_player1,
+        games_player2,
+        is_super_tie_break=False,
+        is_incomplete=False,
+    ):
+
+        return self.client.post(
+            "/api/match-sets/",
+            {
+                "match":
+                    self.match.id,
+
+                "set_number":
+                    set_number,
+
+                "games_player1":
+                    games_player1,
+
+                "games_player2":
+                    games_player2,
+
+                "is_super_tie_break":
+                    is_super_tie_break,
+
+                "is_incomplete":
+                    is_incomplete,
+            },
+            format="json",
         )
 
     # =====================================================
@@ -8907,11 +8945,13 @@ class MatchResolutionAPITest(TestCase):
     # RETIRO
     # =====================================================
 
-    def test_retirement_without_sets_is_rejected(
+    def test_retirement_without_sets_is_allowed(
         self
     ):
         """
-        Si no hubo juego debe utilizarse WO.
+        El retiro puede ocurrir al comienzo
+        del partido aunque todavía no exista
+        ningún set registrado.
         """
 
         self.authenticate(
@@ -8932,7 +8972,32 @@ class MatchResolutionAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_200_OK,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player1,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.RETIREMENT,
+        )
+
+        self.assertFalse(
+            self.match.is_walkover
+        )
+
+        self.assertFalse(
+            self.match.sets.exists()
         )
 
     def test_retirement_with_existing_set_is_allowed(
@@ -9003,7 +9068,6 @@ class MatchResolutionAPITest(TestCase):
             self.match.is_walkover
         )
 
-        # El set disputado debe conservarse.
         self.assertTrue(
             MatchSet.objects.filter(
                 pk=match_set.id
@@ -9043,16 +9107,456 @@ class MatchResolutionAPITest(TestCase):
         )
 
     # =====================================================
+    # SETS INCOMPLETOS
+    # =====================================================
+
+    def test_incomplete_first_set_is_allowed(
+        self
+    ):
+        """
+        Un marcador parcial como 5-2
+        debe poder registrarse.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.create_set_via_api(
+            set_number=1,
+            games_player1=5,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        match_set = MatchSet.objects.get(
+            match=self.match,
+            set_number=1,
+        )
+
+        self.assertTrue(
+            match_set.is_incomplete
+        )
+
+        self.assertEqual(
+            match_set.games_player1,
+            5,
+        )
+
+        self.assertEqual(
+            match_set.games_player2,
+            2,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.EN_JUEGO,
+        )
+
+        self.assertIsNone(
+            self.match.winner_player
+        )
+
+    def test_incomplete_set_does_not_count_as_set_win(
+        self
+    ):
+        """
+        Un set incompleto no puede otorgar
+        un set ganado.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.create_set_via_api(
+            set_number=1,
+            games_player1=5,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.EN_JUEGO,
+        )
+
+        self.assertIsNone(
+            self.match.winner_player
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.NORMAL,
+        )
+
+    def test_completed_score_cannot_be_marked_incomplete(
+        self
+    ):
+        """
+        Un marcador que ya constituye
+        un set terminado, como 6-2,
+        no puede marcarse incompleto.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.create_set_via_api(
+            set_number=1,
+            games_player1=6,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.assertFalse(
+            MatchSet.objects.filter(
+                match=self.match,
+                set_number=1,
+            ).exists()
+        )
+
+    def test_cannot_create_later_set_after_incomplete_set(
+        self
+    ):
+        """
+        Un set incompleto siempre debe
+        ser el último set registrado.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response1 = self.create_set_via_api(
+            set_number=1,
+            games_player1=5,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response1.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response2 = self.create_set_via_api(
+            set_number=2,
+            games_player1=6,
+            games_player2=4,
+        )
+
+        self.assertEqual(
+            response2.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+        self.assertFalse(
+            MatchSet.objects.filter(
+                match=self.match,
+                set_number=2,
+            ).exists()
+        )
+
+    # =====================================================
+    # RETIRO CON MARCADOR PARCIAL
+    # =====================================================
+
+    def test_retirement_with_incomplete_first_set_preserves_score(
+        self
+    ):
+        """
+        Caso:
+        5-2 RET.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        set_response = self.create_set_via_api(
+            set_number=1,
+            games_player1=5,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            set_response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player2.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.match.refresh_from_db()
+
+        partial_set = MatchSet.objects.get(
+            match=self.match,
+            set_number=1,
+        )
+
+        self.assertTrue(
+            partial_set.is_incomplete
+        )
+
+        self.assertEqual(
+            partial_set.games_player1,
+            5,
+        )
+
+        self.assertEqual(
+            partial_set.games_player2,
+            2,
+        )
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            self.match.winner_player,
+            self.player2,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.RETIREMENT,
+        )
+
+    def test_retirement_during_second_set_preserves_scores(
+        self
+    ):
+        """
+        Caso:
+        6-4, 2-1 RET.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response1 = self.create_set_via_api(
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+
+        self.assertEqual(
+            response1.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response2 = self.create_set_via_api(
+            set_number=2,
+            games_player1=2,
+            games_player2=1,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response2.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        sets = list(
+            MatchSet.objects
+            .filter(
+                match=self.match
+            )
+            .order_by(
+                "set_number"
+            )
+        )
+
+        self.assertEqual(
+            len(sets),
+            2,
+        )
+
+        self.assertFalse(
+            sets[0].is_incomplete
+        )
+
+        self.assertTrue(
+            sets[1].is_incomplete
+        )
+
+        self.assertEqual(
+            sets[1].games_player1,
+            2,
+        )
+
+        self.assertEqual(
+            sets[1].games_player2,
+            1,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.RETIREMENT,
+        )
+
+    def test_retirement_during_super_tie_break_is_allowed(
+        self
+    ):
+        """
+        Caso:
+        6-4, 4-6, 5-3 RET.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response1 = self.create_set_via_api(
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+
+        self.assertEqual(
+            response1.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response2 = self.create_set_via_api(
+            set_number=2,
+            games_player1=4,
+            games_player2=6,
+        )
+
+        self.assertEqual(
+            response2.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response3 = self.create_set_via_api(
+            set_number=3,
+            games_player1=5,
+            games_player2=3,
+            is_super_tie_break=True,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response3.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        response = self.client.post(
+            (
+                f"/api/matches/"
+                f"{self.match.id}/retirement/"
+            ),
+            {
+                "winner_player":
+                    self.player1.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        stb = MatchSet.objects.get(
+            match=self.match,
+            set_number=3,
+        )
+
+        self.assertTrue(
+            stb.is_super_tie_break
+        )
+
+        self.assertTrue(
+            stb.is_incomplete
+        )
+
+        self.assertEqual(
+            stb.games_player1,
+            5,
+        )
+
+        self.assertEqual(
+            stb.games_player2,
+            3,
+        )
+
+        self.match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.RETIREMENT,
+        )
+
+    # =====================================================
     # AVANCE EN ELIMINACIÓN DIRECTA
     # =====================================================
 
     def test_walkover_winner_advances_in_direct_elimination(
         self
     ):
-        """
-        El ganador por WO debe avanzar
-        automáticamente al siguiente partido.
-        """
 
         next_match = Match.objects.create(
             competition_category=(
@@ -9111,10 +9615,6 @@ class MatchResolutionAPITest(TestCase):
     def test_retirement_winner_advances_in_direct_elimination(
         self
     ):
-        """
-        El ganador por retiro también
-        debe avanzar automáticamente.
-        """
 
         next_match = Match.objects.create(
             competition_category=(
@@ -9186,10 +9686,6 @@ class MatchResolutionAPITest(TestCase):
     def test_walkover_does_not_propagate_bracket_in_ladder(
         self
     ):
-        """
-        En escalerilla el WO finaliza el partido,
-        pero no utiliza la lógica de bracket.
-        """
 
         ladder_competition = (
             Competition.objects.create(
@@ -9273,7 +9769,6 @@ class MatchResolutionAPITest(TestCase):
         )
 
         ladder_match.refresh_from_db()
-
         fake_next_match.refresh_from_db()
 
         self.assertEqual(
@@ -9291,13 +9786,114 @@ class MatchResolutionAPITest(TestCase):
             Match.ResolutionType.WALKOVER,
         )
 
-        # No debe propagarse a un bracket.
         self.assertIsNone(
             fake_next_match.player1
         )
 
         self.assertIsNone(
             fake_next_match.player2
+        )
+
+    # =====================================================
+    # RESET RETIRO
+    # =====================================================
+
+    def test_reset_retirement_preserves_incomplete_set(
+        self
+    ):
+        """
+        Un 5-2 RET restablecido a NORMAL
+        conserva el parcial y vuelve EN_JUEGO.
+        """
+
+        self.authenticate(
+            self.admin_user
+        )
+
+        response = self.create_set_via_api(
+            set_number=1,
+            games_player1=5,
+            games_player2=2,
+            is_incomplete=True,
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_201_CREATED,
+        )
+
+        retirement_response = (
+            self.client.post(
+                (
+                    f"/api/matches/"
+                    f"{self.match.id}/retirement/"
+                ),
+                {
+                    "winner_player":
+                        self.player2.id,
+                },
+                format="json",
+            )
+        )
+
+        self.assertEqual(
+            retirement_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        reset_response = (
+            self.client.post(
+                (
+                    f"/api/matches/"
+                    f"{self.match.id}/reset-resolution/"
+                ),
+                {},
+                format="json",
+            )
+        )
+
+        self.assertEqual(
+            reset_response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.match.refresh_from_db()
+
+        partial_set = MatchSet.objects.get(
+            match=self.match,
+            set_number=1,
+        )
+
+        self.assertEqual(
+            self.match.resolution_type,
+            Match.ResolutionType.NORMAL,
+        )
+
+        self.assertFalse(
+            self.match.is_walkover
+        )
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.EN_JUEGO,
+        )
+
+        self.assertIsNone(
+            self.match.winner_player
+        )
+
+        self.assertTrue(
+            partial_set.is_incomplete
+        )
+
+        self.assertEqual(
+            partial_set.games_player1,
+            5,
+        )
+
+        self.assertEqual(
+            partial_set.games_player2,
+            2,
         )
 
     # =====================================================
