@@ -17,7 +17,7 @@ from core.models import (
     )
 
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from rest_framework.exceptions import ValidationError
 
@@ -2219,7 +2219,7 @@ class RegistrationAPITest(TestCase):
     # VALIDACIONES DE NEGOCIO
     # =====================================================
 
-    def test_cannot_register_player_in_wrong_category(
+    def test_admin_can_register_player_in_different_category(
         self
     ):
 
@@ -2238,10 +2238,167 @@ class RegistrationAPITest(TestCase):
             format="json",
         )
 
+        self.assertEqual(response.status_code, 201)
+
+        self.player.refresh_from_db()
+
         self.assertEqual(
-            response.status_code,
-            400
+            self.player.category,
+            self.primera,
         )
+
+    def test_organizer_can_register_player_in_different_category(
+        self
+    ):
+
+        self.authenticate(self.organizer_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_segunda.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_cannot_have_two_active_registrations_in_same_competition(
+        self
+    ):
+
+        first_registration = self.create_registration()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_segunda.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+        first_registration.refresh_from_db()
+
+        self.assertEqual(
+            first_registration.competition_category,
+            self.competition_primera,
+        )
+
+    def test_cancelled_registration_allows_another_category_same_competition(
+        self
+    ):
+
+        Registration.objects.create(
+            competition_category=self.competition_primera,
+            player=self.player,
+            status="CANCELADA",
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": (
+                    self.competition_segunda.id
+                ),
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_player_can_register_in_another_competition(
+        self
+    ):
+
+        self.create_registration()
+
+        other_competition = Competition.objects.create(
+            name="Otra competencia",
+            type="ESCALERILLA",
+            registration_deadline=(
+                timezone.localdate() + timedelta(days=3)
+            ),
+            start_date=(
+                timezone.localdate() + timedelta(days=7)
+            ),
+            end_date=(
+                timezone.localdate() + timedelta(days=21)
+            ),
+            status="PENDIENTE",
+        )
+
+        other_category = CompetitionCategory.objects.create(
+            competition=other_competition,
+            category=self.primera,
+            max_players=16,
+            minimum_players=4,
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/registrations/",
+            {
+                "competition_category": other_category.id,
+                "player": self.player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+    def test_update_excludes_current_registration_from_duplicate_check(
+        self
+    ):
+
+        registration = self.create_registration()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/registrations/{registration.id}/",
+            {
+                "status": "CONFIRMADA",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_update_exceptional_registration(
+        self
+    ):
+
+        registration = Registration.objects.create(
+            competition_category=self.competition_segunda,
+            player=self.player,
+            status="PENDIENTE",
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/registrations/{registration.id}/",
+            {
+                "status": "CONFIRMADA",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
 
     def test_cannot_duplicate_registration(
         self
@@ -3319,6 +3476,10 @@ class MatchAPITest(TestCase):
             name="Cancha Match 1"
         )
 
+        self.second_court = Court.objects.create(
+            name="Cancha Match 2"
+        )
+
     # =====================================================
     # HELPERS
     # =====================================================
@@ -3355,6 +3516,78 @@ class MatchAPITest(TestCase):
             player1=self.player1,
             player2=self.player2,
             round=1,
+        )
+
+    def create_generated_bracket_match(self):
+
+        return Match.objects.create(
+            competition_category=(
+                self.elimination_category
+            ),
+            court=self.court,
+            player1=self.player1,
+            player2=self.player2,
+            round=1,
+            bracket_position=1,
+        )
+
+    def create_additional_players(self):
+
+        User = get_user_model()
+        player4_user = User.objects.create_user(
+            username="match_player4",
+            password="TestPassword123!",
+            email="match_player4@tenis.cl",
+            role=self.player_role,
+        )
+        player4 = Player.objects.create(
+            user=player4_user,
+            category=self.primera,
+            rut="44444444-4",
+            first_name="Jugador",
+            last_name="Cuatro",
+        )
+
+        for competition_category in [
+            self.elimination_category,
+            self.ladder_category,
+        ]:
+            Registration.objects.get_or_create(
+                competition_category=competition_category,
+                player=self.player3,
+                defaults={"status": "CONFIRMADA"},
+            )
+            Registration.objects.create(
+                competition_category=competition_category,
+                player=player4,
+                status="CONFIRMADA",
+            )
+
+        return self.player3, player4
+
+    def create_scheduled_match(
+        self,
+        player1,
+        player2,
+        court,
+        start="2026-09-03T10:00:00-04:00",
+        status=Match.Status.PROGRAMADO,
+        competition_category=None,
+        bracket_position=None,
+    ):
+
+        return Match.objects.create(
+            competition_category=(
+                competition_category
+                or self.elimination_category
+            ),
+            court=court,
+            player1=player1,
+            player2=player2,
+            scheduled_date_time=datetime.fromisoformat(start),
+            status=status,
+            round=1,
+            bracket_position=bracket_position,
         )
 
     # =====================================================
@@ -3483,6 +3716,254 @@ class MatchAPITest(TestCase):
         self.assertEqual(response.data["court"], self.court.id)
         self.assertIsNotNone(response.data["scheduled_date_time"])
 
+    def test_same_court_at_same_time_is_rejected(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(
+            self.player1,
+            self.player2,
+            self.court,
+        )
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=player3,
+            player2=player4,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:00:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("ya tiene un partido", str(response.data["court"]))
+
+    def test_same_court_partial_overlap_is_rejected(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(self.player1, self.player2, self.court)
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=player3,
+            player2=player4,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T11:29:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_same_court_exactly_ninety_minutes_later_is_allowed(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(self.player1, self.player2, self.court)
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=player3,
+            player2=player4,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T11:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_different_court_and_players_at_same_time_is_allowed(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(self.player1, self.player2, self.court)
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=player3,
+            player2=player4,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:00:00-04:00",
+                "court": self.second_court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_same_player_on_different_court_is_rejected(self):
+
+        player3, _ = self.create_additional_players()
+        self.create_scheduled_match(self.player1, self.player2, self.court)
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=self.player1,
+            player2=player3,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:30:00-04:00",
+                "court": self.second_court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "jugadores ya tiene otro partido",
+            str(response.data["scheduled_date_time"]),
+        )
+
+    def test_cancelled_match_does_not_block_court_or_players(self):
+
+        self.create_scheduled_match(
+            self.player1,
+            self.player2,
+            self.court,
+            status=Match.Status.CANCELADO,
+        )
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=self.player1,
+            player2=self.player2,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_finalized_match_keeps_blocking_its_historical_interval(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(
+            self.player1,
+            self.player2,
+            self.court,
+            status=Match.Status.FINALIZADO,
+        )
+        target = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=player3,
+            player2=player4,
+            round=1,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_schedule_patch_does_not_conflict_with_itself(self):
+
+        match = self.create_scheduled_match(
+            self.player1,
+            self.player2,
+            self.court,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T10:00:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_editing_schedule_into_occupied_interval_is_rejected(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(self.player1, self.player2, self.court)
+        target = self.create_scheduled_match(
+            player3,
+            player4,
+            self.second_court,
+            start="2026-09-03T14:00:00-04:00",
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{target.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T11:00:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_manual_ladder_match_uses_same_overlap_validation(self):
+
+        player3, player4 = self.create_additional_players()
+        self.create_scheduled_match(
+            self.player1,
+            self.player2,
+            self.court,
+            competition_category=self.ladder_category,
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": self.ladder_category.id,
+                "player1": player3.id,
+                "player2": player4.id,
+                "scheduled_date_time": "2026-09-03T10:30:00-04:00",
+                "court": self.court.id,
+                "round": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     def test_admin_can_delete_match(self):
 
         match = self.create_match()
@@ -3499,6 +3980,120 @@ class MatchAPITest(TestCase):
             response.status_code,
             204
         )
+
+    def test_admin_cannot_delete_generated_bracket_match(self):
+
+        match = self.create_generated_bracket_match()
+        self.authenticate(self.admin_user)
+
+        response = self.client.delete(
+            f"/api/matches/{match.id}/"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "eliminar el cuadro completo",
+            str(response.data["detail"]),
+        )
+        self.assertTrue(
+            Match.objects.filter(pk=match.pk).exists()
+        )
+
+    def test_generated_bracket_match_allows_only_scheduling_patch(self):
+
+        match = self.create_generated_bracket_match()
+        self.authenticate(self.admin_user)
+
+        scheduling_payloads = [
+            {
+                "scheduled_date_time": (
+                    "2026-09-03T19:30:00-04:00"
+                )
+            },
+            {"court": self.court.id},
+            {
+                "scheduled_date_time": (
+                    "2026-09-04T18:00:00-04:00"
+                ),
+                "court": self.court.id,
+            },
+        ]
+
+        for payload in scheduling_payloads:
+            with self.subTest(payload=payload):
+                response = self.client.patch(
+                    f"/api/matches/{match.id}/",
+                    payload,
+                    format="json",
+                )
+                self.assertEqual(response.status_code, 200)
+
+    def test_generated_bracket_match_rejects_structural_patch_fields(self):
+
+        match = self.create_generated_bracket_match()
+        self.authenticate(self.admin_user)
+
+        protected_payloads = {
+            "competition_category": self.elimination_category.id,
+            "player1": self.player1.id,
+            "player2": self.player2.id,
+            "winner_player": self.player1.id,
+            "status": Match.Status.PROGRAMADO,
+            "round": 1,
+            "resolution_type": Match.ResolutionType.NORMAL,
+            "is_walkover": False,
+            "bracket_position": 1,
+            "next_match": None,
+            "next_match_slot": None,
+        }
+
+        for field, value in protected_payloads.items():
+            with self.subTest(field=field):
+                response = self.client.patch(
+                    f"/api/matches/{match.id}/",
+                    {field: value},
+                    format="json",
+                )
+                self.assertEqual(response.status_code, 400)
+
+    def test_manual_elimination_match_keeps_update_and_delete(self):
+
+        match = self.create_match()
+        self.assertIsNone(match.bracket_position)
+        self.authenticate(self.admin_user)
+
+        update_response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {"status": Match.Status.EN_JUEGO},
+            format="json",
+        )
+        delete_response = self.client.delete(
+            f"/api/matches/{match.id}/"
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(delete_response.status_code, 204)
+
+    def test_manual_ladder_match_keeps_update_and_delete(self):
+
+        match = Match.objects.create(
+            competition_category=self.ladder_category,
+            player1=self.player1,
+            player2=self.player2,
+        )
+        self.authenticate(self.admin_user)
+
+        update_response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {"status": Match.Status.EN_JUEGO},
+            format="json",
+        )
+        delete_response = self.client.delete(
+            f"/api/matches/{match.id}/"
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        self.assertEqual(delete_response.status_code, 204)
 
     # =====================================================
     # ORGANIZADOR
@@ -3920,9 +4515,15 @@ class MatchAPITest(TestCase):
     # CATEGORÍA
     # =====================================================
 
-    def test_player_from_wrong_category_is_rejected(
+    def test_player_in_different_category_with_confirmed_registration_is_valid(
         self
     ):
+
+        Registration.objects.create(
+            competition_category=self.elimination_category,
+            player=self.player3,
+            status="CONFIRMADA",
+        )
 
         self.authenticate(
             self.admin_user
@@ -3943,8 +4544,103 @@ class MatchAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400
+            201
         )
+
+    def test_player_in_different_category_can_be_scheduled(
+        self
+    ):
+
+        Registration.objects.create(
+            competition_category=self.elimination_category,
+            player=self.player3,
+            status="CONFIRMADA",
+        )
+
+        match = Match.objects.create(
+            competition_category=self.elimination_category,
+            player1=self.player1,
+            player2=self.player3,
+            round=1,
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": (
+                    "2026-09-03T19:30:00-04:00"
+                ),
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["court"], self.court.id)
+        self.assertIsNotNone(
+            response.data["scheduled_date_time"]
+        )
+
+    def test_player_in_different_category_without_registration_is_rejected(
+        self
+    ):
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/matches/",
+            {
+                "competition_category": (
+                    self.elimination_category.id
+                ),
+                "player1": self.player1.id,
+                "player2": self.player3.id,
+                "round": 1,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("player2", response.data)
+
+    def test_unconfirmed_registration_does_not_allow_match_participation(
+        self
+    ):
+
+        self.authenticate(self.admin_user)
+
+        for registration_status in [
+            "PENDIENTE",
+            "CANCELADA",
+        ]:
+            with self.subTest(status=registration_status):
+                registration = Registration.objects.create(
+                    competition_category=(
+                        self.elimination_category
+                    ),
+                    player=self.player3,
+                    status=registration_status,
+                )
+
+                response = self.client.post(
+                    "/api/matches/",
+                    {
+                        "competition_category": (
+                            self.elimination_category.id
+                        ),
+                        "player1": self.player1.id,
+                        "player2": self.player3.id,
+                        "round": 1,
+                    },
+                    format="json",
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("player2", response.data)
+
+                registration.delete()
 
     # =====================================================
     # MISMO JUGADOR
@@ -4281,6 +4977,12 @@ class MatchSetAPITest(TestCase):
             name="PRIMERA"
         )
 
+        self.exceptional_player_category = (
+            Category.objects.create(
+                name="CUARTA"
+            )
+        )
+
         # =================================================
         # JUGADORES
         # =================================================
@@ -4309,7 +5011,7 @@ class MatchSetAPITest(TestCase):
 
         self.player2 = Player.objects.create(
             user=self.player2_user,
-            category=self.category,
+            category=self.exceptional_player_category,
             rut="42222222-2",
             first_name="Jugador",
             last_name="Dos",
@@ -5581,6 +6283,68 @@ class MatchSetAPITest(TestCase):
             self.player2
         )
 
+    def test_exceptional_player_winner_advances_to_next_round(
+        self
+    ):
+
+        next_match = Match.objects.create(
+            competition_category=self.competition_category,
+            round=2,
+            bracket_position=1,
+        )
+
+        self.match.next_match = next_match
+        self.match.next_match_slot = 2
+        self.match.save(
+            update_fields=[
+                "next_match",
+                "next_match_slot",
+            ]
+        )
+
+        self.authenticate(self.admin_user)
+
+        first_response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match": self.match.id,
+                "set_number": 1,
+                "games_player1": 4,
+                "games_player2": 6,
+            },
+            format="json",
+        )
+
+        second_response = self.client.post(
+            "/api/match-sets/",
+            {
+                "match": self.match.id,
+                "set_number": 2,
+                "games_player1": 3,
+                "games_player2": 6,
+            },
+            format="json",
+        )
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(second_response.status_code, 201)
+
+        self.match.refresh_from_db()
+        next_match.refresh_from_db()
+
+        self.assertEqual(
+            self.match.status,
+            Match.Status.FINALIZADO,
+        )
+        self.assertEqual(
+            self.match.winner_player,
+            self.player2,
+        )
+        self.assertEqual(
+            next_match.player2,
+            self.player2,
+        )
+
     # =====================================================
     # DELETE Y RECÁLCULO
     # =====================================================
@@ -5956,6 +6720,8 @@ class MatchSetAPITest(TestCase):
             status.HTTP_400_BAD_REQUEST,
         )
 
+
+
         self.assertTrue(
             MatchSet.objects.filter(
                 pk=set2.id
@@ -5981,7 +6747,7 @@ class MatchSetAPITest(TestCase):
                 ]
             ),
         )
-        
+
     def test_can_delete_last_registered_set(
             self
         ):
@@ -6059,6 +6825,363 @@ class MatchSetAPITest(TestCase):
                     pk=set2.id
                 ).exists()
             )
+
+class BracketDeletionAPITest(TestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+
+        self.admin_role = Role.objects.create(
+            name="Administrador"
+        )
+        self.organizer_role = Role.objects.create(
+            name="Organizador"
+        )
+        self.player_role = Role.objects.create(
+            name="Jugador"
+        )
+
+        User = get_user_model()
+        self.admin_user = User.objects.create_user(
+            username="delete_bracket_admin",
+            password="TestPassword123!",
+            role=self.admin_role,
+        )
+        self.organizer_user = User.objects.create_user(
+            username="delete_bracket_organizer",
+            password="TestPassword123!",
+            role=self.organizer_role,
+        )
+        self.player_user = User.objects.create_user(
+            username="delete_bracket_player",
+            password="TestPassword123!",
+            role=self.player_role,
+        )
+
+        self.category = Category.objects.create(
+            name="DELETE_BRACKET_CATEGORY"
+        )
+        self.competition = Competition.objects.create(
+            name="Torneo eliminación de cuadro",
+            type="ELIMINACION_DIRECTA",
+            start_date="2026-09-01",
+            end_date="2026-09-15",
+            registration_deadline="2026-08-28",
+        )
+        self.competition_category = (
+            CompetitionCategory.objects.create(
+                competition=self.competition,
+                category=self.category,
+                max_players=16,
+                minimum_players=2,
+            )
+        )
+        self.court = Court.objects.create(
+            name="Cancha eliminación de cuadro"
+        )
+
+        self.players = []
+        self.registrations = []
+        for index in range(1, 6):
+            user = User.objects.create_user(
+                username=f"delete_bracket_p{index}",
+                password="TestPassword123!",
+                role=self.player_role,
+            )
+            player = Player.objects.create(
+                user=user,
+                category=self.category,
+                rut=f"7000000{index}-{index}",
+                first_name="Jugador",
+                last_name=str(index),
+            )
+            registration = Registration.objects.create(
+                competition_category=(
+                    self.competition_category
+                ),
+                player=player,
+                status="CONFIRMADA",
+                seed=index if index <= 2 else None,
+            )
+            self.players.append(player)
+            self.registrations.append(registration)
+
+    @property
+    def delete_url(self):
+        return (
+            "/api/competition-categories/"
+            f"{self.competition_category.id}/delete-bracket/"
+        )
+
+    def authenticate(self, user):
+        self.client.force_authenticate(user=user)
+
+    def generate_bracket(self, player_count=4):
+        Registration.objects.filter(
+            competition_category=self.competition_category
+        ).update(status="CANCELADA")
+        Registration.objects.filter(
+            pk__in=[
+                registration.pk
+                for registration in self.registrations[:player_count]
+            ]
+        ).update(status="CONFIRMADA")
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+    def create_match(self, **overrides):
+        values = {
+            "competition_category": self.competition_category,
+            "player1": self.players[0],
+            "player2": self.players[1],
+            "round": 1,
+            "bracket_position": 1,
+        }
+        values.update(overrides)
+        return Match.objects.create(**values)
+
+    def test_admin_deletes_clean_bracket_and_preserves_registrations_and_seeds(self):
+        self.generate_bracket()
+        registration_state = list(
+            Registration.objects.filter(
+                competition_category=self.competition_category
+            ).values_list("id", "seed", "status")
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            self.delete_url,
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(
+            Match.objects.filter(
+                competition_category=self.competition_category
+            ).exists()
+        )
+        self.assertEqual(
+            list(
+                Registration.objects.filter(
+                    competition_category=self.competition_category
+                ).values_list("id", "seed", "status")
+            ),
+            registration_state,
+        )
+
+    def test_organizer_can_delete_clean_bracket(self):
+        self.generate_bracket()
+        self.authenticate(self.organizer_user)
+        response = self.client.post(self.delete_url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_player_cannot_delete_bracket(self):
+        self.generate_bracket()
+        self.authenticate(self.player_user)
+        response = self.client.post(self.delete_url, {}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_bracket_can_be_generated_again_after_deletion(self):
+        self.generate_bracket()
+        self.authenticate(self.admin_user)
+        self.client.post(self.delete_url, {}, format="json")
+
+        BracketService.generate_bracket(
+            self.competition_category
+        )
+
+        self.assertTrue(
+            Match.objects.filter(
+                competition_category=self.competition_category
+            ).exists()
+        )
+
+    def test_programmed_matches_can_be_deleted_and_are_counted(self):
+        self.create_match(
+            court=self.court,
+            scheduled_date_time=(
+                timezone.now() + timedelta(days=1)
+            ),
+        )
+        self.create_match(
+            player1=self.players[2],
+            player2=self.players[3],
+            bracket_position=2,
+            scheduled_date_time=(
+                timezone.now() + timedelta(days=2)
+            ),
+        )
+        self.authenticate(self.admin_user)
+
+        bracket_response = self.client.get(
+            self.delete_url.replace("delete-bracket/", "bracket/")
+        )
+        response = self.client.post(self.delete_url, {}, format="json")
+
+        self.assertTrue(bracket_response.data["can_delete"])
+        self.assertEqual(
+            bracket_response.data["scheduled_matches_count"],
+            2,
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["deleted_scheduled_matches"], 2)
+
+    def test_automatic_byes_do_not_block_deletion(self):
+        self.generate_bracket(player_count=5)
+        self.assertTrue(
+            any(
+                BracketService.is_automatic_bye(match)
+                for match in Match.objects.filter(
+                    competition_category=self.competition_category
+                )
+            )
+        )
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(self.delete_url, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_complete_match_set_blocks_deletion(self):
+        match = self.create_match()
+        MatchSet.objects.create(
+            match=match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+        self.assert_deletion_is_blocked()
+
+    def test_partial_match_set_blocks_deletion(self):
+        match = self.create_match()
+        MatchSet.objects.create(
+            match=match,
+            set_number=1,
+            games_player1=3,
+            games_player2=2,
+            is_incomplete=True,
+        )
+        self.assert_deletion_is_blocked()
+
+    def test_walkover_blocks_deletion(self):
+        self.create_match(
+            status=Match.Status.FINALIZADO,
+            winner_player=self.players[0],
+            resolution_type=Match.ResolutionType.WALKOVER,
+            is_walkover=True,
+        )
+        self.assert_deletion_is_blocked()
+
+    def test_retirement_blocks_deletion(self):
+        self.create_match(
+            status=Match.Status.FINALIZADO,
+            winner_player=self.players[0],
+            resolution_type=Match.ResolutionType.RETIREMENT,
+        )
+        self.assert_deletion_is_blocked()
+
+    def test_match_in_progress_blocks_deletion(self):
+        self.create_match(status=Match.Status.EN_JUEGO)
+        self.assert_deletion_is_blocked()
+
+    def test_cancelled_match_blocks_deletion(self):
+        self.create_match(status=Match.Status.CANCELADO)
+        self.assert_deletion_is_blocked()
+
+    def test_normal_finalized_match_blocks_deletion(self):
+        self.create_match(
+            status=Match.Status.FINALIZADO,
+            winner_player=self.players[0],
+        )
+        self.assert_deletion_is_blocked()
+
+    def test_non_bye_winner_blocks_deletion(self):
+        self.create_match(winner_player=self.players[0])
+        self.assert_deletion_is_blocked()
+
+    def test_deletion_does_not_affect_another_competition_category(self):
+        other_category = Category.objects.create(
+            name="DELETE_BRACKET_OTHER_CATEGORY"
+        )
+        other_competition_category = (
+            CompetitionCategory.objects.create(
+                competition=self.competition,
+                category=other_category,
+                max_players=16,
+                minimum_players=2,
+            )
+        )
+        other_match = Match.objects.create(
+            competition_category=other_competition_category,
+            round=1,
+            bracket_position=1,
+        )
+        self.create_match()
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(self.delete_url, {}, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(Match.objects.filter(pk=other_match.pk).exists())
+
+    def test_missing_bracket_and_second_delete_are_controlled(self):
+        self.authenticate(self.admin_user)
+        missing_response = self.client.post(
+            self.delete_url,
+            {},
+            format="json",
+        )
+        self.create_match()
+        first_response = self.client.post(
+            self.delete_url,
+            {},
+            format="json",
+        )
+        second_response = self.client.post(
+            self.delete_url,
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            missing_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            second_response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_one_blocking_match_prevents_deleting_the_entire_bracket(self):
+        clean_match = self.create_match()
+        blocked_match = self.create_match(
+            player1=self.players[2],
+            player2=self.players[3],
+            bracket_position=2,
+            status=Match.Status.CANCELADO,
+        )
+
+        self.assert_deletion_is_blocked()
+
+        self.assertTrue(Match.objects.filter(pk=clean_match.pk).exists())
+        self.assertTrue(Match.objects.filter(pk=blocked_match.pk).exists())
+
+    def assert_deletion_is_blocked(self):
+        self.authenticate(self.admin_user)
+        response = self.client.post(self.delete_url, {}, format="json")
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+        self.assertTrue(
+            Match.objects.filter(
+                competition_category=self.competition_category
+            ).exists()
+        )
+
 
 class StandingAPITest(TestCase):
 
@@ -6635,6 +7758,187 @@ class StandingAPITest(TestCase):
             response.data["position"]
         )
         
+
+class PlayerSportsAccessAPITest(TestCase):
+
+    def setUp(self):
+        self.client = APIClient()
+        self.admin_role = Role.objects.create(name="Administrador")
+        self.organizer_role = Role.objects.create(name="Organizador")
+        self.player_role = Role.objects.create(name="Jugador")
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="sports_admin", password="TestPassword123!", role=self.admin_role
+        )
+        self.organizer = User.objects.create_user(
+            username="sports_organizer", password="TestPassword123!", role=self.organizer_role
+        )
+        self.player_user = User.objects.create_user(
+            username="sports_player", password="TestPassword123!", role=self.player_role
+        )
+        self.opponent_user = User.objects.create_user(
+            username="sports_opponent", password="TestPassword123!", role=self.player_role
+        )
+        self.pending_user = User.objects.create_user(
+            username="sports_pending", password="TestPassword123!", role=self.player_role
+        )
+        self.base_category = Category.objects.create(name="CUARTA_ACCESS")
+        self.effective_category = Category.objects.create(name="PRIMERA_ACCESS")
+        self.player = Player.objects.create(
+            user=self.player_user, category=self.base_category, rut="10101010-1",
+            first_name="Jugador", last_name="Excepcional", birth_date="1990-01-01",
+        )
+        self.opponent = Player.objects.create(
+            user=self.opponent_user, category=self.effective_category, rut="20202020-2",
+            first_name="Rival", last_name="Confirmado", birth_date="1990-01-01",
+        )
+        self.pending_player = Player.objects.create(
+            user=self.pending_user, category=self.effective_category, rut="30303030-3",
+            first_name="Jugador", last_name="Pendiente", birth_date="1990-01-01",
+        )
+        today = timezone.localdate()
+        self.competition = Competition.objects.create(
+            name="Torneo acceso", type="ELIMINACION_DIRECTA", status="ABIERTA",
+            registration_deadline=today + timedelta(days=2),
+            start_date=today + timedelta(days=3), end_date=today + timedelta(days=10),
+        )
+        self.category = CompetitionCategory.objects.create(
+            competition=self.competition, category=self.effective_category,
+            max_players=16, minimum_players=2,
+        )
+        self.other_competition = Competition.objects.create(
+            name="Torneo ajeno", type="ELIMINACION_DIRECTA", status="PENDIENTE",
+            registration_deadline=today + timedelta(days=2),
+            start_date=today + timedelta(days=3), end_date=today + timedelta(days=10),
+        )
+        self.other_category = CompetitionCategory.objects.create(
+            competition=self.other_competition, category=self.effective_category,
+            max_players=16, minimum_players=2,
+        )
+        self.match = Match.objects.create(
+            competition_category=self.category, player1=self.player, player2=self.opponent,
+            status="PROGRAMADO", round=1, bracket_position=1,
+        )
+        self.other_match = Match.objects.create(
+            competition_category=self.other_category, player1=self.opponent,
+            player2=self.pending_player, status="PROGRAMADO", round=1,
+            bracket_position=1,
+        )
+
+    def authenticate(self, user):
+        self.client.force_authenticate(user=user)
+
+    def register_player(self, status="CONFIRMADA"):
+        return Registration.objects.create(
+            competition_category=self.category, player=self.player, status=status
+        )
+
+    def test_admin_and_organizer_can_retrieve_any_category(self):
+        for user in [self.admin, self.organizer]:
+            self.authenticate(user)
+            response = self.client.get(
+                f"/api/competition-categories/{self.other_category.id}/"
+            )
+            self.assertEqual(response.status_code, 200)
+
+    def test_only_confirmed_player_can_retrieve_category_and_bracket(self):
+        for status in ["PENDIENTE", "CANCELADA"]:
+            registration = self.register_player(status)
+            self.authenticate(self.player_user)
+            self.assertEqual(
+                self.client.get(f"/api/competition-categories/{self.category.id}/").status_code,
+                404,
+            )
+            registration.delete()
+
+        self.register_player("CONFIRMADA")
+        detail = self.client.get(f"/api/competition-categories/{self.category.id}/")
+        bracket = self.client.get(
+            f"/api/competition-categories/{self.category.id}/bracket/"
+        )
+        foreign = self.client.get(
+            f"/api/competition-categories/{self.other_category.id}/bracket/"
+        )
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(bracket.status_code, 200)
+        self.assertEqual(foreign.status_code, 404)
+
+    def test_exceptional_registration_uses_effective_category_not_player_category(self):
+        self.register_player("CONFIRMADA")
+        self.authenticate(self.player_user)
+        response = self.client.get(
+            f"/api/competition-categories/{self.category.id}/bracket/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(self.player.category_id, self.category.category_id)
+        self.assertEqual(response.data["competition_category"], self.category.id)
+
+    def test_bracket_returns_only_confirmed_participants_from_its_category(self):
+        self.register_player("CONFIRMADA")
+        Registration.objects.create(
+            competition_category=self.category, player=self.opponent, status="CONFIRMADA"
+        )
+        Registration.objects.create(
+            competition_category=self.category, player=self.pending_player, status="PENDIENTE"
+        )
+        self.authenticate(self.player_user)
+        response = self.client.get(
+            f"/api/competition-categories/{self.category.id}/bracket/"
+        )
+        detail = self.client.get(
+            f"/api/competition-categories/{self.category.id}/"
+        )
+        participant_ids = {item["id"] for item in response.data["participants"]}
+        detail_player_ids = {
+            item["id"] for item in detail.data["registered_players"]
+        }
+        self.assertEqual(participant_ids, {self.player.id, self.opponent.id})
+        self.assertEqual(detail_player_ids, {self.player.id, self.opponent.id})
+
+    def test_player_lists_only_own_registrations(self):
+        own = self.register_player("CONFIRMADA")
+        other = Registration.objects.create(
+            competition_category=self.category, player=self.opponent, status="CONFIRMADA"
+        )
+        self.authenticate(self.player_user)
+        response = self.client.get("/api/registrations/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [own.id])
+        self.assertEqual(
+            self.client.get(f"/api/registrations/{other.id}/").status_code,
+            404,
+        )
+
+    def test_administrative_users_keep_all_registrations(self):
+        self.register_player("CONFIRMADA")
+        Registration.objects.create(
+            competition_category=self.category, player=self.opponent, status="CONFIRMADA"
+        )
+        for user in [self.admin, self.organizer]:
+            self.authenticate(user)
+            response = self.client.get("/api/registrations/")
+            self.assertEqual(len(response.data), 2)
+
+    def test_player_matches_are_limited_to_confirmed_categories(self):
+        self.register_player("CONFIRMADA")
+        self.authenticate(self.player_user)
+        response = self.client.get("/api/matches/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data], [self.match.id])
+        self.assertEqual(
+            self.client.get(f"/api/matches/{self.other_match.id}/").status_code,
+            404,
+        )
+
+    def test_discovery_keeps_open_categories_without_exposing_players(self):
+        self.authenticate(self.player_user)
+        response = self.client.get("/api/competition-categories/")
+        self.assertEqual(response.status_code, 200)
+        ids = {item["id"] for item in response.data}
+        self.assertIn(self.category.id, ids)
+        self.assertNotIn(self.other_category.id, ids)
+        self.assertNotIn("registered_players", response.data[0])
+
 
 class AuditLogAPITest(TestCase):
 
@@ -8737,6 +10041,12 @@ class MatchResolutionAPITest(TestCase):
             name="RESOLUTION_CATEGORY"
         )
 
+        self.exceptional_player_category = (
+            Category.objects.create(
+                name="RESOLUTION_EXCEPTIONAL_CATEGORY"
+            )
+        )
+
         # =================================================
         # JUGADORES
         # =================================================
@@ -8772,7 +10082,7 @@ class MatchResolutionAPITest(TestCase):
 
         self.player2 = Player.objects.create(
             user=self.player2_user,
-            category=self.category,
+            category=self.exceptional_player_category,
             rut="52222222-2",
             first_name="Jugador",
             last_name="Dos",
@@ -8916,7 +10226,7 @@ class MatchResolutionAPITest(TestCase):
     # WALKOVER
     # =====================================================
 
-    def test_walkover_without_sets_is_allowed(
+    def test_exceptional_player_can_win_by_walkover(
         self
     ):
         """
@@ -8935,7 +10245,7 @@ class MatchResolutionAPITest(TestCase):
             ),
             {
                 "winner_player":
-                    self.player1.id,
+                    self.player2.id,
             },
             format="json",
         )
@@ -8954,7 +10264,7 @@ class MatchResolutionAPITest(TestCase):
 
         self.assertEqual(
             self.match.winner_player,
-            self.player1,
+            self.player2,
         )
 
         self.assertEqual(
@@ -9066,7 +10376,7 @@ class MatchResolutionAPITest(TestCase):
     # RETIRO
     # =====================================================
 
-    def test_retirement_without_sets_is_allowed(
+    def test_exceptional_player_can_win_by_retirement(
         self
     ):
         """
@@ -9086,7 +10396,7 @@ class MatchResolutionAPITest(TestCase):
             ),
             {
                 "winner_player":
-                    self.player1.id,
+                    self.player2.id,
             },
             format="json",
         )
@@ -9105,7 +10415,7 @@ class MatchResolutionAPITest(TestCase):
 
         self.assertEqual(
             self.match.winner_player,
-            self.player1,
+            self.player2,
         )
 
         self.assertEqual(

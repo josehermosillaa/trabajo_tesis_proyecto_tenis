@@ -21,6 +21,7 @@ import {
   UpdateCompetitionCategoryRequest,
   BracketResponse,
   GenerateBracketResponse,
+  DeleteBracketResponse,
 } from '../models/competition-category.model';
 
 export interface Category {
@@ -141,6 +142,17 @@ export class CompetitionCategoryService {
     >(
       `${this.competitionCategoriesUrl}/` +
       `${competitionCategoryId}/generate-bracket/`,
+      {}
+    );
+  }
+
+  deleteBracket(
+    competitionCategoryId: number
+  ): Observable<DeleteBracketResponse> {
+
+    return this.http.post<DeleteBracketResponse>(
+      `${this.competitionCategoriesUrl}/` +
+      `${competitionCategoryId}/delete-bracket/`,
       {}
     );
   }

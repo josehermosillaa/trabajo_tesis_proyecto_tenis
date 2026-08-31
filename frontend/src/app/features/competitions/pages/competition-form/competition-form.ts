@@ -17,10 +17,11 @@ import {
 
 import { CompetitionCategory } from '../../../competition-categories/models/competition-category.model';
 import { TokenService } from '../../../../core/services/token';
+import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
 
 @Component({
   selector: 'app-competition-form',
-  imports: [FormsModule, ReactiveFormsModule],
+  imports: [FormsModule, ReactiveFormsModule, TemporalInputComponent],
   templateUrl: './competition-form.html',
   styleUrl: './competition-form.scss',
 })

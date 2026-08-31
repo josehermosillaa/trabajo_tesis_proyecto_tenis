@@ -68,7 +68,26 @@
       }
 
 
-      @if (!loading) {
+      @if (!loading && generatedBracketMatch) {
+
+        <div class="alert alert-info">
+          <p class="mb-3">
+            Este partido pertenece a un cuadro de eliminación directa y debe
+            administrarse desde el cuadro.
+          </p>
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            (click)="goToBracket()"
+          >
+            Ir al cuadro
+          </button>
+        </div>
+
+      }
+
+
+      @if (!loading && !generatedBracketMatch) {
 
         <div
           class="card shadow-sm border-0"
@@ -344,10 +363,10 @@
                   Fecha y hora
                 </label>
 
-                <input
-                  id="scheduledDateTime"
-                  type="datetime-local"
-                  class="form-control"
+                <app-temporal-input
+                  inputId="scheduledDateTime"
+                  format="datetime"
+                  placeholder="DD/MM/YYYY HH:mm"
                   formControlName="scheduled_date_time"
                 />
 

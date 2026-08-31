@@ -20,10 +20,11 @@ import {
 
 import { Player } from '../../../players/models/player.model';
 import { TokenService } from '../../../../core/services/token';
+import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 @Component({
   selector: 'app-registration-list',
-  imports: [CommonModule],
+  imports: [CommonModule, UiDateTimePipe],
   templateUrl: './registration-list.html',
   styleUrl: './registration-list.scss',
 })

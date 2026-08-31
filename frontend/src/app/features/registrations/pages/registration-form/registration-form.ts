@@ -22,6 +22,7 @@ import {
 
 import {
   Competition,
+  Registration,
   CreateRegistrationRequest,
   UpdateRegistrationRequest,
 } from '../../models/registration.model';
@@ -100,6 +101,17 @@ export class RegistrationFormComponent
   filteredPlayers:
     Player[] = [];
 
+  registrations:
+    Registration[] = [];
+
+  playerSearchResults:
+    Player[] = [];
+
+  showPlayerResults = false;
+
+  readonly playerSearchControl =
+    this.fb.nonNullable.control('');
+
 
   readonly registrationForm =
     this.fb.nonNullable.group({
@@ -125,7 +137,7 @@ export class RegistrationFormComponent
           | 'CONFIRMADA'
           | 'CANCELADA'
         >(
-          'PENDIENTE',
+          'CONFIRMADA',
           Validators.required
         ),
 
@@ -300,21 +312,7 @@ export class RegistrationFormComponent
           this.players =
             players;
 
-          if (
-            this.isEditMode
-            && this.registrationId !== null
-          ) {
-
-            this.loadRegistration(
-              this.registrationId
-            );
-
-          } else {
-
-            this.applyQueryParams();
-
-            this.loading = false;
-          }
+          this.loadRegistrations();
         },
 
         error: (error) => {
@@ -330,6 +328,55 @@ export class RegistrationFormComponent
           this.loading = false;
         },
       });
+  }
+
+
+  private loadRegistrations(): void {
+
+    this.registrationService
+      .getRegistrations()
+      .subscribe({
+
+        next: (registrations) => {
+
+          this.registrations =
+            registrations;
+
+          this.finishBaseDataLoad();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al cargar inscripciones:',
+            error
+          );
+
+          this.registrations = [];
+
+          this.finishBaseDataLoad();
+        },
+      });
+  }
+
+
+  private finishBaseDataLoad(): void {
+
+    if (
+      this.isEditMode
+      && this.registrationId !== null
+    ) {
+
+      this.loadRegistration(
+        this.registrationId
+      );
+
+      return;
+    }
+
+    this.applyQueryParams();
+
+    this.loading = false;
   }
 
 
@@ -382,10 +429,8 @@ export class RegistrationFormComponent
            * apareciendo en el selector.
            */
           this.filteredPlayers =
-            this.players.filter(
-              (player) =>
-                player.category ===
-                competitionCategory.category
+            this.sortPlayersForCategory(
+              competitionCategory
             );
 
           this.registrationForm.patchValue(
@@ -408,6 +453,16 @@ export class RegistrationFormComponent
             {
               emitEvent: false,
             }
+          );
+
+          const selectedPlayer =
+            this.getSelectedPlayer();
+
+          this.playerSearchControl.setValue(
+            selectedPlayer
+              ? this.getPlayerName(selectedPlayer)
+              : '',
+            { emitEvent: false }
           );
 
           this.loading = false;
@@ -492,30 +547,9 @@ export class RegistrationFormComponent
       return;
     }
 
-    /*
-     * Jugadores que ya están inscritos.
-     */
-    const registeredPlayerIds =
-      category.registered_players.map(
-        (player) =>
-          player.id
-      );
-
-    /*
-     * Mostramos únicamente jugadores:
-     *
-     * - de la categoría correcta
-     * - que todavía no estén inscritos
-     */
     this.filteredPlayers =
-      this.players.filter(
-        (player) =>
-          player.category ===
-            category.category
-          &&
-          !registeredPlayerIds.includes(
-            player.id
-          )
+      this.sortPlayersForCategory(
+        category
       );
 
     this.registrationForm.patchValue(
@@ -549,6 +583,10 @@ export class RegistrationFormComponent
       );
 
     this.filteredPlayers = [];
+
+    this.playerSearchResults = [];
+
+    this.playerSearchControl.setValue('');
 
     this.registrationForm.patchValue(
       {
@@ -584,6 +622,12 @@ export class RegistrationFormComponent
 
       this.filteredPlayers = [];
 
+      this.playerSearchResults = [];
+
+      this.playerSearchControl.setValue('');
+
+      this.showPlayerResults = false;
+
       this.registrationForm.patchValue(
         {
           player:
@@ -598,43 +642,16 @@ export class RegistrationFormComponent
     }
 
 
-    /*
-     * En modo edición conservamos
-     * todos los jugadores de la categoría.
-     */
-    if (this.isEditMode) {
+    this.filteredPlayers =
+      this.sortPlayersForCategory(
+        competitionCategory
+      );
 
-      this.filteredPlayers =
-        this.players.filter(
-          (player) =>
-            player.category ===
-            competitionCategory.category
-        );
+    this.playerSearchResults = [];
 
-    } else {
+    this.playerSearchControl.setValue('');
 
-      /*
-       * En creación excluimos jugadores
-       * que ya estén inscritos.
-       */
-      const registeredPlayerIds =
-        competitionCategory.registered_players
-          .map(
-            (player) =>
-              player.id
-          );
-
-      this.filteredPlayers =
-        this.players.filter(
-          (player) =>
-            player.category ===
-              competitionCategory.category
-            &&
-            !registeredPlayerIds.includes(
-              player.id
-            )
-        );
-    }
+    this.showPlayerResults = false;
 
     this.registrationForm.patchValue(
       {
@@ -677,6 +694,219 @@ export class RegistrationFormComponent
     return (
       `${player.first_name} ${player.last_name}`
     );
+  }
+
+
+  getSelectedPlayer(): Player | null {
+
+    const playerId =
+      this.registrationForm.controls
+        .player.value;
+
+    return (
+      this.players.find(
+        (player) => player.id === playerId
+      ) ?? null
+    );
+  }
+
+
+  getSelectedCompetitionCategory():
+    CompetitionCategory | null {
+
+    const competitionCategoryId =
+      this.registrationForm.controls
+        .competition_category.value;
+
+    return (
+      this.competitionCategories.find(
+        (item) =>
+          item.id === competitionCategoryId
+      ) ?? null
+    );
+  }
+
+
+  isCategoryMatch(player: Player): boolean {
+
+    const competitionCategory =
+      this.getSelectedCompetitionCategory();
+
+    return (
+      competitionCategory !== null
+      &&
+      player.category ===
+        competitionCategory.category
+    );
+  }
+
+
+  isExceptionalCategorySelection(): boolean {
+
+    const player = this.getSelectedPlayer();
+
+    return (
+      player !== null
+      &&
+      !this.isCategoryMatch(player)
+    );
+  }
+
+
+  isPlayerRegisteredInCurrentCompetition(
+    playerId: number
+  ): boolean {
+
+    const competitionId =
+      this.registrationForm.controls
+        .competition.value;
+
+    const competitionCategoryIds =
+      new Set(
+        this.competitionCategories
+          .filter(
+            (item) =>
+              item.competition === competitionId
+          )
+          .map((item) => item.id)
+      );
+
+    return this.registrations.some(
+      (registration) =>
+        registration.player === playerId
+        &&
+        registration.status !== 'CANCELADA'
+        &&
+        registration.id !== this.registrationId
+        &&
+        competitionCategoryIds.has(
+          registration.competition_category
+        )
+    );
+  }
+
+
+  openPlayerSearch(): void {
+
+    if (
+      this.getSelectedCompetitionCategory() ===
+      null
+    ) {
+      return;
+    }
+
+    this.showPlayerResults = true;
+
+    this.updatePlayerSearchResults();
+  }
+
+
+  updatePlayerSearchResults(): void {
+
+    const query = this.normalizeText(
+      this.playerSearchControl.value
+    );
+
+    this.playerSearchResults =
+      this.filteredPlayers.filter(
+        (player) => {
+
+          const fullName = this.normalizeText(
+            `${player.first_name} ${player.last_name}`
+          );
+
+          const reversedName = this.normalizeText(
+            `${player.last_name} ${player.first_name}`
+          );
+
+          return (
+            !query
+            ||
+            fullName.includes(query)
+            ||
+            reversedName.includes(query)
+          );
+        }
+      );
+
+    this.showPlayerResults = true;
+  }
+
+
+  selectPlayer(player: Player): void {
+
+    if (
+      this.isPlayerRegisteredInCurrentCompetition(
+        player.id
+      )
+    ) {
+      return;
+    }
+
+    this.registrationForm.controls
+      .player.setValue(player.id);
+
+    this.playerSearchControl.setValue(
+      this.getPlayerName(player),
+      { emitEvent: false }
+    );
+
+    this.showPlayerResults = false;
+  }
+
+
+  clearSelectedPlayer(): void {
+
+    this.registrationForm.controls
+      .player.setValue(0);
+
+    this.playerSearchControl.setValue('');
+
+    this.openPlayerSearch();
+  }
+
+
+  private sortPlayersForCategory(
+    competitionCategory:
+      CompetitionCategory
+  ): Player[] {
+
+    return [...this.players].sort(
+      (left, right) => {
+
+        const categoryOrder =
+          Number(
+            right.category ===
+              competitionCategory.category
+          )
+          -
+          Number(
+            left.category ===
+              competitionCategory.category
+          );
+
+        if (categoryOrder !== 0) {
+          return categoryOrder;
+        }
+
+        return this.getPlayerName(left)
+          .localeCompare(
+            this.getPlayerName(right),
+            'es',
+            { sensitivity: 'base' }
+          );
+      }
+    );
+  }
+
+
+  private normalizeText(value: string): string {
+
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('es')
+      .trim();
   }
 
 

@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from rest_framework import serializers
 from core.services.bracket_service import BracketService
+from core.services.match_scheduling_service import MatchSchedulingService
 from authentication.models import Role
 
 from .models import (
@@ -664,15 +665,19 @@ class CompetitionCategorySerializer(
         obj
     ):
 
-        registrations = (
-            obj.registrations
-            .exclude(
-                status="CANCELADA"
-            )
-            .select_related(
-                "player"
-            )
-        )
+        registrations = obj.registrations.all()
+        request = self.context.get("request")
+
+        if (
+            request is not None
+            and request.user.is_authenticated
+            and request.user.role.name == "Jugador"
+        ):
+            registrations = registrations.filter(status="CONFIRMADA")
+        else:
+            registrations = registrations.exclude(status="CANCELADA")
+
+        registrations = registrations.select_related("player")
 
         return [
             {
@@ -730,6 +735,32 @@ class CompetitionCategorySerializer(
             )
 
         return data
+
+
+class CompetitionCategoryDiscoverySerializer(serializers.ModelSerializer):
+    """Datos de descubrimiento sin nombres ni estados de participantes."""
+
+    occupied_slots = serializers.SerializerMethodField()
+    available_slots = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompetitionCategory
+        fields = [
+            "id",
+            "competition",
+            "category",
+            "max_players",
+            "minimum_players",
+            "occupied_slots",
+            "available_slots",
+        ]
+        read_only_fields = fields
+
+    def get_occupied_slots(self, obj):
+        return obj.registrations.exclude(status="CANCELADA").count()
+
+    def get_available_slots(self, obj):
+        return max(obj.max_players - self.get_occupied_slots(obj), 0)
 
 
 # =========================================================
@@ -857,6 +888,10 @@ class RegistrationSerializer(serializers.ModelSerializer):
         if (
             player.category_id
             != competition_category.category_id
+            and role not in [
+                "Administrador",
+                "Organizador",
+            ]
         ):
             raise serializers.ValidationError(
                 {
@@ -967,26 +1002,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 )
 
             # ---------------------------------
-            # 5. Duplicados
-            # ---------------------------------
-
-            if Registration.objects.filter(
-                competition_category=(
-                    competition_category
-                ),
-                player=player,
-            ).exists():
-
-                raise serializers.ValidationError(
-                    {
-                        "player": (
-                            "El jugador ya se encuentra "
-                            "inscrito en esta categoría."
-                        )
-                    }
-                )
-
-            # ---------------------------------
             # 6. Jugador no decide estado/seed
             # ---------------------------------
 
@@ -997,6 +1012,51 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 )
 
                 data["seed"] = None
+
+        # ---------------------------------
+        # 5. Duplicados vigentes por competencia
+        # ---------------------------------
+
+        resulting_status = data.get(
+            "status",
+            (
+                instance.status
+                if instance
+                else "PENDIENTE"
+            ),
+        )
+
+        if resulting_status != "CANCELADA":
+
+            duplicate_registrations = (
+                Registration.objects.filter(
+                    competition_category__competition=(
+                        competition_category.competition
+                    ),
+                    player=player,
+                )
+                .exclude(
+                    status="CANCELADA"
+                )
+            )
+
+            if instance is not None:
+                duplicate_registrations = (
+                    duplicate_registrations.exclude(
+                        pk=instance.pk
+                    )
+                )
+
+            if duplicate_registrations.exists():
+                raise serializers.ValidationError(
+                    {
+                        "player": (
+                            "El jugador ya tiene una "
+                            "inscripción vigente en esta "
+                            "competencia."
+                        )
+                    }
+                )
 
         return data
 
@@ -1103,6 +1163,42 @@ class MatchSerializer(serializers.ModelSerializer):
 
         instance = self.instance
 
+        if (
+            instance is not None
+            and BracketService
+            .is_generated_bracket_match(instance)
+        ):
+            protected_fields = {
+                "competition_category",
+                "player1",
+                "player2",
+                "winner_player",
+                "status",
+                "round",
+                "bracket_position",
+                "next_match",
+                "next_match_slot",
+                "resolution_type",
+                "is_walkover",
+            }
+            requested_protected_fields = (
+                protected_fields.intersection(
+                    self.initial_data.keys()
+                )
+            )
+
+            if requested_protected_fields:
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "Este partido pertenece a un cuadro "
+                            "de eliminación directa. Desde este "
+                            "endpoint solo puede modificarse su "
+                            "programación y cancha."
+                        )
+                    }
+                )
+
         competition_category = data.get(
             "competition_category",
             (
@@ -1172,6 +1268,16 @@ class MatchSerializer(serializers.ModelSerializer):
             "court" in data
         )
 
+        scheduled_date_time = data.get(
+            "scheduled_date_time",
+            instance.scheduled_date_time if instance else None,
+        )
+
+        court = data.get(
+            "court",
+            instance.court if instance else None,
+        )
+
         # ---------------------------------
         # Datos mínimos
         # ---------------------------------
@@ -1223,6 +1329,40 @@ class MatchSerializer(serializers.ModelSerializer):
                     }
                 )
 
+            if scheduled_date_time is not None:
+
+                if (
+                    court is not None
+                    and MatchSchedulingService.has_court_conflict(
+                        scheduled_date_time,
+                        court,
+                        instance,
+                    )
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "court": (
+                                "La cancha seleccionada ya tiene un partido "
+                                "programado en ese horario."
+                            )
+                        }
+                    )
+
+                if MatchSchedulingService.has_player_conflict(
+                    scheduled_date_time,
+                    player1,
+                    player2,
+                    instance,
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "scheduled_date_time": (
+                                "Uno de los jugadores ya tiene otro partido "
+                                "programado en ese horario."
+                            )
+                        }
+                    )
+
         # /*
         #  * IMPORTANTE:
         #  *
@@ -1249,45 +1389,7 @@ class MatchSerializer(serializers.ModelSerializer):
             )
 
         # ---------------------------------
-        # 1. Player 1 pertenece a categoría
-        # ---------------------------------
-
-        if (
-            player1 is not None
-            and player1.category_id
-            != competition_category.category_id
-        ):
-
-            raise serializers.ValidationError(
-                {
-                    "player1": (
-                        "El jugador no pertenece a "
-                        "la categoría del partido."
-                    )
-                }
-            )
-
-        # ---------------------------------
-        # 2. Player 2 pertenece a categoría
-        # ---------------------------------
-
-        if (
-            player2 is not None
-            and player2.category_id
-            != competition_category.category_id
-        ):
-
-            raise serializers.ValidationError(
-                {
-                    "player2": (
-                        "El jugador no pertenece a "
-                        "la categoría del partido."
-                    )
-                }
-            )
-
-        # ---------------------------------
-        # 3. Player 1 debe estar confirmado
+        # 1. Player 1 debe estar confirmado
         # ---------------------------------
 
         if player1 is not None:
@@ -1316,7 +1418,7 @@ class MatchSerializer(serializers.ModelSerializer):
                 )
 
         # ---------------------------------
-        # 4. Player 2 debe estar confirmado
+        # 2. Player 2 debe estar confirmado
         # ---------------------------------
 
         if player2 is not None:

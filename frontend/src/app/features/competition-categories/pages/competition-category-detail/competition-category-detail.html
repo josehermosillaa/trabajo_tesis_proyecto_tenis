@@ -107,6 +107,46 @@
   }
 
 
+  @if (!loading && bracket) {
+    <section class="card border-0 shadow-sm mb-4" aria-labelledby="category-participants-title">
+      <div class="card-body p-4">
+        <div class="row g-4">
+          <div class="col-12 col-lg-4">
+            <h2 class="h5 mb-3">Información de la competencia</h2>
+            <div class="text-body-secondary">
+              <div><strong class="text-body">{{ bracket.competition_name }}</strong></div>
+              <div>Categoría {{ bracket.category_name }}</div>
+              @if (competition) {
+                <div class="mt-2">
+                  {{ competition.start_date | uiDateTime:'date' }}
+                  –
+                  {{ competition.end_date | uiDateTime:'date' }}
+                </div>
+              }
+            </div>
+          </div>
+          <div class="col-12 col-lg-8">
+            <h2 id="category-participants-title" class="h5 mb-3">
+              Jugadores confirmados
+            </h2>
+            @if (bracket.participants.length === 0) {
+              <p class="text-body-secondary mb-0">No hay jugadores confirmados.</p>
+            } @else {
+              <div class="d-flex flex-wrap gap-2">
+                @for (participant of bracket.participants; track participant.id) {
+                  <span class="badge rounded-pill text-bg-light border px-3 py-2">
+                    {{ participant.first_name }} {{ participant.last_name }}
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  }
+
+
   <!-- ================================================= -->
   <!-- CUADRO NO GENERADO -->
   <!-- ================================================= -->
@@ -211,16 +251,46 @@
           </div>
 
 
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-secondary"
-            (click)="loadBracket()"
-          >
-            Actualizar
-          </button>
+          <div class="d-flex gap-2">
+            @if (isAdministrativeUser()) {
+              <div class="d-inline-flex align-items-center gap-1">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger"
+                  [disabled]="!bracket.can_delete"
+                  (click)="openDeleteBracketModal()"
+                >
+                  Eliminar cuadro
+                </button>
+
+                @if (
+                  !bracket.can_delete
+                  && bracket.delete_block_reason
+                ) {
+                  <span
+                    class="text-muted"
+                    role="img"
+                    tabindex="0"
+                    [attr.title]="bracket.delete_block_reason"
+                    [attr.aria-label]="bracket.delete_block_reason"
+                    data-testid="delete-bracket-block-reason"
+                  >
+                    ⓘ
+                  </span>
+                }
+              </div>
+            }
+
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="loadBracket()"
+            >
+              Actualizar
+            </button>
+          </div>
 
         </div>
-
 
         <!-- ============================================= -->
         <!-- BRACKET -->
@@ -400,9 +470,9 @@
                         ) {
 
                           <div>
-                            {{ match.scheduled_date_time | date:'dd/MM/yyyy' }}
+                            {{ match.scheduled_date_time | uiDateTime:'date' }}
                             ·
-                            {{ match.scheduled_date_time | date:'HH:mm' }}
+                            {{ match.scheduled_date_time | uiDateTime:'time' }}
                           </div>
 
                         }
@@ -663,6 +733,90 @@
 
   }
 
+  <!-- ================================================= -->
+  <!-- MODAL ELIMINAR CUADRO -->
+  <!-- ================================================= -->
+
+  @if (showDeleteBracketModal && bracket) {
+
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+
+          <div class="modal-header">
+            <h5 class="modal-title">
+              ¿Eliminar el cuadro?
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Cerrar"
+              [disabled]="deletingBracket"
+              (click)="closeDeleteBracketModal()"
+            ></button>
+          </div>
+
+          <div class="modal-body">
+            <p>
+              Se eliminarán todos los partidos generados para esta categoría.
+              Las inscripciones y cabezas de serie se conservarán.
+            </p>
+
+            @if (bracket.scheduled_matches_count > 0) {
+              <div class="alert alert-warning mb-0">
+                También se eliminará la programación de
+                {{ bracket.scheduled_matches_count }}
+                {{
+                  bracket.scheduled_matches_count === 1
+                    ? 'partido'
+                    : 'partidos'
+                }}.
+              </div>
+            }
+
+            @if (deleteBracketErrorMessage) {
+              <div class="alert alert-danger mt-3 mb-0">
+                {{ deleteBracketErrorMessage }}
+              </div>
+            }
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="deletingBracket"
+              (click)="closeDeleteBracketModal()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="deletingBracket"
+              (click)="deleteBracket()"
+            >
+              @if (deletingBracket) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Eliminando...
+              } @else {
+                Eliminar cuadro
+              }
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+  }
+
 
   <!-- ================================================= -->
   <!-- MODAL PROGRAMACIÓN -->
@@ -740,17 +894,23 @@
                   <label for="scheduleDate" class="form-label">
                     Fecha
                   </label>
-                  <input
-                    id="scheduleDate"
-                    type="date"
-                    class="form-control"
+                  <app-temporal-input
+                    inputId="scheduleDate"
+                    format="date"
+                    placeholder="DD/MM/YYYY"
                     formControlName="date"
-                    [class.is-invalid]="
+                    [invalid]="
                       scheduleForm.controls.date.touched
                       && scheduleForm.controls.date.invalid
                     "
                   />
-                  <div class="invalid-feedback">
+                  <div
+                    class="invalid-feedback"
+                    [class.d-block]="
+                      scheduleForm.controls.date.touched
+                      && scheduleForm.controls.date.invalid
+                    "
+                  >
                     La fecha es obligatoria.
                   </div>
                 </div>
@@ -759,17 +919,23 @@
                   <label for="scheduleTime" class="form-label">
                     Hora
                   </label>
-                  <input
-                    id="scheduleTime"
-                    type="time"
-                    class="form-control"
+                  <app-temporal-input
+                    inputId="scheduleTime"
+                    format="time"
+                    placeholder="HH:mm"
                     formControlName="time"
-                    [class.is-invalid]="
+                    [invalid]="
                       scheduleForm.controls.time.touched
                       && scheduleForm.controls.time.invalid
                     "
                   />
-                  <div class="invalid-feedback">
+                  <div
+                    class="invalid-feedback"
+                    [class.d-block]="
+                      scheduleForm.controls.time.touched
+                      && scheduleForm.controls.time.invalid
+                    "
+                  >
                     La hora es obligatoria.
                   </div>
                 </div>
@@ -815,8 +981,8 @@
               ) {
                 <div class="alert alert-warning mt-3 mb-0">
                   La fecha seleccionada está fuera del período de la competencia
-                  ({{ competition.start_date | date:'dd/MM/yyyy':'UTC' }} al
-                  {{ competition.end_date | date:'dd/MM/yyyy':'UTC' }}).
+                  ({{ competition.start_date | uiDateTime:'date' }} al
+                  {{ competition.end_date | uiDateTime:'date' }}).
                   Puedes continuar si esta programación es intencional.
                 </div>
               }

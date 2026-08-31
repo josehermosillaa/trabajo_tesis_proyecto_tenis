@@ -45,6 +45,7 @@ import {
 import {
   Competition,
 } from '../../../competitions/models/competition.model';
+import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 
 @Component({
@@ -52,6 +53,7 @@ import {
 
   imports: [
     CommonModule,
+    UiDateTimePipe,
   ],
 
   templateUrl:

@@ -47,6 +47,7 @@ import {
   UpdateMatchRequest,
 } from '../../models/match.model';
 import { TokenService } from '../../../../core/services/token';
+import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
 
 
 @Component({
@@ -55,6 +56,7 @@ import { TokenService } from '../../../../core/services/token';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    TemporalInputComponent,
   ],
 
   templateUrl:
@@ -93,6 +95,12 @@ export class MatchFormComponent
   isEditMode = false;
 
   matchId:
+    number | null = null;
+
+  generatedBracketMatch:
+    Match | null = null;
+
+  generatedBracketCompetitionId:
     number | null = null;
 
 
@@ -451,6 +459,25 @@ export class MatchFormComponent
 
             this.loading = false;
 
+            return;
+          }
+
+          const competition =
+            this.competitions.find(
+              (item) =>
+                item.id ===
+                competitionCategory.competition
+            );
+
+          if (
+            competition?.type ===
+              'ELIMINACION_DIRECTA'
+            && match.bracket_position !== null
+          ) {
+            this.generatedBracketMatch = match;
+            this.generatedBracketCompetitionId =
+              competitionCategory.competition;
+            this.loading = false;
             return;
           }
 
@@ -994,6 +1021,10 @@ export class MatchFormComponent
 
   onSubmit(): void {
 
+    if (this.generatedBracketMatch) {
+      return;
+    }
+
     if (!this.isAdministrativeUser()) {
       return;
     }
@@ -1117,6 +1148,24 @@ export class MatchFormComponent
     }
 
     this.createMatch();
+  }
+
+
+  goToBracket(): void {
+
+    if (
+      !this.generatedBracketMatch
+      || this.generatedBracketCompetitionId === null
+    ) {
+      return;
+    }
+
+    this.router.navigate([
+      '/competitions',
+      this.generatedBracketCompetitionId,
+      'categories',
+      this.generatedBracketMatch.competition_category,
+    ]);
   }
 
 

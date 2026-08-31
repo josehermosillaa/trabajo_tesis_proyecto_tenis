@@ -21,6 +21,14 @@ class BracketService:
     # GENERAR CUADRO
     # =====================================================
 
+    @staticmethod
+    def is_generated_bracket_match(match):
+        return (
+            match.competition_category.competition.type
+            == "ELIMINACION_DIRECTA"
+            and match.bracket_position is not None
+        )
+
     @classmethod
     @transaction.atomic
     def generate_bracket(
@@ -88,6 +96,188 @@ class BracketService:
         )
 
         return rounds
+
+    # =====================================================
+    # ELIMINAR CUADRO
+    # =====================================================
+
+    @staticmethod
+    def is_automatic_bye(match):
+        """
+        Identifica exclusivamente los BYE resueltos por
+        la generación actual del cuadro.
+        """
+
+        has_exactly_one_player = (
+            (match.player1_id is None)
+            !=
+            (match.player2_id is None)
+        )
+
+        only_player_id = (
+            match.player1_id
+            if match.player1_id is not None
+            else match.player2_id
+        )
+
+        return (
+            match.round == 1
+            and has_exactly_one_player
+            and match.status == Match.Status.FINALIZADO
+            and match.winner_player_id == only_player_id
+            and match.resolution_type == Match.ResolutionType.NORMAL
+            and not match.is_walkover
+            and not match.sets.exists()
+        )
+
+    @classmethod
+    def get_bracket_deletion_status(
+        cls,
+        competition_category,
+        matches=None,
+    ):
+        """
+        Informa si el cuadro puede eliminarse sin destruir
+        resultados o decisiones administrativas históricas.
+        """
+
+        if matches is None:
+            matches = list(
+                Match.objects
+                .filter(
+                    competition_category=competition_category
+                )
+                .prefetch_related("sets")
+            )
+        else:
+            matches = list(matches)
+
+        scheduled_matches_count = sum(
+            1
+            for match in matches
+            if (
+                match.scheduled_date_time is not None
+                or match.court_id is not None
+            )
+        )
+
+        if not matches:
+            return {
+                "can_delete": False,
+                "scheduled_matches_count": 0,
+                "delete_block_reason": (
+                    "El cuadro no ha sido generado."
+                ),
+            }
+
+        for match in matches:
+            if cls.is_automatic_bye(match):
+                continue
+
+            has_real_result_or_protected_state = (
+                match.sets.exists()
+                or match.status in [
+                    Match.Status.EN_JUEGO,
+                    Match.Status.CANCELADO,
+                    Match.Status.FINALIZADO,
+                ]
+                or match.resolution_type in [
+                    Match.ResolutionType.WALKOVER,
+                    Match.ResolutionType.RETIREMENT,
+                ]
+                or match.is_walkover
+                or match.winner_player_id is not None
+            )
+
+            if has_real_result_or_protected_state:
+                return {
+                    "can_delete": False,
+                    "scheduled_matches_count": (
+                        scheduled_matches_count
+                    ),
+                    "delete_block_reason": (
+                        "No se puede eliminar el cuadro porque "
+                        "existen partidos con resultados, partidos "
+                        "en juego o partidos cancelados."
+                    ),
+                }
+
+        return {
+            "can_delete": True,
+            "scheduled_matches_count": (
+                scheduled_matches_count
+            ),
+            "delete_block_reason": None,
+        }
+
+    @classmethod
+    @transaction.atomic
+    def delete_bracket(cls, competition_category):
+        """
+        Elimina atómicamente todos los Match del cuadro tras
+        recalcular sus condiciones bajo bloqueo de base de datos.
+        """
+
+        locked_category = (
+            CompetitionCategory.objects
+            .select_for_update()
+            .get(pk=competition_category.pk)
+        )
+
+        if (
+            locked_category.competition.type
+            != "ELIMINACION_DIRECTA"
+        ):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Esta categoría no utiliza un cuadro "
+                        "de eliminación directa."
+                    )
+                }
+            )
+
+        matches_queryset = (
+            Match.objects
+            .select_for_update()
+            .filter(
+                competition_category=locked_category
+            )
+            .prefetch_related("sets")
+        )
+        matches = list(matches_queryset)
+
+        deletion_status = (
+            cls.get_bracket_deletion_status(
+                locked_category,
+                matches,
+            )
+        )
+
+        if not deletion_status["can_delete"]:
+            raise ValidationError(
+                {
+                    "detail": deletion_status[
+                        "delete_block_reason"
+                    ]
+                }
+            )
+
+        deleted_matches = len(matches)
+        deleted_scheduled_matches = (
+            deletion_status[
+                "scheduled_matches_count"
+            ]
+        )
+
+        matches_queryset.delete()
+
+        return {
+            "deleted_matches": deleted_matches,
+            "deleted_scheduled_matches": (
+                deleted_scheduled_matches
+            ),
+        }
 
     # =====================================================
     # VALIDACIONES

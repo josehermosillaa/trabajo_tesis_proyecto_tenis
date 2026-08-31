@@ -1,0 +1,8 @@
+[
+  {"model": "core.court", "pk": 1, "fields": {"name": "Cancha 1", "status": "AVAILABLE"}},
+  {"model": "core.court", "pk": 2, "fields": {"name": "Cancha 2", "status": "AVAILABLE"}},
+  {"model": "core.court", "pk": 3, "fields": {"name": "Cancha 3", "status": "AVAILABLE"}},
+  {"model": "core.court", "pk": 4, "fields": {"name": "Cancha 4", "status": "AVAILABLE"}},
+  {"model": "core.court", "pk": 5, "fields": {"name": "Cancha 5", "status": "AVAILABLE"}},
+  {"model": "core.court", "pk": 6, "fields": {"name": "Cancha 6", "status": "AVAILABLE"}}
+]

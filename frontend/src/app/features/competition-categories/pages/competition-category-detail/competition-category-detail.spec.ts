@@ -18,6 +18,7 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
   let playerService: jasmine.SpyObj<PlayerService>;
   let competitionService: jasmine.SpyObj<CompetitionService>;
   let router: jasmine.SpyObj<Router>;
+  let tokenService: jasmine.SpyObj<TokenService>;
 
   const players = [
     {
@@ -37,14 +38,14 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     );
     competitionCategoryService = jasmine.createSpyObj<CompetitionCategoryService>(
       'CompetitionCategoryService',
-      ['getBracket', 'generateBracket']
+      ['getBracket', 'generateBracket', 'deleteBracket']
     );
     playerService = jasmine.createSpyObj<PlayerService>('PlayerService', ['getPlayers']);
     competitionService = jasmine.createSpyObj<CompetitionService>(
       'CompetitionService',
       ['getCompetition']
     );
-    const tokenService = jasmine.createSpyObj<TokenService>(
+    tokenService = jasmine.createSpyObj<TokenService>(
       'TokenService',
       ['isAdministrativeUser']
     );
@@ -68,6 +69,11 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     competitionCategoryService.getBracket.and.returnValue(of(bracket([
       match(1),
     ])));
+    competitionCategoryService.deleteBracket.and.returnValue(of({
+      detail: 'Cuadro eliminado correctamente.',
+      deleted_matches: 1,
+      deleted_scheduled_matches: 0,
+    }));
 
     await TestBed.configureTestingModule({
       imports: [CompetitionCategoryDetailComponent],
@@ -95,6 +101,122 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
   it('shows Programar partido for a playable unscheduled match', () => {
     createWithMatches([match(1)]);
     expect(buttonTexts()).toContain('Programar partido');
+  });
+
+  it('shows delete bracket only to administrative users with a bracket', () => {
+    createWithMatches([match(1)]);
+    expect(buttonTexts()).toContain('Eliminar cuadro');
+    expect(deleteBracketButton().disabled).toBeFalse();
+
+    fixture.destroy();
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    createWithMatches([match(1)]);
+    expect(buttonTexts()).not.toContain('Eliminar cuadro');
+  });
+
+  it('uses contextual confirmed participants without loading all players for a player', () => {
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    createWithMatches([match(1)]);
+
+    expect(playerService.getPlayers).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Jugador Uno');
+    expect(fixture.nativeElement.textContent).toContain('Jugador Dos');
+    expect(buttonTexts()).not.toContain('Generar cuadro');
+    expect(buttonTexts()).not.toContain('Eliminar cuadro');
+    expect(hasSchedulingButton()).toBeFalse();
+    expect(buttonTexts()).not.toContain('Ingresar resultado');
+
+    component.goBack();
+    expect(router.navigate).toHaveBeenCalledWith(['/dashboard']);
+  });
+
+  it('does not show delete bracket when the bracket does not exist', () => {
+    createWithBracket(bracket([], false));
+    expect(buttonTexts()).not.toContain('Eliminar cuadro');
+  });
+
+  it('opens the delete modal and explains preserved registrations and seeds', () => {
+    createWithBracket(bracket([match(1)], true, true, 2));
+
+    component.openDeleteBracketModal();
+    fixture.detectChanges();
+
+    expect(component.showDeleteBracketModal).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Las inscripciones y cabezas de serie se conservarán.'
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      'También se eliminará la programación de 2 partidos.'
+    );
+  });
+
+  it('cancels deletion without calling the API', () => {
+    createWithMatches([match(1)]);
+    component.openDeleteBracketModal();
+
+    component.closeDeleteBracketModal();
+
+    expect(component.showDeleteBracketModal).toBeFalse();
+    expect(competitionCategoryService.deleteBracket).not.toHaveBeenCalled();
+  });
+
+  it('deletes once and refreshes the bracket after success', () => {
+    createWithMatches([match(1)]);
+    component.openDeleteBracketModal();
+    const callsBeforeDelete =
+      competitionCategoryService.getBracket.calls.count();
+
+    component.deleteBracket();
+    component.deleteBracket();
+
+    expect(competitionCategoryService.deleteBracket).toHaveBeenCalledTimes(1);
+    expect(competitionCategoryService.deleteBracket).toHaveBeenCalledWith(12);
+    expect(competitionCategoryService.getBracket.calls.count()).toBe(
+      callsBeforeDelete + 1
+    );
+    expect(component.showDeleteBracketModal).toBeFalse();
+  });
+
+  it('keeps the bracket visible when deletion fails', () => {
+    competitionCategoryService.deleteBracket.and.returnValue(throwError(() => ({
+      error: { detail: 'No se puede eliminar el cuadro.' },
+    })));
+    createWithMatches([match(1)]);
+    component.openDeleteBracketModal();
+
+    component.deleteBracket();
+
+    expect(component.bracket).not.toBeNull();
+    expect(component.showDeleteBracketModal).toBeTrue();
+    expect(component.deleteBracketErrorMessage).toContain(
+      'No se puede eliminar el cuadro.'
+    );
+  });
+
+  it('disables deletion and exposes the block reason without a permanent alert', () => {
+    const reason = 'No se puede eliminar el cuadro porque existen resultados.';
+    createWithBracket(bracket([match(1)], true, false, 0, reason));
+
+    component.openDeleteBracketModal();
+    fixture.detectChanges();
+
+    const reasonElement = fixture.nativeElement.querySelector(
+      '[data-testid="delete-bracket-block-reason"]'
+    ) as HTMLElement;
+
+    expect(component.showDeleteBracketModal).toBeFalse();
+    expect(competitionCategoryService.deleteBracket).not.toHaveBeenCalled();
+    expect(buttonTexts()).toContain('Eliminar cuadro');
+    expect(deleteBracketButton().disabled).toBeTrue();
+    expect(reasonElement.getAttribute('title')).toBe(reason);
+    expect(reasonElement.getAttribute('aria-label')).toBe(reason);
+    expect(reasonElement.getAttribute('tabindex')).toBe('0');
+    expect(
+      Array.from(fixture.nativeElement.querySelectorAll('.alert'))
+        .some((element: unknown) =>
+          (element as HTMLElement).textContent?.includes(reason)
+        )
+    ).toBeFalse();
   });
 
   it('shows Editar programación for a programmed match with scheduling', () => {
@@ -267,6 +389,33 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     expect(competitionCategoryService.getBracket).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps the modal values when the backend reports a scheduling conflict', () => {
+    const conflictMessage =
+      'La cancha seleccionada ya tiene un partido programado en ese horario.';
+    matchService.updateMatch.and.returnValue(throwError(() => ({
+      error: { court: [conflictMessage] },
+    })));
+    const scheduledMatch = match(1);
+    createWithMatches([scheduledMatch]);
+    component.openScheduleModal(scheduledMatch);
+    component.scheduleForm.setValue({
+      date: '2026-09-05',
+      time: '19:30',
+      court: 2,
+    });
+
+    component.saveSchedule();
+
+    expect(component.schedulingMatch).toBe(scheduledMatch);
+    expect(component.scheduleForm.getRawValue()).toEqual({
+      date: '2026-09-05',
+      time: '19:30',
+      court: 2,
+    });
+    expect(component.scheduleErrorMessage).toContain(conflictMessage);
+    expect(competitionCategoryService.getBracket).toHaveBeenCalledTimes(1);
+  });
+
   it('does not warn for a date inside the competition period', () => {
     createWithMatches([match(1)]);
     component.scheduleForm.controls.date.setValue('2026-09-10');
@@ -361,7 +510,11 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
   });
 
   function createWithMatches(matches: BracketMatch[]): void {
-    competitionCategoryService.getBracket.and.returnValue(of(bracket(matches)));
+    createWithBracket(bracket(matches));
+  }
+
+  function createWithBracket(response: BracketResponse): void {
+    competitionCategoryService.getBracket.and.returnValue(of(response));
     fixture = TestBed.createComponent(CompetitionCategoryDetailComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -372,20 +525,44 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       .map((button: unknown) => (button as HTMLButtonElement).textContent?.trim() ?? '');
   }
 
+  function deleteBracketButton(): HTMLButtonElement {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('button')
+    ).find(
+      (button: unknown) =>
+        (button as HTMLButtonElement).textContent?.trim() ===
+        'Eliminar cuadro'
+    ) as HTMLButtonElement;
+  }
+
   function hasSchedulingButton(): boolean {
     return buttonTexts().some((text) =>
       text === 'Programar partido' || text === 'Editar programación'
     );
   }
 
-  function bracket(matches: BracketMatch[]): BracketResponse {
+  function bracket(
+    matches: BracketMatch[],
+    generated = true,
+    canDelete = true,
+    scheduledMatchesCount = 0,
+    deleteBlockReason: string | null = null
+  ): BracketResponse {
     return {
       competition_category: 12,
       competition: 8,
       competition_name: 'Torneo',
       category: 1,
       category_name: 'PRIMERA',
-      generated: true,
+      participants: players.map((player) => ({
+        id: player.id,
+        first_name: player.first_name,
+        last_name: player.last_name,
+      })),
+      generated,
+      can_delete: canDelete,
+      scheduled_matches_count: scheduledMatchesCount,
+      delete_block_reason: deleteBlockReason,
       matches,
     };
   }

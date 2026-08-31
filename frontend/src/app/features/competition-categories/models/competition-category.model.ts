@@ -76,6 +76,12 @@ export interface BracketMatch {
   sets: BracketSet[];
 }
 
+export interface BracketParticipant {
+  id: number;
+  first_name: string;
+  last_name: string;
+}
+
 export interface BracketResponse {
   competition_category: number;
 
@@ -85,7 +91,13 @@ export interface BracketResponse {
   category: number;
   category_name: string;
 
+  participants: BracketParticipant[];
+
   generated: boolean;
+
+  can_delete: boolean;
+  scheduled_matches_count: number;
+  delete_block_reason: string | null;
 
   matches: BracketMatch[];
 }
@@ -94,4 +106,10 @@ export interface GenerateBracketResponse {
   detail: string;
   competition_category: number;
   matches: BracketMatch[];
+}
+
+export interface DeleteBracketResponse {
+  detail: string;
+  deleted_matches: number;
+  deleted_scheduled_matches: number;
 }

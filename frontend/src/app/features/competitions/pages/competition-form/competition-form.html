@@ -121,13 +121,12 @@
               Fecha de inicio
             </label>
 
-            <input
-              id="start_date"
-              type="date"
-              lang="es-CL"
-              class="form-control"
+            <app-temporal-input
+              inputId="start_date"
+              format="date"
+              placeholder="DD/MM/YYYY"
               formControlName="start_date"
-            >
+            />
 
           </div>
 
@@ -142,13 +141,12 @@
               Fecha de término
             </label>
 
-            <input
-              id="end_date"
-              type="date"
-              lang="es-CL"
-              class="form-control"
+            <app-temporal-input
+              inputId="end_date"
+              format="date"
+              placeholder="DD/MM/YYYY"
               formControlName="end_date"
-            >
+            />
 
           </div>
 
@@ -206,13 +204,12 @@
             Fecha límite de inscripción
           </label>
 
-          <input
-            id="registration_deadline"
-            type="date"
-            lang="es-CL"
-            class="form-control"
+          <app-temporal-input
+            inputId="registration_deadline"
+            format="date"
+            placeholder="DD/MM/YYYY"
             formControlName="registration_deadline"
-          >
+          />
 
         </div>
 

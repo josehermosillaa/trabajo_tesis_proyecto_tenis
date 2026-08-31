@@ -255,7 +255,7 @@
 
                       {{
                         match.scheduled_date_time
-                          | date:'dd/MM/yyyy HH:mm'
+                          | uiDateTime:'datetime'
                       }}
 
                     } @else {
@@ -327,6 +327,12 @@
                       class="d-flex justify-content-end gap-2"
                     >
 
+                      @if (isGeneratedBracketMatch(match)) {
+                        <span class="badge text-bg-light align-self-center">
+                          Partido de cuadro
+                        </span>
+                      }
+
 
                       <!-- Resultado -->
                       @if (
@@ -349,38 +355,35 @@
                       }
 
 
-                      <!-- Editar -->
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        (click)="
-                          goToEdit(
-                            match.id
-                          )
-                        "
-                        [disabled]="
-                          deletingId === match.id
-                        "
-                      >
-                        Editar
-                      </button>
+                      @if (isGeneratedBracketMatch(match)) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          (click)="goToBracket(match)"
+                        >
+                          Ver cuadro
+                        </button>
+                      } @else {
+                        <!-- Editar -->
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          (click)="goToEdit(match.id)"
+                          [disabled]="deletingId === match.id"
+                        >
+                          Editar
+                        </button>
 
-
-                      <!-- Eliminar -->
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-danger"
-                        (click)="
-                          openDeleteModal(
-                            match
-                          )
-                        "
-                        [disabled]="
-                          deletingId === match.id
-                        "
-                      >
-                        Eliminar
-                      </button>
+                        <!-- Eliminar -->
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          (click)="openDeleteModal(match)"
+                          [disabled]="deletingId === match.id"
+                        >
+                          Eliminar
+                        </button>
+                      }
 
                     </div>
 

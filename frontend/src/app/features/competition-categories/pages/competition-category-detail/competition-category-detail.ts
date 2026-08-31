@@ -46,6 +46,8 @@ import {
 import {
   Competition,
 } from '../../../competitions/models/competition.model';
+import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
+import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 
 interface BracketRound {
@@ -61,6 +63,8 @@ interface BracketRound {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    TemporalInputComponent,
+    UiDateTimePipe,
   ],
 
   templateUrl:
@@ -167,6 +171,12 @@ export class CompetitionCategoryDetailComponent
 
   generating = false;
 
+  deletingBracket = false;
+
+  showDeleteBracketModal = false;
+
+  deleteBracketErrorMessage = '';
+
   errorMessage = '';
 
   successMessage = '';
@@ -211,9 +221,10 @@ export class CompetitionCategoryDetailComponent
 
     if (this.isAdministrativeUser()) {
       this.loadCourts();
+      this.loadPlayers();
+    } else {
+      this.loadBracket();
     }
-
-    this.loadPlayers();
   }
 
 
@@ -642,7 +653,10 @@ export class CompetitionCategoryDetailComponent
 
 
     const player =
-      this.players.find(
+      this.bracket?.participants.find(
+        (item) => Number(item.id) === Number(championId)
+      )
+      ?? this.players.find(
         (item) =>
           Number(
             item.id
@@ -703,7 +717,10 @@ export class CompetitionCategoryDetailComponent
 
 
     const player =
-      this.players.find(
+      this.bracket?.participants.find(
+        (item) => Number(item.id) === Number(playerId)
+      )
+      ?? this.players.find(
         (item) =>
           Number(item.id) ===
           Number(playerId)
@@ -851,6 +868,84 @@ export class CompetitionCategoryDetailComponent
       match.status !==
         'CANCELADO'
     );
+  }
+
+
+  // =====================================================
+  // ELIMINAR CUADRO
+  // =====================================================
+
+  openDeleteBracketModal(): void {
+
+    if (
+      !this.isAdministrativeUser()
+      || !this.bracket?.generated
+      || !this.bracket.can_delete
+    ) {
+      return;
+    }
+
+    this.deleteBracketErrorMessage = '';
+    this.showDeleteBracketModal = true;
+  }
+
+
+  closeDeleteBracketModal(): void {
+
+    if (this.deletingBracket) {
+      return;
+    }
+
+    this.showDeleteBracketModal = false;
+    this.deleteBracketErrorMessage = '';
+  }
+
+
+  deleteBracket(): void {
+
+    if (
+      this.deletingBracket
+      || !this.showDeleteBracketModal
+      || this.competitionCategoryId === null
+    ) {
+      return;
+    }
+
+    this.deletingBracket = true;
+    this.deleteBracketErrorMessage = '';
+
+    this.competitionCategoryService
+      .deleteBracket(
+        this.competitionCategoryId
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.deletingBracket = false;
+          this.showDeleteBracketModal = false;
+          this.deleteBracketErrorMessage = '';
+
+          this.showSuccessMessage(
+            'Cuadro eliminado correctamente.'
+          );
+
+          this.loadBracket();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error al eliminar cuadro:',
+            error
+          );
+
+          this.deleteBracketErrorMessage =
+            this.getBackendErrorMessage(error);
+
+          this.deletingBracket = false;
+        },
+      });
   }
 
 
@@ -1158,6 +1253,14 @@ export class CompetitionCategoryDetailComponent
 
 
   goBack(): void {
+
+    if (!this.isAdministrativeUser()) {
+      this.router.navigate([
+        '/dashboard',
+      ]);
+
+      return;
+    }
 
     if (
       this.competitionId ===

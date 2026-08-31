@@ -1,4 +1,9 @@
-<div class="container py-4">
+<div
+  class="py-4 px-3 px-md-4"
+  [class.container]="!isPlayerUser()"
+  [class.container-fluid]="isPlayerUser()"
+  [class.player-dashboard-shell]="isPlayerUser()"
+>
   @if (isAdministrativeUser()) {
     <div class="mb-4">
       <h1 class="h2 mb-1">Dashboard administrativo</h1>
@@ -61,8 +66,8 @@
                         <div>
                           <h3 class="h6 mb-1">{{ item.name }}</h3>
                           <div class="small text-body-secondary">
-                            {{ item.start_date | date:'dd/MM/yyyy':'UTC' }} –
-                            {{ item.end_date | date:'dd/MM/yyyy':'UTC' }}
+                            {{ item.start_date | uiDateTime:'date' }} –
+                            {{ item.end_date | uiDateTime:'date' }}
                           </div>
                         </div>
                         <span
@@ -93,8 +98,8 @@
                         <div>
                           <h3 class="h6 mb-1">{{ item.name }}</h3>
                           <div class="small text-body-secondary">
-                            {{ item.start_date | date:'dd/MM/yyyy':'UTC' }} –
-                            {{ item.end_date | date:'dd/MM/yyyy':'UTC' }}
+                            {{ item.start_date | uiDateTime:'date' }} –
+                            {{ item.end_date | uiDateTime:'date' }}
                           </div>
                         </div>
                         <span class="badge text-bg-primary align-self-start">En curso</span>
@@ -109,8 +114,8 @@
       </div>
     }
   } @else if (isPlayerUser()) {
-    <div class="mb-4">
-      <h1 class="h2 mb-1">Mi dashboard</h1>
+    <div class="mb-5">
+      <h1 class="display-6 fw-semibold mb-2">Mi dashboard</h1>
       <p class="text-body-secondary mb-0">
         @if (currentPlayer) {
           Hola, {{ currentPlayer.first_name }}. Aquí tienes tu actividad deportiva.
@@ -133,23 +138,23 @@
         <span>Cargando dashboard...</span>
       </div>
     } @else {
-      <section class="mb-4" aria-labelledby="next-match-title">
-        <h2 id="next-match-title" class="h4 mb-3">Próximo partido</h2>
+      <section class="mb-5" aria-labelledby="next-match-title">
+        <h2 id="next-match-title" class="h3 mb-3">Próximo partido</h2>
         @if (nextMatch) {
           <div class="card border-0 shadow-sm next-match-card">
-            <div class="card-body p-4">
-              <div class="row g-3 align-items-center">
-                <div class="col-md-4">
+            <div class="card-body p-4 p-xl-5">
+              <div class="row g-4 align-items-center">
+                <div class="col-12 col-md-4">
                   <span class="text-uppercase small fw-semibold text-success">Tu próximo rival</span>
                   <div class="fs-4 fw-bold">{{ nextMatch.rival }}</div>
                 </div>
                 <div class="col-6 col-md-2">
                   <span class="detail-label">Fecha</span>
-                  <strong>{{ nextMatch.match.scheduled_date_time | date:'dd/MM/yyyy' }}</strong>
+                  <strong>{{ nextMatch.match.scheduled_date_time | uiDateTime:'date' }}</strong>
                 </div>
                 <div class="col-6 col-md-2">
                   <span class="detail-label">Hora</span>
-                  <strong>{{ nextMatch.match.scheduled_date_time | date:'HH:mm' }}</strong>
+                  <strong>{{ nextMatch.match.scheduled_date_time | uiDateTime:'time' }}</strong>
                 </div>
                 <div class="col-md-4">
                   <span class="detail-label">Competencia</span>
@@ -166,33 +171,62 @@
         }
       </section>
 
-      <div class="row g-4 mb-4">
-        <section class="col-lg-6" aria-labelledby="my-tournaments-title">
+      <div class="row g-4 mb-5 align-items-stretch">
+        <section class="col-12 col-lg-7 col-xl-8" aria-labelledby="my-tournaments-title">
           <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-              <h2 id="my-tournaments-title" class="h4 mb-3">Mis torneos</h2>
+            <div class="card-body p-4 p-xl-5">
+              <h2 id="my-tournaments-title" class="h3 mb-4">Mis torneos</h2>
               @if (myTournaments.length === 0) {
                 <div class="empty-state">Aún no tienes torneos activos.</div>
               } @else {
                 <div class="list-group list-group-flush">
                   @for (item of myTournaments; track item.registration.id) {
-                    <div class="list-group-item px-0 py-3">
-                      <div class="d-flex justify-content-between gap-3">
-                        <div>
-                          <h3 class="h6 mb-1">{{ item.competition.name }}</h3>
-                          <div class="small text-body-secondary">
-                            {{ item.category }} · Inicio {{ item.competition.start_date | date:'dd/MM/yyyy':'UTC' }}
+                    @if (item.registration.status === 'CONFIRMADA') {
+                      <button
+                        type="button"
+                        class="list-group-item tournament-row tournament-row-interactive w-100 px-3 py-3 py-xl-4 text-start"
+                        (click)="viewTournament(item)"
+                        [attr.aria-label]="'Abrir ' + item.competition.name + ', categoría ' + item.category"
+                        data-testid="confirmed-tournament-row"
+                      >
+                        <span class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                          <span class="flex-grow-1">
+                            <span class="d-block h5 mb-2">{{ item.competition.name }}</span>
+                            <span class="d-block small text-body-secondary">
+                              {{ item.category }} · Inicio {{ item.competition.start_date | uiDateTime:'date' }}
+                            </span>
+                          </span>
+                          <span class="d-flex align-items-center gap-3 flex-shrink-0">
+                            <span class="badge rounded-pill text-bg-success px-3 py-2">
+                              Confirmada
+                            </span>
+                            <span class="tournament-chevron" aria-hidden="true">›</span>
+                          </span>
+                        </span>
+                      </button>
+                    } @else {
+                      <div
+                        class="list-group-item tournament-row px-3 py-3 py-xl-4"
+                        data-testid="pending-tournament-row"
+                      >
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                          <div class="flex-grow-1">
+                            <h3 class="h5 mb-2">{{ item.competition.name }}</h3>
+                            <div class="small text-body-secondary">
+                              {{ item.category }} · Inicio {{ item.competition.start_date | uiDateTime:'date' }}
+                            </div>
+                          </div>
+                          <div class="d-flex flex-column align-items-start align-items-sm-end gap-2 flex-shrink-0">
+                            <span class="badge rounded-pill text-bg-warning px-3 py-2">
+                              Pendiente
+                            </span>
+                            <span class="small text-body-secondary">
+                              En espera de confirmación
+                            </span>
                           </div>
                         </div>
-                        <span
-                          class="badge align-self-start"
-                          [class.text-bg-success]="item.registration.status === 'CONFIRMADA'"
-                          [class.text-bg-warning]="item.registration.status === 'PENDIENTE'"
-                        >
-                          {{ item.registration.status === 'CONFIRMADA' ? 'Confirmada' : 'Pendiente' }}
-                        </span>
                       </div>
-                    </div>
+                    }
                   }
                 </div>
               }
@@ -200,88 +234,137 @@
           </div>
         </section>
 
-        <section class="col-lg-6" aria-labelledby="available-title">
+        <section class="col-12 col-lg-5 col-xl-4" aria-labelledby="performance-title">
           <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-              <h2 id="available-title" class="h4 mb-3">Torneos disponibles</h2>
-              @if (availableTournaments.length === 0) {
-                <div class="empty-state">No hay torneos disponibles para tu categoría.</div>
-              } @else {
-                <div class="list-group list-group-flush">
-                  @for (item of availableTournaments; track item.competitionCategory.id) {
-                    <div class="list-group-item px-0 py-3">
-                      <div class="d-flex justify-content-between align-items-center gap-3">
-                        <div>
-                          <h3 class="h6 mb-1">{{ item.competition.name }}</h3>
-                          <div class="small text-body-secondary">
-                            {{ item.category }} · Inicio {{ item.competition.start_date | date:'dd/MM/yyyy':'UTC' }}
-                          </div>
-                          <div class="small text-success">
-                            {{ item.competitionCategory.available_slots }} cupos disponibles
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          class="btn btn-success btn-sm flex-shrink-0"
-                          [disabled]="registeringCategoryId !== null"
-                          (click)="register(item)"
-                        >
-                          {{ registeringCategoryId === item.competitionCategory.id ? 'Inscribiendo...' : 'Inscribirme' }}
-                        </button>
-                      </div>
-                    </div>
-                  }
+            <div class="card-body p-4 p-xl-5 d-flex flex-column">
+              <h2 id="performance-title" class="h3 mb-4">Rendimiento</h2>
+              <div
+                class="result-donut mx-auto mb-4"
+                [style.background]="resultDonutBackground"
+                role="img"
+                [attr.aria-label]="resultsAriaLabel"
+              >
+                <div class="result-donut-center text-center">
+                  <strong class="display-5 lh-1">{{ winPercentage }}%</strong>
+                  <span class="fw-semibold text-body-secondary mt-2">
+                    {{ totalPlayed === 0 ? 'Sin partidos jugados' : 'Victorias' }}
+                  </span>
                 </div>
-              }
+              </div>
+              <div class="mt-auto" aria-hidden="true">
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                  <span><span class="legend-dot bg-success me-2"></span>Victorias</span>
+                  <strong>{{ wins }}</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                  <span><span class="legend-dot bg-danger me-2"></span>Derrotas</span>
+                  <strong>{{ losses }}</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center pt-3">
+                  <span>Partidos jugados</span>
+                  <strong>{{ totalPlayed }}</strong>
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </div>
 
-      <section aria-labelledby="results-title">
-        <h2 id="results-title" class="h4 mb-3">Resultados anteriores</h2>
-        @if (previousResults.length === 0) {
-          <div class="empty-state">Todavía no tienes resultados registrados.</div>
-        } @else {
-          <div class="table-responsive card border-0 shadow-sm">
-            <table class="table align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th scope="col">Resultado</th>
-                  <th scope="col">Rival</th>
-                  <th scope="col">Competencia</th>
-                  <th scope="col">Categoría</th>
-                  <th scope="col">Sets</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of previousResults; track item.match.id) {
-                  <tr>
-                    <td>
-                      <span
-                        class="badge"
-                        [class.text-bg-success]="item.result === 'Victoria'"
-                        [class.text-bg-danger]="item.result === 'Derrota'"
-                      >{{ item.result }}</span>
-                    </td>
-                    <td>{{ item.rival }}</td>
-                    <td>{{ item.competition }}</td>
-                    <td>{{ item.category }}</td>
-                    <td class="fw-semibold">
-                      @if (item.sets.length > 0) {
-                        {{ item.sets.join(', ') }}
-                      } @else {
-                        <span class="text-body-secondary">
-                          {{ item.match.resolution_type === 'WALKOVER' ? 'WO' : 'Sin sets' }}
-                        </span>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+      <section class="mb-5" aria-labelledby="results-title">
+        <div class="card border-0 shadow-sm overflow-hidden">
+          <div class="card-body p-0">
+            <div class="px-4 px-xl-5 pt-4 pt-xl-5 pb-3">
+              <h2 id="results-title" class="h3 mb-1">Resultados recientes</h2>
+              <p class="text-body-secondary mb-0">Tus últimos partidos finalizados.</p>
+            </div>
+            @if (previousResults.length === 0) {
+              <div class="empty-state mx-4 mx-xl-5 mb-4 mb-xl-5">
+                Todavía no tienes resultados registrados.
+              </div>
+            } @else {
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-4 ps-xl-5" scope="col">Resultado</th>
+                      <th scope="col">Rival</th>
+                      <th scope="col">Competencia</th>
+                      <th scope="col">Categoría</th>
+                      <th class="pe-4 pe-xl-5" scope="col">Sets</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of previousResults; track item.match.id) {
+                      <tr class="result-row">
+                        <td class="ps-4 ps-xl-5">
+                          <span
+                            class="badge rounded-pill px-3 py-2"
+                            [class.text-bg-success]="item.result === 'Victoria'"
+                            [class.text-bg-danger]="item.result === 'Derrota'"
+                          >{{ item.result }}</span>
+                        </td>
+                        <td class="fw-semibold">{{ item.rival }}</td>
+                        <td>{{ item.competition }}</td>
+                        <td>{{ item.category }}</td>
+                        <td class="fw-semibold pe-4 pe-xl-5">
+                          @if (item.sets.length > 0) {
+                            {{ item.sets.join(', ') }}
+                          } @else {
+                            <span class="text-body-secondary">
+                              {{ item.match.resolution_type === 'WALKOVER' ? 'WO' : 'Sin sets' }}
+                            </span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
           </div>
-        }
+        </div>
+      </section>
+
+      <section aria-labelledby="available-title">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4 p-xl-5">
+            <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 mb-4">
+              <div>
+                <h2 id="available-title" class="h3 mb-1">Torneos disponibles</h2>
+                <p class="text-body-secondary mb-0">Competencias abiertas para tu categoría.</p>
+              </div>
+            </div>
+            @if (availableTournaments.length === 0) {
+              <div class="empty-state">No hay torneos disponibles para tu categoría.</div>
+            } @else {
+              <div class="list-group list-group-flush">
+                @for (item of availableTournaments; track item.competitionCategory.id) {
+                  <div class="list-group-item px-0 py-3 py-xl-4 tournament-item">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                      <div class="flex-grow-1">
+                        <h3 class="h5 mb-2">{{ item.competition.name }}</h3>
+                        <div class="text-body-secondary">
+                          {{ item.category }} · Inicio {{ item.competition.start_date | uiDateTime:'date' }}
+                        </div>
+                        <div class="small fw-semibold text-success mt-1">
+                          {{ item.competitionCategory.available_slots }} cupos disponibles
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-success px-4 py-2 flex-shrink-0 align-self-sm-center align-self-start"
+                        [disabled]="registeringCategoryId !== null"
+                        (click)="register(item)"
+                      >
+                        {{ registeringCategoryId === item.competitionCategory.id ? 'Inscribiendo...' : 'Inscribirme' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
       </section>
     }
   }

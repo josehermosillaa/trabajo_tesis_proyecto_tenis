@@ -181,19 +181,19 @@
 
                   <!-- Fecha inicio -->
                   <td>
-                    {{ competition.start_date }}
+                    {{ competition.start_date | uiDateTime:'date' }}
                   </td>
 
 
                   <!-- Fecha término -->
                   <td>
-                    {{ competition.end_date }}
+                    {{ competition.end_date | uiDateTime:'date' }}
                   </td>
 
 
                   <!-- Fecha límite inscripción -->
                   <td>
-                    {{ competition.registration_deadline }}
+                    {{ competition.registration_deadline | uiDateTime:'date' }}
                   </td>
 
 

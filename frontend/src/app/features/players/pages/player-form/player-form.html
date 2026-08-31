@@ -221,13 +221,13 @@
                 Fecha de nacimiento
               </label>
 
-              <input
-                id="birth_date"
-                type="date"
-                class="form-control"
+              <app-temporal-input
+                inputId="birth_date"
+                format="date"
+                placeholder="DD/MM/YYYY"
                 formControlName="birth_date"
                 [max]="maxBirthDate"
-                >
+              />
                 <div class="form-text">
                 El jugador debe tener al menos 10 años.
                 </div>

@@ -14,6 +14,7 @@ import { Player } from '../../../players/models/player.model';
 import { PlayerService } from '../../../players/services/player';
 import { Registration } from '../../../registrations/models/registration.model';
 import { RegistrationService } from '../../../registrations/services/registration';
+import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 interface PlayerMatchView {
   match: Match;
@@ -42,7 +43,7 @@ interface PlayerResultView extends PlayerMatchView {
 
 @Component({
   selector: 'app-home',
-  imports: [CommonModule],
+  imports: [CommonModule, UiDateTimePipe],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -64,8 +65,33 @@ export class HomeComponent implements OnInit {
   myTournaments: PlayerTournamentView[] = [];
   availableTournaments: AvailableTournamentView[] = [];
   previousResults: PlayerResultView[] = [];
+  wins = 0;
+  losses = 0;
+  totalPlayed = 0;
+  winPercentage = 0;
   upcomingCompetitions: Competition[] = [];
   ongoingCompetitions: Competition[] = [];
+
+  get resultDonutBackground(): string {
+    if (this.totalPlayed === 0) {
+      return 'var(--bs-secondary-bg)';
+    }
+
+    return `conic-gradient(
+      var(--bs-success) 0 ${this.winPercentage}%,
+      var(--bs-danger) ${this.winPercentage}% 100%
+    )`;
+  }
+
+  get resultsAriaLabel(): string {
+    if (this.totalPlayed === 0) {
+      return 'Sin partidos jugados. 0 por ciento de victorias.';
+    }
+
+    return `${this.winPercentage} por ciento de victorias. `
+      + `${this.wins} victorias, ${this.losses} derrotas, `
+      + `${this.totalPlayed} partidos jugados.`;
+  }
 
   ngOnInit(): void {
     if (this.isPlayerUser()) {
@@ -85,6 +111,19 @@ export class HomeComponent implements OnInit {
 
   navigateTo(route: string): void {
     this.router.navigate([route]);
+  }
+
+  viewTournament(item: PlayerTournamentView): void {
+    if (item.registration.status !== 'CONFIRMADA') {
+      return;
+    }
+
+    this.router.navigate([
+      '/competitions',
+      item.competition.id,
+      'categories',
+      item.registration.competition_category,
+    ]);
   }
 
   register(item: AvailableTournamentView): void {
@@ -266,7 +305,7 @@ export class HomeComponent implements OnInit {
       .sort((left, right) => left.competition.start_date.localeCompare(right.competition.start_date));
 
     this.previousResults = playerMatches
-      .filter((match) => match.status === 'FINALIZADO')
+      .filter((match) => this.isCountableResult(match))
       .sort((left, right) => this.matchTimestamp(right) - this.matchTimestamp(left))
       .map((match) => {
         const view = this.toMatchView(
@@ -279,6 +318,20 @@ export class HomeComponent implements OnInit {
           sets: (match.sets ?? []).map((set) => this.formatSet(set, match, player)),
         };
       });
+
+    this.wins = this.previousResults.filter((item) => item.result === 'Victoria').length;
+    this.losses = this.previousResults.filter((item) => item.result === 'Derrota').length;
+    this.totalPlayed = this.wins + this.losses;
+    this.winPercentage = this.totalPlayed > 0
+      ? Math.round((this.wins / this.totalPlayed) * 100)
+      : 0;
+  }
+
+  private isCountableResult(match: Match): boolean {
+    return match.status === 'FINALIZADO'
+      && match.player1 !== null
+      && match.player2 !== null
+      && (match.winner_player === match.player1 || match.winner_player === match.player2);
   }
 
   private toMatchView(
@@ -329,6 +382,10 @@ export class HomeComponent implements OnInit {
     this.myTournaments = [];
     this.availableTournaments = [];
     this.previousResults = [];
+    this.wins = 0;
+    this.losses = 0;
+    this.totalPlayed = 0;
+    this.winPercentage = 0;
   }
 
   private getBackendErrorMessage(error: any): string {

@@ -4,6 +4,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 
 import { TokenService } from '../../../../core/services/token';
 import { environment } from '../../../../../environments/environment';
@@ -14,15 +15,17 @@ describe('Home', () => {
   let fixture: ComponentFixture<HomeComponent>;
   let httpTesting: HttpTestingController;
   let tokenService: TokenService;
+  let router: Router;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HomeComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     httpTesting = TestBed.inject(HttpTestingController);
     tokenService = TestBed.inject(TokenService);
+    router = TestBed.inject(Router);
     localStorage.clear();
   });
 
@@ -101,6 +104,128 @@ describe('Home', () => {
     expect(component.availableTournaments.map((item) => item.competition.id)).toEqual([2]);
     expect(component.previousResults[0].result).toBe('Victoria');
     expect(component.previousResults[0].sets).toEqual(['6-4', '6-3']);
+    expect(component.wins).toBe(1);
+    expect(component.losses).toBe(0);
+    expect(component.totalPlayed).toBe(1);
+    expect(component.winPercentage).toBe(100);
+  });
+
+  it('should use only countable results for the table and statistics', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
+    createComponent();
+
+    const pastDateTime = new Date(Date.now() - 86_400_000).toISOString();
+    const normalWin = match(1, 'FINALIZADO', pastDateTime, 1, [set(1, 6, 3)]);
+    const walkoverLoss = {
+      ...match(2, 'FINALIZADO', pastDateTime, 2, []),
+      is_walkover: true,
+      resolution_type: 'WALKOVER',
+    };
+    const retirementWin = {
+      ...match(3, 'FINALIZADO', pastDateTime, 1, [set(1, 4, 2)]),
+      resolution_type: 'RETIREMENT',
+    };
+    const bye = {
+      ...match(4, 'FINALIZADO', pastDateTime, 1, []),
+      player2: null,
+    };
+    const invalidWinner = match(5, 'FINALIZADO', pastDateTime, 99, []);
+
+    flushPlayerDashboard([
+      normalWin,
+      walkoverLoss,
+      retirementWin,
+      bye,
+      invalidWinner,
+    ]);
+    fixture.detectChanges();
+
+    expect(component.previousResults.map((item) => item.match.id)).toEqual([1, 2, 3]);
+    expect(component.previousResults.map((item) => item.result)).toEqual([
+      'Victoria',
+      'Derrota',
+      'Victoria',
+    ]);
+    expect(component.wins).toBe(2);
+    expect(component.losses).toBe(1);
+    expect(component.totalPlayed).toBe(3);
+    expect(component.winPercentage).toBe(67);
+    expect(fixture.nativeElement.querySelectorAll('tr.result-row').length).toBe(
+      component.totalPlayed
+    );
+  });
+
+  it('should show neutral zero statistics when there are no countable results', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
+    createComponent();
+
+    flushPlayerDashboard([]);
+    fixture.detectChanges();
+
+    expect(component.previousResults).toEqual([]);
+    expect(component.wins).toBe(0);
+    expect(component.losses).toBe(0);
+    expect(component.totalPlayed).toBe(0);
+    expect(component.winPercentage).toBe(0);
+    expect(component.resultDonutBackground).toBe('var(--bs-secondary-bg)');
+    expect(fixture.nativeElement.textContent).toContain('Sin partidos jugados');
+  });
+
+  it('should navigate only confirmed registrations using their effective category', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
+    spyOn(router, 'navigate');
+    createComponent();
+    const date = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+    httpTesting.expectOne(`${environment.apiUrl}/players/`).flush([
+      player(1, 10, 'Ana', 'Pérez'),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([
+      competition(1, 'Confirmado excepcional', date),
+      competition(2, 'Pendiente', date),
+      competition(3, 'Cancelado', date),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/registrations/`).flush([
+      registration(1, 222, 'CONFIRMADA'),
+      registration(2, 333, 'PENDIENTE'),
+      registration(3, 444, 'CANCELADA'),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/matches/`).flush([]);
+    httpTesting.expectOne(`${environment.apiUrl}/competition-categories/`).flush([
+      competitionCategoryWithCategory(222, 1, 9),
+      competitionCategoryWithCategory(333, 2, 5),
+      competitionCategoryWithCategory(444, 3, 5),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/categories/`).flush([
+      { id: 5, name: 'CUARTA' },
+      { id: 9, name: 'PRIMERA' },
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/courts/`).flush([]);
+    fixture.detectChanges();
+
+    expect(component.myTournaments.length).toBe(2);
+    expect(component.myTournaments[0].category).toBe('PRIMERA');
+
+    const confirmedRow = fixture.nativeElement.querySelector(
+      '[data-testid="confirmed-tournament-row"]'
+    ) as HTMLButtonElement;
+    const pendingRow = fixture.nativeElement.querySelector(
+      '[data-testid="pending-tournament-row"]'
+    ) as HTMLElement;
+
+    confirmedRow.click();
+    expect(router.navigate).toHaveBeenCalledWith([
+      '/competitions', 1, 'categories', 222,
+    ]);
+
+    (router.navigate as jasmine.Spy).calls.reset();
+    pendingRow.click();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(confirmedRow.tagName).toBe('BUTTON');
+    expect(confirmedRow.getAttribute('aria-label')).toContain('PRIMERA');
+    expect(fixture.nativeElement.textContent).not.toContain('Ver');
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="confirmed-tournament-row"]').length).toBe(1);
+    expect(fixture.nativeElement.querySelectorAll('[data-testid="pending-tournament-row"]').length).toBe(1);
   });
 
   function createComponent(): void {
@@ -115,6 +240,29 @@ describe('Home', () => {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
     return `header.${encoded}.signature`;
+  }
+
+  function flushPlayerDashboard(matches: object[]): void {
+    const date = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+    httpTesting.expectOne(`${environment.apiUrl}/players/`).flush([
+      player(1, 10, 'Ana', 'Pérez'),
+      player(2, 11, 'Beatriz', 'Soto'),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([
+      competition(1, 'Torneo', date),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/registrations/`).flush([]);
+    httpTesting.expectOne(`${environment.apiUrl}/matches/`).flush(matches);
+    httpTesting.expectOne(`${environment.apiUrl}/competition-categories/`).flush([
+      competitionCategory(101, 1),
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/categories/`).flush([
+      { id: 5, name: 'PRIMERA' },
+    ]);
+    httpTesting.expectOne(`${environment.apiUrl}/courts/`).flush([
+      { id: 1, name: 'Cancha Central', status: 'AVAILABLE' },
+    ]);
   }
 
   function player(id: number, user: number, firstName: string, lastName: string) {
@@ -143,6 +291,28 @@ describe('Home', () => {
       id, competition: competitionId, category: 5, max_players: 16,
       minimum_players: 2, occupied_slots: 0, available_slots: 16,
       registered_players: [],
+    };
+  }
+
+  function competitionCategoryWithCategory(
+    id: number,
+    competitionId: number,
+    categoryId: number
+  ) {
+    return {
+      ...competitionCategory(id, competitionId),
+      category: categoryId,
+    };
+  }
+
+  function registration(id: number, competitionCategory: number, status: string) {
+    return {
+      id,
+      competition_category: competitionCategory,
+      player: 1,
+      registration_date: '2026-08-01',
+      status,
+      seed: null,
     };
   }
 

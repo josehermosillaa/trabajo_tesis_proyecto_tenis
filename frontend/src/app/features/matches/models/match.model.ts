@@ -40,6 +40,12 @@ export interface Match {
 
   round: number | null;
 
+  bracket_position: number | null;
+
+  next_match: number | null;
+
+  next_match_slot: number | null;
+
   is_walkover: boolean;
 
   resolution_type:

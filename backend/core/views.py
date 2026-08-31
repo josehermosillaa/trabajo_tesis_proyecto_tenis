@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from django.db.models import Q
 # from rest_framework.permissions import IsAuthenticated
 from core.utils import create_audit_log
 from .models import (
@@ -20,6 +21,7 @@ from .serializers import (
     CategorySerializer,
     CompetitionSerializer,
     CompetitionCategorySerializer,
+    CompetitionCategoryDiscoverySerializer,
     PlayerSerializer,
     RegistrationSerializer,
     CourtSerializer,
@@ -93,6 +95,24 @@ class PlayerViewSet(AuditModelViewSet):
     queryset = Player.objects.select_related("user").all()
     serializer_class = PlayerSerializer
     permission_classes = [PlayerPermission]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role.name != "Jugador":
+            return queryset
+
+        confirmed_categories = Registration.objects.filter(
+            player__user=self.request.user,
+            status="CONFIRMADA",
+        ).values("competition_category")
+
+        return queryset.filter(
+            Q(user=self.request.user)
+            | Q(
+                registrations__competition_category__in=confirmed_categories,
+                registrations__status="CONFIRMADA",
+            )
+        ).distinct()
     
 
 class CompetitionViewSet(AuditModelViewSet):
@@ -133,6 +153,35 @@ class CompetitionCategoryViewSet(
     permission_classes = [
         CompetitionPermission
     ]
+
+    def get_serializer_class(self):
+        if (
+            self.request.user.role.name == "Jugador"
+            and self.action == "list"
+        ):
+            return CompetitionCategoryDiscoverySerializer
+        return CompetitionCategorySerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.role.name != "Jugador":
+            return queryset
+
+        if self.action == "list":
+            return queryset.filter(
+                Q(competition__status="ABIERTA")
+                | Q(
+                    registrations__player__user=user,
+                    registrations__status__in=["PENDIENTE", "CONFIRMADA"],
+                )
+            ).distinct()
+
+        return queryset.filter(
+            registrations__player__user=user,
+            registrations__status="CONFIRMADA",
+        ).distinct()
 
     # =====================================================
     # ELIMINAR CATEGORÍA
@@ -333,6 +382,16 @@ class CompetitionCategoryViewSet(
             )
         )
 
+        matches = list(matches)
+
+        deletion_status = (
+            BracketService
+            .get_bracket_deletion_status(
+                competition_category,
+                matches,
+            )
+        )
+
         serializer = (
             MatchSerializer(
                 matches,
@@ -365,9 +424,23 @@ class CompetitionCategoryViewSet(
                     .category
                     .name
                 ),
+                "participants": [
+                    {
+                        "id": registration.player.id,
+                        "first_name": registration.player.first_name,
+                        "last_name": registration.player.last_name,
+                    }
+                    for registration in competition_category.registrations.filter(
+                        status="CONFIRMADA"
+                    ).select_related("player").order_by(
+                        "player__last_name",
+                        "player__first_name",
+                    )
+                ],
                 "generated": (
-                    matches.exists()
+                    bool(matches)
                 ),
+                **deletion_status,
                 "matches": (
                     serializer.data
                 ),
@@ -376,6 +449,38 @@ class CompetitionCategoryViewSet(
                 status.HTTP_200_OK
             ),
         )
+
+    # =====================================================
+    # ELIMINAR CUADRO
+    # =====================================================
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="delete-bracket",
+    )
+    def delete_bracket(
+        self,
+        request,
+        pk=None,
+    ):
+
+        competition_category = self.get_object()
+
+        result = BracketService.delete_bracket(
+            competition_category
+        )
+
+        return Response(
+            {
+                "detail": (
+                    "Cuadro eliminado correctamente."
+                ),
+                **result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 class RegistrationViewSet(AuditModelViewSet):
     """
     API para la gestión de inscripciones.
@@ -394,6 +499,12 @@ class RegistrationViewSet(AuditModelViewSet):
     permission_classes = [
         RegistrationPermission
     ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role.name == "Jugador":
+            return queryset.filter(player__user=self.request.user)
+        return queryset
     
 class CourtViewSet(AuditModelViewSet):
 
@@ -431,6 +542,42 @@ class MatchViewSet(
     permission_classes = [
         CompetitionPermission
     ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role.name == "Jugador":
+            return queryset.filter(
+                competition_category__registrations__player__user=self.request.user,
+                competition_category__registrations__status="CONFIRMADA",
+            ).distinct()
+        return queryset
+
+    def destroy(
+        self,
+        request,
+        *args,
+        **kwargs,
+    ):
+
+        match = self.get_object()
+
+        if BracketService.is_generated_bracket_match(match):
+            return Response(
+                {
+                    "detail": (
+                        "Este partido pertenece a un cuadro de "
+                        "eliminación directa. Para eliminarlo, "
+                        "debe eliminar el cuadro completo."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().destroy(
+            request,
+            *args,
+            **kwargs,
+        )
 
     # =====================================================
     # HELPERS
@@ -1074,6 +1221,17 @@ class MatchSetViewSet(
         CompetitionPermission
     ]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.role.name == "Jugador":
+            return queryset.filter(
+                match__competition_category__registrations__player__user=(
+                    self.request.user
+                ),
+                match__competition_category__registrations__status="CONFIRMADA",
+            ).distinct()
+        return queryset
+
     # =====================================================
     # ELIMINAR SET
     # =====================================================
@@ -1170,6 +1328,3 @@ class StandingViewSet(AuditModelViewSet):
 
     serializer_class = StandingSerializer
     permission_classes = [CompetitionPermission]
-    
-    
-    

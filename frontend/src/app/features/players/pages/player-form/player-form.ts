@@ -25,10 +25,11 @@ import {
   UpdatePlayerRequest,
 } from '../../models/player.model';
 import { TokenService } from '../../../../core/services/token';
+import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
 
 @Component({
   selector: 'app-player-form',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TemporalInputComponent],
   templateUrl: './player-form.html',
   styleUrl: './player-form.scss',
 })

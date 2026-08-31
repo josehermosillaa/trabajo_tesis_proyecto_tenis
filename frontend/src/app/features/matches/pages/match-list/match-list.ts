@@ -38,6 +38,7 @@ import {
   Category,
 } from '../../../competition-categories/services/competition-category';
 import { TokenService } from '../../../../core/services/token';
+import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 
 @Component({
@@ -45,6 +46,7 @@ import { TokenService } from '../../../../core/services/token';
 
   imports: [
     CommonModule,
+    UiDateTimePipe,
   ],
 
   templateUrl:
@@ -488,6 +490,50 @@ export class MatchListComponent
       competition?.name ??
       'Competencia no encontrada'
     );
+  }
+
+
+  isGeneratedBracketMatch(
+    match: Match
+  ): boolean {
+
+    const competitionCategory =
+      this.getCompetitionCategory(
+        match.competition_category
+      );
+
+    const competition =
+      this.competitions.find(
+        (item) =>
+          item.id ===
+          competitionCategory?.competition
+      );
+
+    return (
+      competition?.type ===
+        'ELIMINACION_DIRECTA'
+      && match.bracket_position !== null
+    );
+  }
+
+
+  goToBracket(match: Match): void {
+
+    const competitionCategory =
+      this.getCompetitionCategory(
+        match.competition_category
+      );
+
+    if (!competitionCategory) {
+      return;
+    }
+
+    this.router.navigate([
+      '/competitions',
+      competitionCategory.competition,
+      'categories',
+      competitionCategory.id,
+    ]);
   }
 
 
