@@ -33,6 +33,7 @@ import {
 import {
   RegistrationService,
 } from '../../../registrations/services/registration';
+import { Registration } from '../../../registrations/models/registration.model';
 
 import {
   TokenService,
@@ -118,6 +119,9 @@ export class CompetitionCategoryListComponent
 
   currentPlayer:
     Player | null = null;
+
+  currentRegistrations:
+    Registration[] = [];
 
   loading = false;
 
@@ -334,8 +338,11 @@ export class CompetitionCategoryListComponent
 
           this.resolveCurrentPlayer();
 
-          this.loading =
-            false;
+          if (this.isPlayerUser()) {
+            this.loadCurrentRegistrations();
+          } else {
+            this.loading = false;
+          }
         },
 
         error: (
@@ -354,6 +361,21 @@ export class CompetitionCategoryListComponent
             false;
         },
       });
+  }
+
+  private loadCurrentRegistrations(): void {
+    this.registrationService.getRegistrations().subscribe({
+      next: (registrations) => {
+        this.currentRegistrations = registrations;
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error al cargar inscripciones del jugador:', error);
+        this.currentRegistrations = [];
+        this.errorMessage = 'No fue posible cargar tus inscripciones.';
+        this.loading = false;
+      },
+    });
   }
 
 
@@ -490,21 +512,36 @@ export class CompetitionCategoryListComponent
     }
 
 
-    return (
-      competitionCategory
-        .registered_players
-        .some(
-          (
-            player
-          ) =>
-            Number(
-              player.id
-            ) ===
-            Number(
-              this.currentPlayer!.id
-            )
-        )
+    return this.currentRegistrations.some(
+      (registration) =>
+        Number(registration.competition_category) ===
+        Number(competitionCategory.id)
     );
+  }
+
+  hasConfirmedRegistration(
+    competitionCategory: CompetitionCategory
+  ): boolean {
+    return this.currentRegistrations.some(
+      (registration) =>
+        Number(registration.competition_category) ===
+          Number(competitionCategory.id)
+        && registration.status === 'CONFIRMADA'
+    );
+  }
+
+  getRegisteredPlayers(
+    competitionCategory: CompetitionCategory
+  ) {
+    return competitionCategory.registered_players ?? [];
+  }
+
+  getSportDetailActionLabel(): string {
+    const ladder = this.competition?.type === 'ESCALERILLA';
+    if (this.isAdministrativeUser()) {
+      return ladder ? 'Gestionar escalerilla' : 'Gestionar cuadro';
+    }
+    return ladder ? 'Ver escalerilla' : 'Ver cuadro';
   }
 
 
@@ -520,31 +557,22 @@ export class CompetitionCategoryListComponent
     }
 
 
-    const registeredPlayer =
-      competitionCategory
-        .registered_players
-        .find(
-          (
-            player
-          ) =>
-            Number(
-              player.id
-            ) ===
-            Number(
-              this.currentPlayer!.id
-            )
-        );
+    const registration = this.currentRegistrations.find(
+      (item) =>
+        Number(item.competition_category) ===
+        Number(competitionCategory.id)
+    );
 
 
     if (
-      !registeredPlayer
+      !registration
     ) {
       return '';
     }
 
 
     switch (
-      registeredPlayer.status
+      registration.status
     ) {
 
       case 'CONFIRMADA':

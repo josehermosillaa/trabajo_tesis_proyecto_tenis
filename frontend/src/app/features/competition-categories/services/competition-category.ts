@@ -22,6 +22,9 @@ import {
   BracketResponse,
   GenerateBracketResponse,
   DeleteBracketResponse,
+  DeleteLadderResponse,
+  LadderResponse,
+  GenerateLadderResponse,
 } from '../models/competition-category.model';
 
 export interface Category {
@@ -153,6 +156,35 @@ export class CompetitionCategoryService {
     return this.http.post<DeleteBracketResponse>(
       `${this.competitionCategoriesUrl}/` +
       `${competitionCategoryId}/delete-bracket/`,
+      {}
+    );
+  }
+
+  getLadder(
+    competitionCategoryId: number
+  ): Observable<LadderResponse> {
+    return this.http.get<LadderResponse>(
+      `${this.competitionCategoriesUrl}/` +
+      `${competitionCategoryId}/ladder/`
+    );
+  }
+
+  generateLadder(
+    competitionCategoryId: number
+  ): Observable<GenerateLadderResponse> {
+    return this.http.post<GenerateLadderResponse>(
+      `${this.competitionCategoriesUrl}/` +
+      `${competitionCategoryId}/generate-ladder/`,
+      {}
+    );
+  }
+
+  deleteLadder(
+    competitionCategoryId: number
+  ): Observable<DeleteLadderResponse> {
+    return this.http.post<DeleteLadderResponse>(
+      `${this.competitionCategoriesUrl}/` +
+      `${competitionCategoryId}/delete-ladder/`,
       {}
     );
   }

@@ -76,6 +76,22 @@
 
   }
 
+  @if (!loading && players.length > 0) {
+    <div class="row mb-3">
+      <div class="col-12 col-md-6 col-lg-4">
+        <label for="player-search" class="visually-hidden">Buscar jugador</label>
+        <input
+          id="player-search"
+          type="search"
+          class="form-control"
+          placeholder="Buscar jugador..."
+          [value]="searchTerm"
+          (input)="searchTerm = $any($event.target).value"
+        >
+      </div>
+    </div>
+  }
+
 
   <!-- Sin jugadores -->
   @if (
@@ -90,11 +106,15 @@
 
   }
 
+  @if (!loading && players.length > 0 && filteredPlayers.length === 0) {
+    <div class="alert alert-info">No se encontraron jugadores.</div>
+  }
+
 
   <!-- Tabla -->
   @if (
     !loading &&
-    players.length > 0
+    filteredPlayers.length > 0
   ) {
 
     <div
@@ -131,7 +151,7 @@
             <tbody>
 
               @for (
-                player of players;
+                player of filteredPlayers;
                 track player.id
               ) {
 
@@ -209,6 +229,7 @@
                         Editar
                       </button>
 
+                      @if (isAdminUser()) {
                       <button
                         type="button"
                         class="btn btn-sm btn-outline-danger"
@@ -219,6 +240,7 @@
                       >
                         Eliminar
                       </button>
+                      }
 
                     </div>
 

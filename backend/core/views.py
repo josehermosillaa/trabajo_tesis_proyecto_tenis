@@ -37,6 +37,7 @@ from .permissions import (
 from .services.bracket_service import (
     BracketService,
 )
+from .services.ladder_service import LadderService
 
 class HealthAPIView(APIView):
 
@@ -481,6 +482,84 @@ class CompetitionCategoryViewSet(
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["post"], url_path="generate-ladder")
+    def generate_ladder(self, request, pk=None):
+        competition_category = self.get_object()
+        matches = LadderService.generate_ladder(competition_category)
+        return Response(
+            {
+                "detail": "Escalerilla generada correctamente.",
+                "competition_category": competition_category.id,
+                "matches": MatchSerializer(matches, many=True).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="delete-ladder")
+    def delete_ladder(self, request, pk=None):
+        competition_category = self.get_object()
+        result = LadderService.delete_ladder(competition_category)
+        return Response(
+            {
+                "detail": "Escalerilla eliminada correctamente.",
+                **result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="ladder")
+    def ladder(self, request, pk=None):
+        competition_category = self.get_object()
+        if not LadderService.is_ladder(competition_category):
+            return Response(
+                {"detail": "Esta categoría no pertenece a una escalerilla."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        registrations = LadderService.get_confirmed_participants(
+            competition_category
+        )
+        matches = (
+            Match.objects.filter(competition_category=competition_category)
+            .select_related("player1", "player2", "winner_player", "court")
+            .prefetch_related("sets")
+            .order_by("id")
+        )
+        standings = (
+            Standing.objects.filter(competition_category=competition_category)
+            .select_related("player")
+            .order_by("position", "player__last_name", "player__first_name")
+        )
+        matches = list(matches)
+        deletion_status = LadderService.get_ladder_deletion_status(
+            competition_category,
+            matches,
+        )
+        return Response(
+            {
+                "competition_category": CompetitionCategorySerializer(
+                    competition_category
+                ).data,
+                "participants": [
+                    {
+                        "registration": registration.id,
+                        "player": registration.player.id,
+                        "first_name": registration.player.first_name,
+                        "last_name": registration.player.last_name,
+                    }
+                    for registration in registrations
+                ],
+                "standings": StandingSerializer(standings, many=True).data,
+                "matches": MatchSerializer(matches, many=True).data,
+                "generated": any(
+                    LadderService.is_generated_ladder_match(match)
+                    for match in matches
+                ),
+                **deletion_status,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 class RegistrationViewSet(AuditModelViewSet):
     """
     API para la gestión de inscripciones.
@@ -505,6 +584,37 @@ class RegistrationViewSet(AuditModelViewSet):
         if self.request.user.role.name == "Jugador":
             return queryset.filter(player__user=self.request.user)
         return queryset
+
+    @staticmethod
+    def _sync_ladder_after_registration(competition_category):
+        if (
+            LadderService.is_ladder(competition_category)
+            and (
+                competition_category.matches.exists()
+                or competition_category.standings.exists()
+            )
+        ):
+            LadderService.recalculate_standings(competition_category)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._sync_ladder_after_registration(
+            serializer.instance.competition_category
+        )
+
+    def perform_update(self, serializer):
+        previous_category = serializer.instance.competition_category
+        super().perform_update(serializer)
+        self._sync_ladder_after_registration(previous_category)
+        if serializer.instance.competition_category_id != previous_category.id:
+            self._sync_ladder_after_registration(
+                serializer.instance.competition_category
+            )
+
+    def perform_destroy(self, instance):
+        competition_category = instance.competition_category
+        super().perform_destroy(instance)
+        self._sync_ladder_after_registration(competition_category)
     
 class CourtViewSet(AuditModelViewSet):
 
@@ -551,6 +661,20 @@ class MatchViewSet(
                 competition_category__registrations__status="CONFIRMADA",
             ).distinct()
         return queryset
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        LadderService.recalculate_for_match(serializer.instance)
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        LadderService.recalculate_for_match(serializer.instance)
+
+    def perform_destroy(self, instance):
+        competition_category = instance.competition_category
+        super().perform_destroy(instance)
+        if LadderService.is_ladder(competition_category):
+            LadderService.recalculate_standings(competition_category)
 
     def destroy(
         self,
@@ -844,6 +968,8 @@ class MatchViewSet(
             match
         )
 
+        LadderService.recalculate_for_match(match)
+
         create_audit_log(
             user=request.user,
             action="UPDATE",
@@ -1031,6 +1157,8 @@ class MatchViewSet(
             match
         )
 
+        LadderService.recalculate_for_match(match)
+
         create_audit_log(
             user=request.user,
             action="UPDATE",
@@ -1170,6 +1298,8 @@ class MatchViewSet(
         MatchSetSerializer.recalculate_match_result(
             match
         )
+
+        LadderService.recalculate_for_match(match)
 
         match.refresh_from_db()
 
@@ -1317,6 +1447,8 @@ class MatchSetViewSet(
         MatchSetSerializer.recalculate_match_result(
             match
         )
+
+        LadderService.recalculate_for_match(match)
 class StandingViewSet(AuditModelViewSet):
 
     queryset = Standing.objects.select_related(
@@ -1328,3 +1460,21 @@ class StandingViewSet(AuditModelViewSet):
 
     serializer_class = StandingSerializer
     permission_classes = [CompetitionPermission]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        competition_category = self.request.query_params.get(
+            "competition_category"
+        )
+        if competition_category:
+            queryset = queryset.filter(
+                competition_category_id=competition_category
+            )
+        if self.request.user.role.name == "Jugador":
+            queryset = queryset.filter(
+                competition_category__registrations__player__user=(
+                    self.request.user
+                ),
+                competition_category__registrations__status="CONFIRMADA",
+            ).distinct()
+        return queryset

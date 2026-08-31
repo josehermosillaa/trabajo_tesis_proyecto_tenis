@@ -22,6 +22,10 @@ export class CompetitionListComponent implements OnInit {
     return this.tokenService.isAdministrativeUser();
   }
 
+  isAdminUser(): boolean {
+    return this.tokenService.isAdminUser();
+  }
+
   competitions: Competition[] = [];
 
   loading = false;
@@ -90,6 +94,9 @@ export class CompetitionListComponent implements OnInit {
   }
 
   openDeleteModal(competition: Competition): void {
+    if (!this.isAdminUser()) {
+      return;
+    }
     this.competitionToDelete = competition;
     this.showDeleteModal = true;
     this.errorMessage = '';

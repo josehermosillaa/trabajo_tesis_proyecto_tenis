@@ -147,4 +147,8 @@ isAdministrativeUser(): boolean {
     || role === 'Organizador'
   );
 }
+
+isAdminUser(): boolean {
+  return this.getCurrentUserRole() === 'Administrador';
+}
 }

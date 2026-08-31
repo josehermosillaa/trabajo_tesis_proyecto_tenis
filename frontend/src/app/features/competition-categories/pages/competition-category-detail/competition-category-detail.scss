@@ -529,3 +529,38 @@
   font-size:
     0.75rem;
 }
+
+.ladder-table-wrapper {
+  width: 100%;
+}
+
+.ladder-table,
+.ladder-matches-table {
+  min-width: 820px;
+}
+
+.ladder-table th:not(:nth-child(2)),
+.ladder-table td:not(:nth-child(2)) {
+  text-align: center;
+}
+
+.ladder-result {
+  min-height: 1.25rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ladder-player-match {
+  background: var(--bs-tertiary-bg);
+}
+
+.ladder-filters .form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .ladder-matches-table {
+    min-width: 960px;
+  }
+}

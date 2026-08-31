@@ -1,548 +1,97 @@
-import {
-  Component,
-  OnInit,
-  inject,
-} from '@angular/core';
-
-import {
-  CommonModule,
-} from '@angular/common';
-
-import {
-  Router,
-} from '@angular/router';
-
-import {
-  MatchService,
-  Court,
-} from '../../services/match';
-
-import {
-  Match,
-} from '../../models/match.model';
-
-import {
-  Competition,
-} from '../../../registrations/models/registration.model';
-
-import {
-  CompetitionCategory,
-} from '../../../competition-categories/models/competition-category.model';
-
-import {
-  Player,
-} from '../../../players/models/player.model';
-
-
-@Component({
-  selector: 'app-match-list',
-
-  imports: [
-    CommonModule,
-  ],
-
-  templateUrl:
-    './match-list.html',
-
-  styleUrl:
-    './match-list.scss',
-})
-export class MatchListComponent
-  implements OnInit {
-
-  private readonly matchService =
-    inject(MatchService);
-
-  private readonly router =
-    inject(Router);
-
-
-  matches:
-    Match[] = [];
-
-  competitions:
-    Competition[] = [];
-
-  competitionCategories:
-    CompetitionCategory[] = [];
-
-  players:
-    Player[] = [];
-
-  courts:
-    Court[] = [];
-
-
-  loading = false;
-
-  deletingId:
-    number | null = null;
-
-  errorMessage = '';
-
-  successMessage = '';
-
-  showDeleteModal = false;
-
-  matchToDelete:
-    Match | null = null;
-
-
-  ngOnInit(): void {
-
-    const navigationMessage =
-      history.state?.successMessage;
-
-    if (navigationMessage) {
-
-      this.showSuccessMessage(
-        navigationMessage
-      );
-
-      history.replaceState(
-        {},
-        document.title
-      );
-    }
-
-    this.loadData();
-  }
-
-
-  // =====================================================
-  // CARGA DE DATOS
-  // =====================================================
-
-  loadData(): void {
-
-    this.loading = true;
-
-    this.errorMessage = '';
-
-    this.matchService
-      .getCompetitions()
-      .subscribe({
-
-        next: (competitions) => {
-
-          this.competitions =
-            competitions;
-
-          this.loadCompetitionCategories();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error al cargar competencias:',
-            error
-          );
-
-          this.errorMessage =
-            'No fue posible cargar las competencias.';
-
-          this.loading = false;
-        },
-      });
-  }
-
-
-  private loadCompetitionCategories(): void {
-
-    this.matchService
-      .getCompetitionCategories()
-      .subscribe({
-
-        next: (competitionCategories) => {
-
-          this.competitionCategories =
-            competitionCategories;
-
-          this.loadPlayers();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error al cargar categorías de competencia:',
-            error
-          );
-
-          this.errorMessage =
-            'No fue posible cargar las categorías de competencia.';
-
-          this.loading = false;
-        },
-      });
-  }
-
-
-  private loadPlayers(): void {
-
-    this.matchService
-      .getPlayers()
-      .subscribe({
-
-        next: (players) => {
-
-          this.players =
-            players;
-
-          this.loadCourts();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error al cargar jugadores:',
-            error
-          );
-
-          this.errorMessage =
-            'No fue posible cargar los jugadores.';
-
-          this.loading = false;
-        },
-      });
-  }
-
-
-  private loadCourts(): void {
-
-    this.matchService
-      .getCourts()
-      .subscribe({
-
-        next: (courts) => {
-
-          this.courts =
-            courts;
-
-          this.loadMatches();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error al cargar canchas:',
-            error
-          );
-
-          this.errorMessage =
-            'No fue posible cargar las canchas.';
-
-          this.loading = false;
-        },
-      });
-  }
-
-
-  private loadMatches(): void {
-
-    this.matchService
-      .getMatches()
-      .subscribe({
-
-        next: (matches) => {
-
-          this.matches =
-            matches;
-
-          this.loading = false;
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error al cargar partidos:',
-            error
-          );
-
-          this.errorMessage =
-            'No fue posible cargar los partidos.';
-
-          this.loading = false;
-        },
-      });
-  }
-
-
-  // =====================================================
-  // HELPERS
-  // =====================================================
-
-  getPlayerName(
-    playerId: number | null
-  ): string {
-
-    if (playerId === null) {
-      return 'BYE';
-    }
-
-    const player =
-      this.players.find(
-        (item) =>
-          item.id === playerId
-      );
-
-    if (!player) {
-      return `Jugador ${playerId}`;
-    }
-
-    return (
-      `${player.first_name} ${player.last_name}`
-    );
-  }
-
-
-  getCompetitionCategory(
-    competitionCategoryId: number
-  ): CompetitionCategory | undefined {
-
-    return this.competitionCategories.find(
-      (item) =>
-        item.id ===
-        competitionCategoryId
-    );
-  }
-
-
-  getCompetitionName(
-    competitionCategoryId: number
-  ): string {
-
-    const competitionCategory =
-      this.getCompetitionCategory(
-        competitionCategoryId
-      );
-
-    if (!competitionCategory) {
-      return 'Competencia no encontrada';
-    }
-
-    const competition =
-      this.competitions.find(
-        (item) =>
-          item.id ===
-          competitionCategory.competition
-      );
-
-    return (
-      competition?.name ??
-      'Competencia no encontrada'
-    );
-  }
-
-
-  getCategoryName(
-    competitionCategoryId: number
-  ): string {
-
-    const competitionCategory =
-      this.getCompetitionCategory(
-        competitionCategoryId
-      );
-
-    if (!competitionCategory) {
-      return 'Categoría no encontrada';
-    }
-
-    return (
-      `Categoría ${competitionCategory.category}`
-    );
-  }
-
-
-  getCourtName(
-    courtId: number | null
-  ): string {
-
-    if (courtId === null) {
-      return 'Sin cancha';
-    }
-
-    const court =
-      this.courts.find(
-        (item) =>
-          item.id === courtId
-      );
-
-    return (
-      court?.name ??
-      `Cancha ${courtId}`
-    );
-  }
-
-
-  getStatusLabel(
-    status: Match['status']
-  ): string {
-
-    switch (status) {
-
-      case 'PROGRAMADO':
-        return 'Programado';
-
-      case 'EN_JUEGO':
-        return 'En juego';
-
-      case 'FINALIZADO':
-        return 'Finalizado';
-
-      case 'CANCELADO':
-        return 'Cancelado';
-
-      default:
-        return status;
-    }
-  }
-
-
-  // =====================================================
-  // NAVEGACIÓN
-  // =====================================================
-
-  goToCreate(): void {
-
-    this.router.navigate([
-      '/matches/new',
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, Router } from '@angular/router';
+import { of } from 'rxjs';
+
+import { TokenService } from '../../../../core/services/token';
+import { MatchService } from '../../services/match';
+import { MatchListComponent } from './match-list';
+
+describe('MatchListComponent stable order and search', () => {
+  let fixture: ComponentFixture<MatchListComponent>;
+  let component: MatchListComponent;
+
+  beforeEach(async () => {
+    const service = jasmine.createSpyObj<MatchService>('MatchService', [
+      'getCompetitions', 'getCompetitionCategories', 'getCategories', 'getPlayers',
+      'getCourts', 'getMatches', 'deleteMatch',
     ]);
-  }
-
-
-  goToEdit(
-    id: number
-  ): void {
-
-    this.router.navigate([
-      '/matches',
-      id,
-      'edit',
-    ]);
-  }
-
-
-  goToResult(
-    id: number
-  ): void {
-
-    this.router.navigate([
-      '/matches',
-      id,
-      'result',
-    ]);
-  }
-
-
-  // =====================================================
-  // ELIMINACIÓN
-  // =====================================================
-
-  openDeleteModal(
-    match: Match
-  ): void {
-
-    this.matchToDelete =
-      match;
-
-    this.showDeleteModal =
-      true;
-
-    this.errorMessage = '';
-  }
-
-
-  closeDeleteModal(): void {
-
-    if (
-      this.deletingId !== null
-    ) {
-      return;
-    }
-
-    this.showDeleteModal =
-      false;
-
-    this.matchToDelete =
-      null;
-  }
-
-
-  confirmDelete(): void {
-
-    if (!this.matchToDelete) {
-      return;
-    }
-
-    const match =
-      this.matchToDelete;
-
-    this.deletingId =
-      match.id;
-
-    this.errorMessage = '';
-
-    this.matchService
-      .deleteMatch(
-        match.id
-      )
-      .subscribe({
-
-        next: () => {
-
-          this.matches =
-            this.matches.filter(
-              (item) =>
-                item.id !==
-                match.id
-            );
-
-          this.deletingId =
-            null;
-
-          this.showDeleteModal =
-            false;
-
-          this.matchToDelete =
-            null;
-
-          this.showSuccessMessage(
-            'Partido eliminado correctamente.'
-          );
+    service.getCompetitions.and.returnValue(of([{
+      id: 1, name: 'Copa Supervisión', type: 'ELIMINACION_DIRECTA', start_date: '2026-09-01',
+      end_date: '2026-09-10', status: 'EN_CURSO', registration_deadline: '2026-08-30',
+    }]));
+    service.getCompetitionCategories.and.returnValue(of([{
+      id: 10, competition: 1, category: 5, max_players: 8, minimum_players: 2,
+      occupied_slots: 2, available_slots: 6, registered_players: [],
+    }]));
+    service.getCategories.and.returnValue(of([{ id: 5, name: 'HONOR' }]));
+    service.getPlayers.and.returnValue(of([
+      { id: 1, user: 11, username: 'ana', email: 'ana@example.com', category: 5,
+        rut: '11-1', first_name: 'Ana', last_name: 'Pérez', birth_date: null, phone: '' },
+      { id: 2, user: 12, username: 'luis', email: 'luis@example.com', category: 5,
+        rut: '22-2', first_name: 'Luis', last_name: 'Soto', birth_date: null, phone: '' },
+    ]));
+    service.getCourts.and.returnValue(of([{ id: 3, name: 'Cancha Central', status: 'AVAILABLE' }]));
+    service.getMatches.and.returnValue(of([
+      match(2, 1, 2, 'FINALIZADO', 3),
+      match(5, 1, null, 'PROGRAMADO', null),
+    ]));
+    service.deleteMatch.and.returnValue(of(undefined));
+    const token = jasmine.createSpyObj<TokenService>('TokenService', ['isAdministrativeUser']);
+    token.isAdministrativeUser.and.returnValue(true);
+    const router = jasmine.createSpyObj<Router>('Router', ['navigate']);
+    await TestBed.configureTestingModule({
+      imports: [MatchListComponent],
+      providers: [
+        { provide: MatchService, useValue: service },
+        { provide: TokenService, useValue: token },
+        { provide: Router, useValue: router },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: { get: () => null } } },
         },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(MatchListComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
 
-        error: (error) => {
+  it('uses id descending because Match has no creation timestamp', () => {
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([5, 2]);
+  });
 
-          console.error(
-            'Error al eliminar partido:',
-            error
-          );
+  it('searches by player, status and court', () => {
+    component.searchTerm = 'luis';
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([2]);
+    component.searchTerm = 'finalizado';
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([2]);
+    component.searchTerm = 'cancha central';
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([2]);
+  });
 
-          this.errorMessage =
-            'No fue posible eliminar el partido.';
+  it('handles a missing second player and empty/no-result searches', () => {
+    component.searchTerm = 'bye';
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([5]);
+    component.searchTerm = '';
+    expect(component.filteredMatches.length).toBe(2);
+    component.searchTerm = 'nadie';
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('No se encontraron partidos.');
+  });
 
-          this.deletingId =
-            null;
-        },
-      });
+  function match(
+    id: number,
+    player1: number,
+    player2: number | null,
+    status: 'PROGRAMADO' | 'FINALIZADO',
+    court: number | null
+  ) {
+    return {
+      id, competition_category: 10, court, player1, player2,
+      winner_player: status === 'FINALIZADO' ? player1 : null,
+      scheduled_date_time: null, status, round: null, bracket_position: null,
+      next_match: null, next_match_slot: null, is_walkover: false,
+      resolution_type: 'NORMAL' as const, sets: [],
+    };
   }
-
-
-  // =====================================================
-  // MENSAJES
-  // =====================================================
-
-  private showSuccessMessage(
-    message: string
-  ): void {
-
-    this.successMessage =
-      message;
-
-    setTimeout(() => {
-
-      this.successMessage = '';
-
-    }, 4000);
-  }
-}
+});

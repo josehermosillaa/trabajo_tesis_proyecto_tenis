@@ -2820,6 +2820,9 @@ class MatchSetSerializer(
             match_set.match
         )
 
+        from core.services.ladder_service import LadderService
+        LadderService.recalculate_for_match(match_set.match)
+
         return match_set
 
     # =====================================================
@@ -2852,6 +2855,9 @@ class MatchSetSerializer(
             match_set.match
         )
 
+        from core.services.ladder_service import LadderService
+        LadderService.recalculate_for_match(match_set.match)
+
         return match_set
 # =========================================================
 # STANDING
@@ -2859,25 +2865,29 @@ class MatchSetSerializer(
 
 class StandingSerializer(serializers.ModelSerializer):
 
+    sets_difference = serializers.SerializerMethodField()
+    games_difference = serializers.SerializerMethodField()
+
     class Meta:
         model = Standing
 
         fields = [
             "id",
             "competition_category",
-            "court",
-            "player1",
-            "player2",
-            "winner_player",
-            "scheduled_date_time",
-            "status",
-            "round",
-            "bracket_position",
-            "next_match",
-            "next_match_slot",
-            "is_walkover",
-            "resolution_type",
-            "sets",
+            "player",
+            "position",
+            "matches_played",
+            "matches_won",
+            "matches_lost",
+            "sets_won",
+            "sets_lost",
+            "sets_difference",
+            "games_won",
+            "games_lost",
+            "games_difference",
+            "points",
+            "walkovers_won",
+            "walkovers_lost",
         ]
 
         read_only_fields = [
@@ -2893,33 +2903,46 @@ class StandingSerializer(serializers.ModelSerializer):
             "games_lost",
             "points",
             "position",
+            "sets_difference",
+            "games_difference",
         ]
+
+    def get_sets_difference(self, obj):
+        return obj.sets_won - obj.sets_lost
+
+    def get_games_difference(self, obj):
+        return obj.games_won - obj.games_lost
 
     def validate(self, data):
 
         competition_category = data.get(
-            "competition_category"
+            "competition_category",
+            self.instance.competition_category if self.instance else None,
         )
 
         player = data.get(
-            "player"
+            "player",
+            self.instance.player if self.instance else None,
         )
 
         # ---------------------------------
-        # Categoría compatible
+        # La categoría efectiva proviene siempre de Registration.
         # ---------------------------------
 
         if (
             competition_category is not None
             and player is not None
-            and player.category_id
-            != competition_category.category_id
+            and not Registration.objects.filter(
+                competition_category=competition_category,
+                player=player,
+                status="CONFIRMADA",
+            ).exists()
         ):
             raise serializers.ValidationError(
                 {
                     "player": (
-                        "El jugador no pertenece "
-                        "a la categoría de la competencia."
+                        "El jugador debe tener una inscripción "
+                        "CONFIRMADA en esta categoría de competencia."
                     )
                 }
             )

@@ -1,3 +1,5 @@
+import { Match } from '../../matches/models/match.model';
+
 export interface RegisteredPlayer {
   id: number;
   first_name: string;
@@ -112,4 +114,58 @@ export interface DeleteBracketResponse {
   detail: string;
   deleted_matches: number;
   deleted_scheduled_matches: number;
+}
+
+// =====================================================
+// ESCALERILLA
+// =====================================================
+
+export interface Standing {
+  id: number;
+  competition_category: number;
+  player: number;
+  position: number | null;
+  matches_played: number;
+  matches_won: number;
+  matches_lost: number;
+  sets_won: number;
+  sets_lost: number;
+  sets_difference: number;
+  games_won: number;
+  games_lost: number;
+  games_difference: number;
+  points: number;
+  walkovers_won: number;
+  walkovers_lost: number;
+}
+
+export interface LadderParticipant {
+  registration: number;
+  player: number;
+  first_name: string;
+  last_name: string;
+}
+
+export interface LadderResponse {
+  competition_category: CompetitionCategory;
+  participants: LadderParticipant[];
+  standings: Standing[];
+  matches: Match[];
+  generated: boolean;
+  can_delete: boolean;
+  scheduled_matches_count: number;
+  delete_block_reason: string | null;
+}
+
+export interface GenerateLadderResponse {
+  detail: string;
+  competition_category: number;
+  matches: Match[];
+}
+
+export interface DeleteLadderResponse {
+  detail: string;
+  deleted_matches: number;
+  deleted_scheduled_matches: number;
+  deleted_standings: number;
 }

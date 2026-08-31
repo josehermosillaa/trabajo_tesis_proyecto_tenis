@@ -26,7 +26,10 @@ import {
 import {
   BracketMatch,
   BracketResponse,
+  LadderResponse,
+  Standing,
 } from '../../models/competition-category.model';
+import { Match } from '../../../matches/models/match.model';
 
 import {
   Player,
@@ -48,6 +51,7 @@ import {
 } from '../../../competitions/models/competition.model';
 import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
 import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
+import { RegistrationService } from '../../../registrations/services/registration';
 
 
 interface BracketRound {
@@ -55,6 +59,8 @@ interface BracketRound {
   name: string;
   matches: BracketMatch[];
 }
+
+type CategoryMatch = BracketMatch | Match;
 
 
 @Component({
@@ -114,6 +120,9 @@ export class CompetitionCategoryDetailComponent
   private readonly tokenService =
     inject(TokenService);
 
+  private readonly registrationService =
+    inject(RegistrationService);
+
   isAdministrativeUser(): boolean {
     return this.tokenService.isAdministrativeUser();
   }
@@ -125,9 +134,22 @@ export class CompetitionCategoryDetailComponent
   competitionCategoryId:
     number | null = null;
 
+  ladderMatchManagementMode = false;
+
+  currentPlayerId:
+    number | null = null;
+
+  matchSearch = '';
+
+  ladderMatchFilter:
+    'ALL' | 'UNSCHEDULED' | 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' = 'ALL';
+
 
   bracket:
     BracketResponse | null = null;
+
+  ladder:
+    LadderResponse | null = null;
 
   rounds:
     BracketRound[] = [];
@@ -142,7 +164,7 @@ export class CompetitionCategoryDetailComponent
     Competition | null = null;
 
   schedulingMatch:
-    BracketMatch | null = null;
+    CategoryMatch | null = null;
 
   savingSchedule = false;
 
@@ -177,12 +199,21 @@ export class CompetitionCategoryDetailComponent
 
   deleteBracketErrorMessage = '';
 
+  deletingLadder = false;
+
+  showDeleteLadderModal = false;
+
+  deleteLadderErrorMessage = '';
+
   errorMessage = '';
 
   successMessage = '';
 
 
   ngOnInit(): void {
+
+    this.ladderMatchManagementMode =
+      this.route.snapshot.data?.['ladderMatchManagement'] === true;
 
     const competitionIdParam =
       this.route.snapshot
@@ -219,18 +250,75 @@ export class CompetitionCategoryDetailComponent
       );
 
 
-    if (this.isAdministrativeUser()) {
-      this.loadCourts();
-      this.loadPlayers();
-    } else {
-      this.loadBracket();
-    }
+    this.loadCompetition();
   }
 
 
   // =====================================================
   // CARGA
   // =====================================================
+
+  private loadCompetition(): void {
+    if (this.competitionId === null) {
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.competitionService.getCompetition(this.competitionId).subscribe({
+      next: (competition) => {
+        this.competition = competition;
+
+        this.loadCourts();
+
+        if (competition.type === 'ESCALERILLA') {
+          if (this.isAdministrativeUser()) {
+            this.loadLadder();
+          } else {
+            this.loadCurrentPlayerIdentity();
+          }
+        } else if (this.isAdministrativeUser()) {
+          this.loadPlayers();
+        } else {
+          this.refreshCurrentView();
+        }
+      },
+      error: (error) => {
+        console.error('Error al cargar competencia:', error);
+        this.competition = null;
+
+        if (this.isAdministrativeUser()) {
+          this.loadCourts();
+          this.loadPlayers();
+        } else {
+          this.loadBracket();
+        }
+      },
+    });
+  }
+
+  private loadCurrentPlayerIdentity(): void {
+    if (this.competitionCategoryId === null) {
+      return;
+    }
+
+    this.registrationService.getRegistrations().subscribe({
+      next: (registrations) => {
+        this.currentPlayerId = registrations.find(
+          (registration) =>
+            Number(registration.competition_category) ===
+              Number(this.competitionCategoryId)
+            && registration.status === 'CONFIRMADA'
+        )?.player ?? null;
+        this.loadLadder();
+      },
+      error: () => {
+        this.currentPlayerId = null;
+        this.loadLadder();
+      },
+    });
+  }
 
   private loadPlayers(): void {
 
@@ -378,6 +466,36 @@ export class CompetitionCategoryDetailComponent
           );
 
           this.competition = null;
+        },
+      });
+  }
+
+  loadLadder(): void {
+    if (this.competitionCategoryId === null) {
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.competitionCategoryService
+      .getLadder(this.competitionCategoryId)
+      .subscribe({
+        next: (response) => {
+          this.ladder = {
+            ...response,
+            standings: [...response.standings].sort(
+              (left, right) =>
+                (left.position ?? Number.MAX_SAFE_INTEGER) -
+                (right.position ?? Number.MAX_SAFE_INTEGER)
+            ),
+          };
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error al cargar escalerilla:', error);
+          this.errorMessage = this.getBackendErrorMessage(error);
+          this.loading = false;
         },
       });
   }
@@ -696,9 +814,19 @@ export class CompetitionCategoryDetailComponent
   // JUGADORES
   // =====================================================
 
+  getLadderPlayerName(playerId: number): string {
+    const participant = this.ladder?.participants.find(
+      (item) => Number(item.player) === Number(playerId)
+    );
+
+    return participant
+      ? `${participant.first_name} ${participant.last_name}`
+      : `Jugador ${playerId}`;
+  }
+
   getPlayerName(
     playerId: number | null,
-    match: BracketMatch
+    match: CategoryMatch
   ): string {
 
     if (
@@ -717,7 +845,10 @@ export class CompetitionCategoryDetailComponent
 
 
     const player =
-      this.bracket?.participants.find(
+      this.ladder?.participants.find(
+        (item) => Number(item.player) === Number(playerId)
+      )
+      ?? this.bracket?.participants.find(
         (item) => Number(item.id) === Number(playerId)
       )
       ?? this.players.find(
@@ -747,11 +878,11 @@ export class CompetitionCategoryDetailComponent
   // =====================================================
 
   getPlayer1Score(
-    match: BracketMatch
+    match: CategoryMatch
   ): string {
 
     if (
-      match.sets.length === 0
+      !match.sets || match.sets.length === 0
     ) {
       return '';
     }
@@ -767,11 +898,11 @@ export class CompetitionCategoryDetailComponent
 
 
   getPlayer2Score(
-    match: BracketMatch
+    match: CategoryMatch
   ): string {
 
     if (
-      match.sets.length === 0
+      !match.sets || match.sets.length === 0
     ) {
       return '';
     }
@@ -787,7 +918,7 @@ export class CompetitionCategoryDetailComponent
 
 
   isWinner(
-    match: BracketMatch,
+    match: CategoryMatch,
     playerId: number | null
   ): boolean {
 
@@ -818,7 +949,7 @@ export class CompetitionCategoryDetailComponent
 
   getStatusLabel(
     status:
-      BracketMatch['status']
+      CategoryMatch['status']
   ): string {
 
     switch (
@@ -848,7 +979,7 @@ export class CompetitionCategoryDetailComponent
   // =====================================================
 
   canPlayMatch(
-    match: BracketMatch
+    match: CategoryMatch
   ): boolean {
 
     /*
@@ -948,13 +1079,233 @@ export class CompetitionCategoryDetailComponent
       });
   }
 
+  generateLadder(): void {
+    if (
+      this.competitionCategoryId === null
+      || !this.isAdministrativeUser()
+      || this.ladder?.generated
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Se generará un partido todos contra todos entre los jugadores confirmados. ¿Deseas continuar?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.generating = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.competitionCategoryService
+      .generateLadder(this.competitionCategoryId)
+      .subscribe({
+        next: (response) => {
+          this.generating = false;
+          this.showSuccessMessage(response.detail);
+          this.loadLadder();
+        },
+        error: (error) => {
+          this.errorMessage = this.getBackendErrorMessage(error);
+          this.generating = false;
+        },
+      });
+  }
+
+  openDeleteLadderModal(): void {
+    if (
+      !this.isAdministrativeUser()
+      || this.ladderMatchManagementMode
+      || !this.ladder?.generated
+      || !this.ladder.can_delete
+    ) {
+      return;
+    }
+
+    this.deleteLadderErrorMessage = '';
+    this.showDeleteLadderModal = true;
+  }
+
+  closeDeleteLadderModal(): void {
+    if (this.deletingLadder) {
+      return;
+    }
+
+    this.showDeleteLadderModal = false;
+    this.deleteLadderErrorMessage = '';
+  }
+
+  deleteLadder(): void {
+    if (
+      this.deletingLadder
+      || !this.showDeleteLadderModal
+      || this.competitionCategoryId === null
+    ) {
+      return;
+    }
+
+    this.deletingLadder = true;
+    this.deleteLadderErrorMessage = '';
+
+    this.competitionCategoryService
+      .deleteLadder(this.competitionCategoryId)
+      .subscribe({
+        next: (response) => {
+          this.deletingLadder = false;
+          this.showDeleteLadderModal = false;
+          this.deleteLadderErrorMessage = '';
+          this.showSuccessMessage(response.detail);
+          this.loadLadder();
+        },
+        error: (error) => {
+          this.deleteLadderErrorMessage =
+            this.getBackendErrorMessage(error);
+          this.deletingLadder = false;
+        },
+      });
+  }
+
+  get ladderStandings(): Standing[] {
+    return this.ladder?.standings ?? [];
+  }
+
+  get ladderFinishedCount(): number {
+    return this.ladder?.matches.filter(
+      (match) => match.status === 'FINALIZADO'
+    ).length ?? 0;
+  }
+
+  get ladderScheduledCount(): number {
+    return this.ladder?.matches.filter(
+      (match) =>
+        match.status !== 'FINALIZADO'
+        && match.scheduled_date_time !== null
+        && match.court !== null
+    ).length ?? 0;
+  }
+
+  get ladderUnscheduledCount(): number {
+    return this.ladder?.matches.filter(
+      (match) =>
+        match.status === 'PROGRAMADO'
+        && match.scheduled_date_time === null
+        && match.court === null
+    ).length ?? 0;
+  }
+
+  get filteredLadderMatches(): Match[] {
+    const search = this.matchSearch.trim().toLocaleLowerCase();
+    return (this.ladder?.matches ?? []).filter((match) => {
+      const names = `${this.getLadderPlayerName(match.player1)} ${
+        match.player2 === null ? '' : this.getLadderPlayerName(match.player2)
+      }`.toLocaleLowerCase();
+      const matchesSearch = !search || names.includes(search);
+      const matchesFilter = this.ladderMatchFilter === 'ALL'
+        || (this.ladderMatchFilter === 'UNSCHEDULED'
+          && match.status === 'PROGRAMADO'
+          && match.scheduled_date_time === null
+          && match.court === null)
+        || (this.ladderMatchFilter === 'SCHEDULED'
+          && match.status !== 'FINALIZADO'
+          && match.scheduled_date_time !== null
+          && match.court !== null)
+        || (this.ladderMatchFilter === 'IN_PROGRESS'
+          && match.status === 'EN_JUEGO')
+        || (this.ladderMatchFilter === 'FINISHED'
+          && match.status === 'FINALIZADO');
+      return matchesSearch && matchesFilter;
+    });
+  }
+
+  get playerUpcomingMatches(): Match[] {
+    return this.getOwnMatches()
+      .filter((match) =>
+        match.status !== 'FINALIZADO'
+        && match.scheduled_date_time !== null
+        && match.court !== null
+      )
+      .sort((left, right) =>
+        left.scheduled_date_time!.localeCompare(right.scheduled_date_time!)
+      );
+  }
+
+  get playerFinishedMatches(): Match[] {
+    return this.getOwnMatches()
+      .filter((match) => match.status === 'FINALIZADO')
+      .sort((left, right) =>
+        (right.scheduled_date_time ?? '').localeCompare(left.scheduled_date_time ?? '')
+      );
+  }
+
+  private getOwnMatches(): Match[] {
+    if (this.currentPlayerId === null) {
+      return [];
+    }
+    return (this.ladder?.matches ?? []).filter(
+      (match) =>
+        Number(match.player1) === Number(this.currentPlayerId)
+        || Number(match.player2) === Number(this.currentPlayerId)
+    );
+  }
+
+  getReadableScore(match: Match): string {
+    if (
+      match.resolution_type === 'WALKOVER'
+      || match.is_walkover
+    ) {
+      return 'WO';
+    }
+
+    const score = [...(match.sets ?? [])]
+      .sort((left, right) => left.set_number - right.set_number)
+      .map((set) => {
+        const value = `${set.games_player1}–${set.games_player2}`;
+        return set.is_super_tie_break ? `[${value}]` : value;
+      })
+      .join(' | ');
+
+    return match.resolution_type === 'RETIREMENT'
+      ? `${score}${score ? ' ' : ''}RET`
+      : score;
+  }
+
+  getOpponentName(match: Match): string {
+    const opponentId = Number(match.player1) === Number(this.currentPlayerId)
+      ? match.player2
+      : match.player1;
+    return opponentId === null ? 'Por definir' : this.getLadderPlayerName(opponentId);
+  }
+
+  getPlayerOutcome(match: Match): string {
+    if (match.status !== 'FINALIZADO' || match.winner_player === null) {
+      return '';
+    }
+    return Number(match.winner_player) === Number(this.currentPlayerId)
+      ? 'Ganaste'
+      : 'Perdiste';
+  }
+
+  goToLadderMatches(): void {
+    if (this.competitionId === null || this.competitionCategoryId === null) {
+      return;
+    }
+    this.router.navigate([
+      '/competitions', this.competitionId,
+      'categories', this.competitionCategoryId,
+      'matches',
+    ]);
+  }
+
 
   // =====================================================
   // PROGRAMACIÓN
   // =====================================================
 
   canScheduleMatch(
-    match: BracketMatch
+    match: CategoryMatch
   ): boolean {
 
     return (
@@ -970,7 +1321,7 @@ export class CompetitionCategoryDetailComponent
 
 
   hasSchedule(
-    match: BracketMatch
+    match: CategoryMatch
   ): boolean {
 
     return (
@@ -1001,7 +1352,7 @@ export class CompetitionCategoryDetailComponent
 
 
   openScheduleModal(
-    match: BracketMatch
+    match: CategoryMatch
   ): void {
 
     if (!this.canScheduleMatch(match)) {
@@ -1155,7 +1506,7 @@ export class CompetitionCategoryDetailComponent
             'Programación guardada correctamente.'
           );
 
-          this.loadBracket();
+          this.refreshCurrentView();
         },
 
         error: (error) => {
@@ -1218,7 +1569,7 @@ export class CompetitionCategoryDetailComponent
   // =====================================================
 
   goToResult(
-    match: BracketMatch
+    match: CategoryMatch
   ): void {
 
     this.router.navigate(
@@ -1241,7 +1592,7 @@ export class CompetitionCategoryDetailComponent
 
 
   goToEdit(
-    match: BracketMatch
+    match: CategoryMatch
   ): void {
 
     this.router.navigate([
@@ -1251,8 +1602,31 @@ export class CompetitionCategoryDetailComponent
     ]);
   }
 
+  refreshCurrentView(): void {
+    if (this.competition?.type === 'ESCALERILLA') {
+      this.loadLadder();
+    } else {
+      this.loadBracket();
+    }
+  }
+
 
   goBack(): void {
+
+    if (
+      this.ladderMatchManagementMode
+      && this.competitionId !== null
+      && this.competitionCategoryId !== null
+    ) {
+      this.router.navigate([
+        '/competitions',
+        this.competitionId,
+        'categories',
+        this.competitionCategoryId,
+      ]);
+
+      return;
+    }
 
     if (!this.isAdministrativeUser()) {
       this.router.navigate([

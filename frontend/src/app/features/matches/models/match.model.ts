@@ -16,6 +16,7 @@ export interface MatchSetSummary {
   games_player1: number;
   games_player2: number;
   is_super_tie_break: boolean;
+  is_incomplete?: boolean;
 }
 
 

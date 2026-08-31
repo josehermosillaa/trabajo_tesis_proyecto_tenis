@@ -11,6 +11,9 @@ import {
 import {
   authGuard
 } from './core/guards/auth-guard';
+import { adminGuard } from './core/guards/admin-guard';
+import { OrganizerListComponent } from './features/organizers/pages/organizer-list/organizer-list';
+import { OrganizerFormComponent } from './features/organizers/pages/organizer-form/organizer-form';
 
 import {
   CompetitionListComponent
@@ -135,6 +138,39 @@ export const routes: Routes = [
    */
   {
     path:
+      'competitions/:competitionId/categories/:competitionCategoryId/matches',
+    component:
+      CompetitionCategoryDetailComponent,
+    data: {
+      ladderMatchManagement: true,
+    },
+    canActivate: [
+      authGuard,
+    ],
+  },
+
+  // =====================================================
+  // ORGANIZERS (SOLO ADMINISTRADOR)
+  // =====================================================
+
+  {
+    path: 'organizers',
+    component: OrganizerListComponent,
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'organizers/new',
+    component: OrganizerFormComponent,
+    canActivate: [adminGuard],
+  },
+  {
+    path: 'organizers/:id/edit',
+    component: OrganizerFormComponent,
+    canActivate: [adminGuard],
+  },
+
+  {
+    path:
       'competitions/:competitionId/categories/:competitionCategoryId',
 
     component:
@@ -183,7 +219,7 @@ export const routes: Routes = [
     path: 'registrations',
     component: RegistrationListComponent,
     canActivate: [
-      authGuard,
+      adminGuard,
     ],
   },
 
@@ -212,7 +248,7 @@ export const routes: Routes = [
     path: 'matches',
     component: MatchListComponent,
     canActivate: [
-      authGuard,
+      adminGuard,
     ],
   },
 

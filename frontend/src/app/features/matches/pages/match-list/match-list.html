@@ -57,6 +57,22 @@
 
   }
 
+  @if (!loading && matches.length > 0) {
+    <div class="row mb-3">
+      <div class="col-12 col-md-6 col-lg-4">
+        <label for="match-search" class="visually-hidden">Buscar partido</label>
+        <input
+          id="match-search"
+          type="search"
+          class="form-control"
+          placeholder="Buscar partido..."
+          [value]="searchTerm"
+          (input)="searchTerm = $any($event.target).value"
+        >
+      </div>
+    </div>
+  }
+
 
   <!-- Cargando -->
   @if (loading) {
@@ -82,6 +98,10 @@
 
   }
 
+  @if (!loading && matches.length > 0 && filteredMatches.length === 0) {
+    <div class="alert alert-info">No se encontraron partidos.</div>
+  }
+
 
   <!-- Sin partidos -->
   @if (
@@ -100,7 +120,7 @@
   <!-- Listado -->
   @if (
     !loading &&
-    matches.length > 0
+    filteredMatches.length > 0
   ) {
 
     <div
@@ -167,7 +187,7 @@
             <tbody>
 
               @for (
-                match of matches;
+                match of filteredMatches;
                 track match.id
               ) {
 

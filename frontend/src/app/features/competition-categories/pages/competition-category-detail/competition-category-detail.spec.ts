@@ -6,7 +6,12 @@ import { TokenService } from '../../../../core/services/token';
 import { CompetitionService } from '../../../competitions/services/competition';
 import { MatchService } from '../../../matches/services/match';
 import { PlayerService } from '../../../players/services/player';
-import { BracketMatch, BracketResponse } from '../../models/competition-category.model';
+import { RegistrationService } from '../../../registrations/services/registration';
+import {
+  BracketMatch,
+  BracketResponse,
+  LadderResponse,
+} from '../../models/competition-category.model';
 import { CompetitionCategoryService } from '../../services/competition-category';
 import { CompetitionCategoryDetailComponent } from './competition-category-detail';
 
@@ -19,6 +24,8 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
   let competitionService: jasmine.SpyObj<CompetitionService>;
   let router: jasmine.SpyObj<Router>;
   let tokenService: jasmine.SpyObj<TokenService>;
+  let registrationService: jasmine.SpyObj<RegistrationService>;
+  let routeData: Record<string, unknown>;
 
   const players = [
     {
@@ -38,7 +45,14 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     );
     competitionCategoryService = jasmine.createSpyObj<CompetitionCategoryService>(
       'CompetitionCategoryService',
-      ['getBracket', 'generateBracket', 'deleteBracket']
+      [
+        'getBracket',
+        'generateBracket',
+        'deleteBracket',
+        'getLadder',
+        'generateLadder',
+        'deleteLadder',
+      ]
     );
     playerService = jasmine.createSpyObj<PlayerService>('PlayerService', ['getPlayers']);
     competitionService = jasmine.createSpyObj<CompetitionService>(
@@ -50,6 +64,11 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       ['isAdministrativeUser']
     );
     router = jasmine.createSpyObj<Router>('Router', ['navigate']);
+    registrationService = jasmine.createSpyObj<RegistrationService>(
+      'RegistrationService',
+      ['getRegistrations']
+    );
+    routeData = {};
 
     playerService.getPlayers.and.returnValue(of(players));
     matchService.getCourts.and.returnValue(of([
@@ -57,6 +76,14 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       { id: 2, name: 'Cancha 2', status: 'AVAILABLE' },
     ]));
     tokenService.isAdministrativeUser.and.returnValue(true);
+    registrationService.getRegistrations.and.returnValue(of([{
+      id: 1,
+      competition_category: 12,
+      player: 1,
+      registration_date: '2026-08-20',
+      status: 'CONFIRMADA',
+      seed: null,
+    }]));
     competitionService.getCompetition.and.returnValue(of({
       id: 8,
       name: 'Torneo',
@@ -69,6 +96,18 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     competitionCategoryService.getBracket.and.returnValue(of(bracket([
       match(1),
     ])));
+    competitionCategoryService.getLadder.and.returnValue(of(ladder()));
+    competitionCategoryService.generateLadder.and.returnValue(of({
+      detail: 'Escalerilla generada correctamente.',
+      competition_category: 12,
+      matches: [],
+    }));
+    competitionCategoryService.deleteLadder.and.returnValue(of({
+      detail: 'Escalerilla eliminada correctamente.',
+      deleted_matches: 1,
+      deleted_scheduled_matches: 0,
+      deleted_standings: 2,
+    }));
     competitionCategoryService.deleteBracket.and.returnValue(of({
       detail: 'Cuadro eliminado correctamente.',
       deleted_matches: 1,
@@ -83,10 +122,12 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
         { provide: PlayerService, useValue: playerService },
         { provide: CompetitionService, useValue: competitionService },
         { provide: TokenService, useValue: tokenService },
+        { provide: RegistrationService, useValue: registrationService },
         {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
+              get data() { return routeData; },
               paramMap: {
                 get: (key: string) => key === 'competitionId' ? '8' : '12',
               },
@@ -509,6 +550,258 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     expect(component.isScheduleOutsideCompetitionPeriod()).toBeTrue();
   });
 
+  it('loads ladder and never requests bracket for ESCALERILLA', () => {
+    createLadderView();
+
+    expect(competitionCategoryService.getLadder).toHaveBeenCalledWith(12);
+    expect(competitionCategoryService.getBracket).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Tabla de posiciones');
+    expect(fixture.nativeElement.textContent).toContain('Jugador Uno');
+    expect(fixture.nativeElement.textContent).toContain('4');
+  });
+
+  it('keeps requesting bracket and not ladder for direct elimination', () => {
+    createWithMatches([match(1)]);
+
+    expect(competitionCategoryService.getBracket).toHaveBeenCalled();
+    expect(competitionCategoryService.getLadder).not.toHaveBeenCalled();
+  });
+
+  it('keeps the ladder detail as a summary with a management action', () => {
+    createLadderView(ladder(true, '2026-09-05T19:30:00-04:00'));
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Partidos');
+    expect(text).toContain('1 generados');
+    expect(buttonTexts()).toContain('Gestionar partidos');
+    expect(text).not.toContain('05/09/2026');
+  });
+
+  it('shows generation only to administrators when ladder is not generated', () => {
+    createLadderView(ladder(false));
+    expect(buttonTexts()).toContain('Generar escalerilla');
+
+    fixture.destroy();
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    createLadderView(ladder(false));
+    expect(buttonTexts()).not.toContain('Generar escalerilla');
+  });
+
+  it('shows enabled deletion to admin or organizer and never to players', () => {
+    createLadderView(ladder());
+    expect(deleteLadderButton().disabled).toBeFalse();
+
+    fixture.destroy();
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    createLadderView(ladder());
+    expect(buttonTexts()).not.toContain('Eliminar escalerilla');
+  });
+
+  it('disables ladder deletion and exposes the backend block reason', () => {
+    const response = ladder();
+    response.can_delete = false;
+    response.delete_block_reason = 'Existen partidos disputados o resultados registrados.';
+    createLadderView(response);
+
+    expect(deleteLadderButton().disabled).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain(response.delete_block_reason);
+    component.openDeleteLadderModal();
+    expect(component.showDeleteLadderModal).toBeFalse();
+  });
+
+  it('opens and closes the own ladder deletion modal with scheduled count', () => {
+    const response = ladder();
+    response.scheduled_matches_count = 3;
+    createLadderView(response);
+
+    component.openDeleteLadderModal();
+    fixture.detectChanges();
+    expect(component.showDeleteLadderModal).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain(
+      'También se eliminará la programación de 3 partidos.'
+    );
+
+    component.closeDeleteLadderModal();
+    expect(component.showDeleteLadderModal).toBeFalse();
+  });
+
+  it('deletes ladder once and reloads ladder after success', () => {
+    createLadderView(ladder());
+    component.openDeleteLadderModal();
+    const callsBeforeDelete = competitionCategoryService.getLadder.calls.count();
+
+    component.deleteLadder();
+    component.deleteLadder();
+
+    expect(competitionCategoryService.deleteLadder).toHaveBeenCalledTimes(1);
+    expect(competitionCategoryService.deleteLadder).toHaveBeenCalledWith(12);
+    expect(competitionCategoryService.getLadder.calls.count()).toBe(
+      callsBeforeDelete + 1
+    );
+    expect(component.showDeleteLadderModal).toBeFalse();
+  });
+
+  it('shows generation again after deleted ladder response is reloaded', () => {
+    const generated = ladder();
+    const notGenerated = ladder(false);
+    createLadderView(generated);
+    competitionCategoryService.getLadder.and.returnValue(of(notGenerated));
+    component.openDeleteLadderModal();
+
+    component.deleteLadder();
+    fixture.detectChanges();
+
+    expect(component.ladder?.generated).toBeFalse();
+    expect(buttonTexts()).toContain('Generar escalerilla');
+  });
+
+  it('generates ladder and reloads it after success', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    createLadderView(ladder(false));
+    const callsBefore = competitionCategoryService.getLadder.calls.count();
+
+    component.generateLadder();
+
+    expect(competitionCategoryService.generateLadder).toHaveBeenCalledWith(12);
+    expect(competitionCategoryService.getLadder.calls.count()).toBe(callsBefore + 1);
+  });
+
+  it('shows the backend generation error', () => {
+    spyOn(window, 'confirm').and.returnValue(true);
+    competitionCategoryService.generateLadder.and.returnValue(throwError(() => ({
+      error: { detail: 'Se requieren al menos 2 participantes confirmados.' },
+    })));
+    createLadderView(ladder(false));
+
+    component.generateLadder();
+    fixture.detectChanges();
+
+    expect(component.errorMessage).toContain('Se requieren al menos 2');
+    expect(fixture.nativeElement.textContent).toContain('Se requieren al menos 2');
+  });
+
+  it('reuses scheduling and result actions in ladder match management', () => {
+    createLadderManagement();
+
+    expect(buttonTexts()).toContain('Programar partido');
+    expect(buttonTexts()).toContain('Ingresar resultado');
+  });
+
+  it('searches ladder matches by player1 and player2 case-insensitively', () => {
+    createLadderManagement();
+
+    component.matchSearch = 'jugador uno';
+    expect(component.filteredLadderMatches.map((item) => item.id)).toEqual([1]);
+
+    component.matchSearch = 'DOS';
+    expect(component.filteredLadderMatches.map((item) => item.id)).toEqual([1]);
+  });
+
+  it('combines the unscheduled, scheduled and finished filters with ladder data', () => {
+    const response = ladder();
+    const base = response.matches[0];
+    response.matches = [
+      base,
+      { ...base, id: 2, scheduled_date_time: '2026-09-05T19:30:00-04:00', court: 1 },
+      { ...base, id: 3, status: 'FINALIZADO', winner_player: 1 },
+    ];
+    createLadderManagement(response);
+
+    component.ladderMatchFilter = 'UNSCHEDULED';
+    expect(component.filteredLadderMatches.map((item) => item.id)).toEqual([1]);
+    component.ladderMatchFilter = 'SCHEDULED';
+    expect(component.filteredLadderMatches.map((item) => item.id)).toEqual([2]);
+    component.ladderMatchFilter = 'FINISHED';
+    expect(component.filteredLadderMatches.map((item) => item.id)).toEqual([3]);
+  });
+
+  it('formats normal sets, Super Tie-Break, walkover and retirement clearly', () => {
+    const base = ladder().matches[0];
+    expect(componentScore({
+      ...base,
+      sets: [
+        { id: 1, set_number: 1, games_player1: 6, games_player2: 3, is_super_tie_break: false },
+        { id: 2, set_number: 2, games_player1: 6, games_player2: 4, is_super_tie_break: false },
+      ],
+    })).toBe('6–3 | 6–4');
+    expect(componentScore({
+      ...base,
+      sets: [
+        { id: 1, set_number: 1, games_player1: 4, games_player2: 6, is_super_tie_break: false },
+        { id: 2, set_number: 2, games_player1: 6, games_player2: 3, is_super_tie_break: false },
+        { id: 3, set_number: 3, games_player1: 10, games_player2: 12, is_super_tie_break: true },
+      ],
+    })).toBe('4–6 | 6–3 | [10–12]');
+    expect(componentScore({ ...base, resolution_type: 'WALKOVER', is_walkover: true })).toBe('WO');
+    expect(componentScore({
+      ...base,
+      resolution_type: 'RETIREMENT',
+      sets: [{
+        id: 1, set_number: 1, games_player1: 2, games_player2: 1,
+        is_super_tie_break: false, is_incomplete: true,
+      }],
+    })).toBe('2–1 RET');
+  });
+
+  it('shows a player only own scheduled and finished matches, never unscheduled or third-party matches', () => {
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    const response = ladder();
+    const base = response.matches[0];
+    response.matches = [
+      { ...base, id: 1 },
+      { ...base, id: 2, scheduled_date_time: '2026-09-05T19:30:00-04:00', court: 1 },
+      { ...base, id: 3, status: 'FINALIZADO', winner_player: 1 },
+      { ...base, id: 4, player1: 2, player2: 3, scheduled_date_time: '2026-09-06T18:00:00-04:00', court: 1 },
+    ];
+    createLadderView(response);
+
+    expect(component.ladderStandings.length).toBe(response.standings.length);
+    expect(component.playerUpcomingMatches.map((item) => item.id)).toEqual([2]);
+    expect(component.playerFinishedMatches.map((item) => item.id)).toEqual([3]);
+    expect(fixture.nativeElement.textContent).toContain('Mis partidos');
+    expect(fixture.nativeElement.textContent).toContain('05/09/2026 19:30');
+    expect(buttonTexts()).not.toContain('Gestionar partidos');
+    expect(hasSchedulingButton()).toBeFalse();
+    expect(buttonTexts()).not.toContain('Ingresar resultado');
+  });
+
+  it('keeps ladder actions read-only for players', () => {
+    tokenService.isAdministrativeUser.and.returnValue(false);
+    createLadderView();
+
+    expect(buttonTexts()).not.toContain('Programar partido');
+    expect(buttonTexts()).not.toContain('Ingresar resultado');
+    expect(buttonTexts()).not.toContain('Generar escalerilla');
+  });
+
+  function createLadderView(response: LadderResponse = ladder()): void {
+    competitionService.getCompetition.and.returnValue(of({
+      id: 8,
+      name: 'Torneo Escalerilla',
+      type: 'ESCALERILLA',
+      start_date: '2026-09-01',
+      end_date: '2026-09-15',
+      status: 'EN_CURSO',
+      registration_deadline: '2026-08-28',
+    }));
+    competitionCategoryService.getLadder.and.returnValue(of(response));
+    fixture = TestBed.createComponent(CompetitionCategoryDetailComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }
+
+  function createLadderManagement(response: LadderResponse = ladder()): void {
+    routeData = { ladderMatchManagement: true };
+    createLadderView(response);
+  }
+
+  function componentScore(matchValue: LadderResponse['matches'][number]): string {
+    if (!component) {
+      createLadderView();
+    }
+    return component.getReadableScore(matchValue);
+  }
+
   function createWithMatches(matches: BracketMatch[]): void {
     createWithBracket(bracket(matches));
   }
@@ -532,6 +825,16 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       (button: unknown) =>
         (button as HTMLButtonElement).textContent?.trim() ===
         'Eliminar cuadro'
+    ) as HTMLButtonElement;
+  }
+
+  function deleteLadderButton(): HTMLButtonElement {
+    return Array.from(
+      fixture.nativeElement.querySelectorAll('button')
+    ).find(
+      (button: unknown) =>
+        (button as HTMLButtonElement).textContent?.trim() ===
+        'Eliminar escalerilla'
     ) as HTMLButtonElement;
   }
 
@@ -564,6 +867,63 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       scheduled_matches_count: scheduledMatchesCount,
       delete_block_reason: deleteBlockReason,
       matches,
+    };
+  }
+
+  function ladder(
+    generated = true,
+    scheduledDateTime: string | null = null
+  ): LadderResponse {
+    const ladderMatch = {
+      ...match(1, 'PROGRAMADO', scheduledDateTime, scheduledDateTime ? 1 : null),
+      round: null,
+      bracket_position: null,
+      player1: 1,
+      resolution_type: 'NORMAL' as const,
+    };
+
+    return {
+      competition_category: {
+        id: 12,
+        competition: 8,
+        category: 1,
+        max_players: 8,
+        minimum_players: 2,
+        occupied_slots: 2,
+        available_slots: 6,
+        registered_players: [],
+      },
+      participants: players.map((player, index) => ({
+        registration: index + 1,
+        player: player.id,
+        first_name: player.first_name,
+        last_name: player.last_name,
+      })),
+      standings: generated ? [
+        {
+          id: 1,
+          competition_category: 12,
+          player: 1,
+          position: 1,
+          matches_played: 1,
+          matches_won: 1,
+          matches_lost: 0,
+          sets_won: 2,
+          sets_lost: 0,
+          sets_difference: 2,
+          games_won: 12,
+          games_lost: 4,
+          games_difference: 8,
+          points: 4,
+          walkovers_won: 0,
+          walkovers_lost: 0,
+        },
+      ] : [],
+      matches: generated ? [ladderMatch] : [],
+      generated,
+      can_delete: generated,
+      scheduled_matches_count: scheduledDateTime ? 1 : 0,
+      delete_block_reason: generated ? null : 'La escalerilla no ha sido generada.',
     };
   }
 

@@ -429,9 +429,7 @@
 
 
               @if (
-                competitionCategory
-                  .registered_players
-                  .length === 0
+                getRegisteredPlayers(competitionCategory).length === 0
               ) {
 
                 <p class="text-muted mb-3">
@@ -472,8 +470,7 @@
 
                       @for (
                         registeredPlayer
-                          of competitionCategory
-                            .registered_players;
+                          of getRegisteredPlayers(competitionCategory);
                         track registeredPlayer.id
                       ) {
 
@@ -574,24 +571,28 @@
               >
 
 
-                <!-- ===================================== -->
-                <!-- VER CUADRO -->
-                <!-- ===================================== -->
-
+                <!-- Acceso deportivo contextual -->
                 @if (
-                  isDirectElimination()
+                  competition
+                  && (
+                    isAdministrativeUser()
+                    || (
+                      isPlayerUser()
+                      && hasConfirmedRegistration(competitionCategory)
+                    )
+                  )
                 ) {
 
                   <button
                     type="button"
-                    class="btn btn-outline-success"
+                    class="btn btn-outline-success sport-detail-action"
                     (click)="
                       goToDetail(
                         competitionCategory
                       )
                     "
                   >
-                    Ver cuadro
+                    {{ getSportDetailActionLabel() }}
                   </button>
 
                 }

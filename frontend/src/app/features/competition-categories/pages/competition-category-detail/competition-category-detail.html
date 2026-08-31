@@ -11,7 +11,13 @@
     <div>
 
       <h1 class="h3 mb-1">
-        Cuadro de eliminación directa
+        {{
+          competition?.type === 'ESCALERILLA'
+            ? (ladderMatchManagementMode && isAdministrativeUser()
+                ? 'Partidos de la escalerilla'
+                : 'Escalerilla')
+            : 'Cuadro de eliminación directa'
+        }}
       </h1>
 
 
@@ -98,12 +104,327 @@
 
       <p class="text-muted mt-3">
 
-        Cargando cuadro...
+        {{
+          competition?.type === 'ESCALERILLA'
+            ? 'Cargando escalerilla...'
+            : 'Cargando cuadro...'
+        }}
 
       </p>
 
     </div>
 
+  }
+
+  @if (!loading && ladder) {
+    <section class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <div class="row g-4">
+          <div class="col-12 col-lg-4">
+            <h2 class="h5 mb-3">Información de la competencia</h2>
+            <div class="text-body-secondary">
+              <div><strong class="text-body">{{ competition?.name }}</strong></div>
+              <div>Categoría #{{ ladder.competition_category.category }}</div>
+              @if (competition) {
+                <div class="mt-2">
+                  {{ competition.start_date | uiDateTime:'date' }}
+                  –
+                  {{ competition.end_date | uiDateTime:'date' }}
+                </div>
+              }
+            </div>
+          </div>
+          <div class="col-12 col-lg-8">
+            <h2 class="h5 mb-3">Jugadores confirmados</h2>
+            @if (ladder.participants.length === 0) {
+              <p class="text-body-secondary mb-0">No hay jugadores confirmados.</p>
+            } @else {
+              <div class="d-flex flex-wrap gap-2">
+                @for (participant of ladder.participants; track participant.registration) {
+                  <span class="badge rounded-pill text-bg-light border px-3 py-2">
+                    {{ participant.first_name }} {{ participant.last_name }}
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    @if (!ladderMatchManagementMode || !isAdministrativeUser()) {
+    <section class="card border-0 shadow-sm mb-4" aria-labelledby="standings-title">
+      <div class="card-header bg-body d-flex justify-content-between align-items-center gap-3 py-3">
+        <h2 id="standings-title" class="h5 mb-0">Tabla de posiciones</h2>
+        @if (isAdministrativeUser() && !ladder.generated) {
+          <button
+            type="button"
+            class="btn btn-danger btn-sm"
+            [disabled]="generating"
+            (click)="generateLadder()"
+          >
+            {{ generating ? 'Generando...' : 'Generar escalerilla' }}
+          </button>
+        } @else if (isAdministrativeUser() && ladder.generated) {
+          <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+            <span class="badge text-bg-success">Escalerilla generada</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger"
+              [disabled]="!ladder.can_delete"
+              (click)="openDeleteLadderModal()"
+            >
+              Eliminar escalerilla
+            </button>
+            @if (!ladder.can_delete && ladder.delete_block_reason) {
+              <span
+                class="text-danger"
+                tabindex="0"
+                [attr.title]="ladder.delete_block_reason"
+                [attr.aria-label]="ladder.delete_block_reason"
+              >
+                {{ ladder.delete_block_reason }}
+              </span>
+            }
+          </div>
+        }
+      </div>
+      <div class="card-body p-0">
+        @if (!ladder.generated || ladderStandings.length === 0) {
+          <p class="text-body-secondary text-center py-5 px-3 mb-0">
+            Escalerilla aún no generada.
+          </p>
+        } @else {
+          <div class="table-responsive ladder-table-wrapper">
+            <table class="table table-hover align-middle mb-0 ladder-table">
+              <thead class="table-light">
+                <tr>
+                  <th>Pos</th><th>Jugador</th><th>PJ</th><th>PG</th><th>PP</th>
+                  <th>SG</th><th>SP</th><th>DG</th><th>JG</th><th>JP</th>
+                  <th>DJ</th><th>Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (standing of ladderStandings; track standing.id) {
+                  <tr>
+                    <td><strong>{{ standing.position }}</strong></td>
+                    <td class="text-nowrap">{{ getLadderPlayerName(standing.player) }}</td>
+                    <td>{{ standing.matches_played }}</td>
+                    <td>{{ standing.matches_won }}</td>
+                    <td>{{ standing.matches_lost }}</td>
+                    <td>{{ standing.sets_won }}</td>
+                    <td>{{ standing.sets_lost }}</td>
+                    <td>{{ standing.sets_difference }}</td>
+                    <td>{{ standing.games_won }}</td>
+                    <td>{{ standing.games_lost }}</td>
+                    <td>{{ standing.games_difference }}</td>
+                    <td><strong>{{ standing.points }}</strong></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </section>
+    }
+
+    @if (ladderMatchManagementMode && isAdministrativeUser()) {
+    <section class="card border-0 shadow-sm mb-4" aria-labelledby="ladder-management-title">
+      <div class="card-header bg-body d-flex justify-content-between align-items-center py-3">
+        <div>
+          <h2 id="ladder-management-title" class="h5 mb-1">Gestión de partidos</h2>
+          <span class="text-body-secondary">{{ ladder.matches.length }} partidos generados</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="loadLadder()">
+          Actualizar
+        </button>
+      </div>
+      <div class="card-body border-bottom">
+        <div class="row g-3 align-items-end ladder-filters">
+          <div class="col-12 col-md-7">
+            <label for="ladder-match-search" class="form-label">Buscar</label>
+            <input
+              id="ladder-match-search"
+              type="search"
+              class="form-control"
+              placeholder="Buscar jugador..."
+              [value]="matchSearch"
+              (input)="matchSearch = $any($event.target).value"
+            >
+          </div>
+          <div class="col-12 col-md-5">
+            <label for="ladder-match-filter" class="form-label">Estado</label>
+            <select
+              id="ladder-match-filter"
+              class="form-select"
+              [value]="ladderMatchFilter"
+              (change)="ladderMatchFilter = $any($event.target).value"
+            >
+              <option value="ALL">Todos</option>
+              <option value="UNSCHEDULED">Sin programar</option>
+              <option value="SCHEDULED">Programados</option>
+              <option value="IN_PROGRESS">En juego</option>
+              <option value="FINISHED">Finalizados</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        @if (!ladder.generated || ladder.matches.length === 0) {
+          <p class="text-body-secondary text-center py-5 px-3 mb-0">
+            No hay partidos generados.
+          </p>
+        } @else {
+          <div class="table-responsive ladder-table-wrapper">
+            <table class="table table-hover align-middle mb-0 ladder-matches-table">
+              <thead class="table-light">
+                <tr>
+                  <th>Jugador 1</th><th>Jugador 2</th><th>Fecha</th><th>Hora</th>
+                  <th>Cancha</th><th>Estado</th><th>Resultado</th><th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (match of filteredLadderMatches; track match.id) {
+                  <tr>
+                    <td [class.fw-bold]="isWinner(match, match.player1)">
+                      {{ getPlayerName(match.player1, match) }}
+                    </td>
+                    <td [class.fw-bold]="isWinner(match, match.player2)">
+                      {{ getPlayerName(match.player2, match) }}
+                    </td>
+                    <td>
+                      @if (match.scheduled_date_time) {
+                        {{ match.scheduled_date_time | uiDateTime:'date' }}
+                      } @else { <span class="text-body-secondary">Sin programar</span> }
+                    </td>
+                    <td>
+                      @if (match.scheduled_date_time) {
+                        {{ match.scheduled_date_time | uiDateTime:'time' }}
+                      } @else { <span class="text-body-secondary">—</span> }
+                    </td>
+                    <td>
+                      {{ match.court === null ? 'Sin programar' : getCourtName(match.court) }}
+                    </td>
+                    <td><span class="badge text-bg-secondary">{{ getStatusLabel(match.status) }}</span></td>
+                    <td>
+                      <span class="ladder-result">{{ getReadableScore(match) || '—' }}</span>
+                    </td>
+                    <td>
+                      @if (canScheduleMatch(match)) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary me-2"
+                          (click)="openScheduleModal(match)"
+                        >
+                          {{ hasSchedule(match) ? 'Editar programación' : 'Programar partido' }}
+                        </button>
+                      }
+                      @if (isAdministrativeUser() && canPlayMatch(match)) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          (click)="goToResult(match)"
+                        >
+                          {{ match.status === 'FINALIZADO' ? 'Editar resultado' : 'Ingresar resultado' }}
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8" class="text-center text-body-secondary py-4">
+                      No hay partidos que coincidan con la búsqueda y el filtro.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </section>
+    } @else if (isAdministrativeUser()) {
+      <section class="card border-0 shadow-sm mb-4" aria-labelledby="ladder-summary-title">
+        <div class="card-body p-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4">
+            <div>
+              <h2 id="ladder-summary-title" class="h5 mb-1">Partidos</h2>
+              <p class="text-body-secondary mb-3">{{ ladder.matches.length }} generados</p>
+              <div class="d-flex flex-wrap gap-2">
+                <span class="badge text-bg-success">Finalizados: {{ ladderFinishedCount }}</span>
+                <span class="badge text-bg-primary">Programados: {{ ladderScheduledCount }}</span>
+                <span class="badge text-bg-secondary">Sin programar: {{ ladderUnscheduledCount }}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="!ladder.generated"
+              (click)="goToLadderMatches()"
+            >
+              Gestionar partidos
+            </button>
+          </div>
+        </div>
+      </section>
+    } @else {
+      <section class="card border-0 shadow-sm mb-4" aria-labelledby="my-matches-title">
+        <div class="card-header bg-body py-3">
+          <h2 id="my-matches-title" class="h5 mb-0">Mis partidos</h2>
+        </div>
+        <div class="card-body p-4">
+          <h3 class="h6 mb-3">Próximos partidos</h3>
+          @if (playerUpcomingMatches.length === 0) {
+            <p class="text-body-secondary">No tienes próximos partidos programados.</p>
+          } @else {
+            <div class="row g-3 mb-4">
+              @for (match of playerUpcomingMatches; track match.id) {
+                <div class="col-12 col-xl-6">
+                  <article class="border rounded p-3 h-100 ladder-player-match">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                      <strong>vs {{ getOpponentName(match) }}</strong>
+                      <span class="badge text-bg-primary">{{ getStatusLabel(match.status) }}</span>
+                    </div>
+                    <div>{{ match.scheduled_date_time | uiDateTime:'datetime' }}</div>
+                    <div class="text-body-secondary">{{ getCourtName(match.court) }}</div>
+                  </article>
+                </div>
+              }
+            </div>
+          }
+
+          <h3 class="h6 mb-3 mt-4">Partidos jugados</h3>
+          @if (playerFinishedMatches.length === 0) {
+            <p class="text-body-secondary mb-0">Aún no tienes partidos finalizados.</p>
+          } @else {
+            <div class="row g-3">
+              @for (match of playerFinishedMatches; track match.id) {
+                <div class="col-12 col-xl-6">
+                  <article class="border rounded p-3 h-100 ladder-player-match">
+                    <div class="d-flex justify-content-between gap-3 mb-2">
+                      <strong>vs {{ getOpponentName(match) }}</strong>
+                      <span
+                        class="badge"
+                        [class.text-bg-success]="getPlayerOutcome(match) === 'Ganaste'"
+                        [class.text-bg-secondary]="getPlayerOutcome(match) === 'Perdiste'"
+                      >{{ getPlayerOutcome(match) }}</span>
+                    </div>
+                    <div class="ladder-result fw-semibold">{{ getReadableScore(match) || 'Sin marcador' }}</div>
+                    @if (match.scheduled_date_time) {
+                      <div class="small text-body-secondary mt-2">
+                        {{ match.scheduled_date_time | uiDateTime:'datetime' }}
+                        @if (match.court !== null) { · {{ getCourtName(match.court) }} }
+                      </div>
+                    }
+                  </article>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
   }
 
 
@@ -810,6 +1131,81 @@
             </button>
           </div>
 
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
+  }
+
+  <!-- ================================================= -->
+  <!-- MODAL ELIMINAR ESCALERILLA -->
+  <!-- ================================================= -->
+
+  @if (showDeleteLadderModal && ladder) {
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow">
+          <div class="modal-header">
+            <h5 class="modal-title">Eliminar escalerilla</h5>
+            <button
+              type="button"
+              class="btn-close"
+              aria-label="Cerrar"
+              [disabled]="deletingLadder"
+              (click)="closeDeleteLadderModal()"
+            ></button>
+          </div>
+
+          <div class="modal-body">
+            <p>
+              Se eliminarán los partidos generados, su programación y la tabla
+              de posiciones. Las inscripciones de los jugadores se conservarán.
+            </p>
+
+            @if (ladder.scheduled_matches_count > 0) {
+              <div class="alert alert-warning mb-0">
+                También se eliminará la programación de
+                {{ ladder.scheduled_matches_count }}
+                {{ ladder.scheduled_matches_count === 1 ? 'partido' : 'partidos' }}.
+              </div>
+            }
+
+            @if (deleteLadderErrorMessage) {
+              <div class="alert alert-danger mt-3 mb-0">
+                {{ deleteLadderErrorMessage }}
+              </div>
+            }
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="deletingLadder"
+              (click)="closeDeleteLadderModal()"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              [disabled]="deletingLadder"
+              (click)="deleteLadder()"
+            >
+              @if (deletingLadder) {
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Eliminando...
+              } @else {
+                Eliminar escalerilla
+              }
+            </button>
+          </div>
         </div>
       </div>
     </div>

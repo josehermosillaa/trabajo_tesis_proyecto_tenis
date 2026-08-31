@@ -18,11 +18,16 @@
         <a class="nav-link" routerLink="/players">
           Jugadores
         </a>
+      }
+      @if (isAdminUser()) {
         <a class="nav-link" routerLink="/registrations">
           Inscripciones
         </a>
         <a class="nav-link" routerLink="/matches">
           Partidos
+        </a>
+        <a class="nav-link" routerLink="/organizers">
+          Organizadores
         </a>
       }
     </div>

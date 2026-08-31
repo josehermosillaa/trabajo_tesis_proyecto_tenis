@@ -113,6 +113,27 @@ export class MatchListComponent
 
   successMessage = '';
 
+  searchTerm = '';
+
+  get filteredMatches(): Match[] {
+    const term = this.searchTerm.trim().toLocaleLowerCase();
+    return [...this.matches]
+      .sort((left, right) => right.id - left.id)
+      .filter((match) => {
+        if (!term) return true;
+        const searchable = [
+          this.getPlayerName(match.player1),
+          this.getPlayerName(match.player2),
+          this.getCompetitionName(match.competition_category),
+          this.getCategoryName(match.competition_category),
+          this.getCourtName(match.court),
+          this.getStatusLabel(match.status),
+          match.status,
+        ].join(' ').toLocaleLowerCase();
+        return searchable.includes(term);
+      });
+  }
+
   showDeleteModal =
     false;
 
@@ -619,6 +640,15 @@ export class MatchListComponent
       court?.name ??
       `Cancha ${courtId}`
     );
+  }
+
+  getStatusLabel(status: Match['status']): string {
+    switch (status) {
+      case 'PROGRAMADO': return 'Programado';
+      case 'EN_JUEGO': return 'En juego';
+      case 'FINALIZADO': return 'Finalizado';
+      case 'CANCELADO': return 'Cancelado';
+    }
   }
 
 

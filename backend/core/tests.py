@@ -494,7 +494,7 @@ class PlayerAPITest(TestCase):
             403
         )
 
-    def test_player_can_view_players(self):
+    def test_player_cannot_view_unrelated_players(self):
 
         player = Player.objects.create(
             user=self.admin_user,
@@ -516,7 +516,7 @@ class PlayerAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            200
+            404
         )
 
     def test_player_cannot_create_player(self):
@@ -751,13 +751,15 @@ class CompetitionAPITest(TestCase):
     def test_admin_can_create_competition(self):
         self.authenticate(self.admin_user)
 
+        today = timezone.localdate()
+
         data = {
             "name": "Torneo Administrador",
             "type": "ELIMINACION_DIRECTA",
-            "start_date": "2026-09-01",
-            "end_date": "2026-09-15",
+            "start_date": today + timedelta(days=3),
+            "end_date": today + timedelta(days=17),
             "status": "PENDIENTE",
-            "registration_deadline": "2026-08-28",
+            "registration_deadline": today + timedelta(days=2),
         }
 
         response = self.client.post(
@@ -7279,7 +7281,7 @@ class StandingAPITest(TestCase):
 
         self.competition = Competition.objects.create(
             name="Torneo Standing",
-            type="ELIMINACION_DIRECTA",
+            type="ESCALERILLA",
             start_date="2026-09-01",
             end_date="2026-09-15",
             registration_deadline="2026-08-28",
@@ -7296,6 +7298,18 @@ class StandingAPITest(TestCase):
                 max_players=16,
                 minimum_players=4,
             )
+        )
+
+        Registration.objects.create(
+            competition_category=self.competition_category,
+            player=self.player1,
+            status="CONFIRMADA",
+        )
+
+        Registration.objects.create(
+            competition_category=self.competition_category,
+            player=self.player2,
+            status="CONFIRMADA",
         )
 
     def authenticate(self, user):
@@ -7613,7 +7627,7 @@ class StandingAPITest(TestCase):
     # REGLAS DE NEGOCIO
     # =================================================
 
-    def test_player_wrong_category_is_rejected(self):
+    def test_player_with_different_category_and_confirmed_registration_is_valid(self):
 
         User = get_user_model()
 
@@ -7636,6 +7650,12 @@ class StandingAPITest(TestCase):
             last_name="Segunda",
         )
 
+        Registration.objects.create(
+            competition_category=self.competition_category,
+            player=second_player,
+            status="CONFIRMADA",
+        )
+
         self.authenticate(
             self.admin_user
         )
@@ -7653,8 +7673,40 @@ class StandingAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            400
+            201
         )
+
+    def test_player_without_confirmed_registration_is_rejected(self):
+
+        User = get_user_model()
+
+        unregistered_user = User.objects.create_user(
+            username="standing_unregistered",
+            password="TestPassword123!",
+            email="standing_unregistered@tenis.cl",
+            role=self.player_role,
+        )
+
+        unregistered_player = Player.objects.create(
+            user=unregistered_user,
+            category=self.category,
+            rut="54444444-4",
+            first_name="Jugador",
+            last_name="Sin inscripción",
+        )
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.post(
+            "/api/standings/",
+            {
+                "competition_category": self.competition_category.id,
+                "player": unregistered_player.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_duplicate_standing_is_rejected(self):
 
@@ -8054,21 +8106,14 @@ class AuditLogAPITest(TestCase):
             self.admin_user
         )
 
-        User = get_user_model()
-
-        new_player_user = User.objects.create_user(
-            username="audit_new_player",
-            password="TestPassword123!",
-            email="audit_new_player@tenis.cl",
-            role=self.player_role,
-        )
-
         response = self.client.post(
             "/api/players/",
             {
-                "user": new_player_user.id,
+                "username": "audit_new_player",
+                "email": "audit_new_player@tenis.cl",
+                "password": "TestPassword123!",
                 "category": self.category.id,
-                "rut": "62222222-2",
+                "rut": "22222222-2",
                 "first_name": "Nuevo",
                 "last_name": "Jugador",
                 "birth_date": "1990-01-01",

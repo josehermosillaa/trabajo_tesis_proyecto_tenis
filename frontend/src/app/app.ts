@@ -54,6 +54,10 @@ export class App implements OnInit, OnDestroy {
     return this.tokenService.isAdministrativeUser();
   }
 
+  isAdminUser(): boolean {
+    return this.tokenService.isAdminUser();
+  }
+
   logout(): void {
     this.clearInactivityTimer();
 

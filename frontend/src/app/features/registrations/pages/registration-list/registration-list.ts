@@ -57,6 +57,34 @@ export class RegistrationListComponent
   errorMessage = '';
   successMessage = '';
 
+  searchTerm = '';
+
+  get filteredRegistrations(): Registration[] {
+    const term = this.searchTerm.trim().toLocaleLowerCase();
+    return [...this.registrations]
+      .sort((left, right) =>
+        right.registration_date.localeCompare(left.registration_date)
+        || right.id - left.id
+      )
+      .filter((registration) => {
+        if (!term) return true;
+        const player = this.players.find((item) => item.id === registration.player);
+        const searchable = [
+          player?.first_name,
+          player?.last_name,
+          player?.rut,
+          player?.username,
+          player?.email,
+          this.getCompetitionName(registration.competition_category),
+          this.getCategoryName(registration.competition_category),
+          registration.status,
+        ].filter((value): value is string => typeof value === 'string')
+          .join(' ')
+          .toLocaleLowerCase();
+        return searchable.includes(term);
+      });
+  }
+
   showDeleteModal = false;
   registrationToDelete:
     Registration | null = null;

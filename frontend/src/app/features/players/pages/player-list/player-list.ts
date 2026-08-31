@@ -36,6 +36,10 @@ export class PlayerListComponent implements OnInit {
     return this.tokenService.isAdministrativeUser();
   }
 
+  isAdminUser(): boolean {
+    return this.tokenService.isAdminUser();
+  }
+
   players: Player[] = [];
   categories: Category[] = [];
 
@@ -44,6 +48,30 @@ export class PlayerListComponent implements OnInit {
 
   errorMessage = '';
   successMessage = '';
+
+  searchTerm = '';
+
+  get filteredPlayers(): Player[] {
+    const term = this.searchTerm.trim().toLocaleLowerCase();
+    return [...this.players]
+      .sort((left, right) =>
+        left.last_name.localeCompare(right.last_name, 'es', { sensitivity: 'base' })
+        || left.first_name.localeCompare(right.first_name, 'es', { sensitivity: 'base' })
+        || left.id - right.id
+      )
+      .filter((player) => {
+        if (!term) return true;
+        const searchable = [
+          player.first_name,
+          player.last_name,
+          player.rut,
+          player.username,
+          player.email,
+          this.getCategoryName(player.category),
+        ].join(' ').toLocaleLowerCase();
+        return searchable.includes(term);
+      });
+  }
 
   // Modal eliminación
   showDeleteModal = false;
@@ -162,6 +190,10 @@ export class PlayerListComponent implements OnInit {
   openDeleteModal(
     player: Player
   ): void {
+
+    if (!this.isAdminUser()) {
+      return;
+    }
 
     this.playerToDelete = player;
     this.showDeleteModal = true;
