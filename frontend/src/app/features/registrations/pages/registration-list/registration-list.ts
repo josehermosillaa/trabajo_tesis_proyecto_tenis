@@ -19,6 +19,7 @@ import {
 } from '../../models/registration.model';
 
 import { Player } from '../../../players/models/player.model';
+import { TokenService } from '../../../../core/services/token';
 
 @Component({
   selector: 'app-registration-list',
@@ -34,6 +35,13 @@ export class RegistrationListComponent
 
   private readonly router =
     inject(Router);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
   registrations: Registration[] = [];
   competitions: Competition[] = [];

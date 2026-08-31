@@ -3464,6 +3464,25 @@ class MatchAPITest(TestCase):
             self.player1.id
         )
 
+    def test_admin_can_schedule_programmed_match(self):
+
+        match = self.create_match()
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T19:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["court"], self.court.id)
+        self.assertIsNotNone(response.data["scheduled_date_time"])
+
     def test_admin_can_delete_match(self):
 
         match = self.create_match()
@@ -3534,6 +3553,23 @@ class MatchAPITest(TestCase):
             response.status_code,
             200
         )
+
+    def test_organizer_can_schedule_programmed_match(self):
+
+        match = self.create_match()
+
+        self.authenticate(self.organizer_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": "2026-09-04T18:00:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
 
     def test_organizer_cannot_delete_match(
         self
@@ -3623,6 +3659,91 @@ class MatchAPITest(TestCase):
             response.status_code,
             403
         )
+
+    def test_player_cannot_schedule_match(self):
+
+        match = self.create_match()
+
+        self.authenticate(self.player_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T19:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_cannot_schedule_match_without_both_players(self):
+
+        match = self.create_match()
+        match.player2 = None
+        match.save(update_fields=["player2"])
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {
+                "scheduled_date_time": "2026-09-03T19:30:00-04:00",
+                "court": self.court.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_cannot_edit_schedule_of_finalized_match(self):
+
+        match = self.create_match()
+        match.status = Match.Status.FINALIZADO
+        match.winner_player = self.player1
+        match.save(update_fields=["status", "winner_player"])
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {"court": self.court.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_cannot_edit_schedule_of_cancelled_match(self):
+
+        match = self.create_match()
+        match.status = Match.Status.CANCELADO
+        match.save(update_fields=["status"])
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {"court": self.court.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_cannot_edit_schedule_of_match_in_progress(self):
+
+        match = self.create_match()
+        match.status = Match.Status.EN_JUEGO
+        match.save(update_fields=["status"])
+
+        self.authenticate(self.admin_user)
+
+        response = self.client.patch(
+            f"/api/matches/{match.id}/",
+            {"court": self.court.id},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_player_cannot_delete_match(
         self

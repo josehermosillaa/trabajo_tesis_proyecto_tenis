@@ -31,6 +31,7 @@ import {
 } from '../../../competition-categories/models/competition-category.model';
 
 import { Player } from '../../../players/models/player.model';
+import { TokenService } from '../../../../core/services/token';
 
 
 
@@ -62,6 +63,13 @@ export class RegistrationFormComponent
 
   private readonly route =
     inject(ActivatedRoute);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
 
   loading = false;
@@ -677,6 +685,10 @@ export class RegistrationFormComponent
   // =====================================================
 
   onSubmit(): void {
+
+    if (!this.isAdministrativeUser()) {
+      return;
+    }
 
     this.errorMessage = '';
 

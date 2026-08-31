@@ -13,6 +13,7 @@ import {
 } from '../../services/player';
 
 import { Player } from '../../models/player.model';
+import { TokenService } from '../../../../core/services/token';
 
 @Component({
   selector: 'app-player-list',
@@ -27,6 +28,13 @@ export class PlayerListComponent implements OnInit {
 
   private readonly router =
     inject(Router);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
   players: Player[] = [];
   categories: Category[] = [];

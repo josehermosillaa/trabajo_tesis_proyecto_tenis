@@ -1,10 +1,31 @@
 @if (isAuthenticated()) {
 
-  <nav class="navbar navbar-dark bg-dark px-3">
+  <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
 
     <span class="navbar-brand mb-0 h1">
       Sistema de Gestión de Torneos
     </span>
+
+    <div class="navbar-nav me-auto">
+      <a class="nav-link" routerLink="/dashboard">
+        Dashboard
+      </a>
+      <a class="nav-link" routerLink="/competitions">
+        Competencias
+      </a>
+
+      @if (isAdministrativeUser()) {
+        <a class="nav-link" routerLink="/players">
+          Jugadores
+        </a>
+        <a class="nav-link" routerLink="/registrations">
+          Inscripciones
+        </a>
+        <a class="nav-link" routerLink="/matches">
+          Partidos
+        </a>
+      }
+    </div>
 
     <button
       type="button"

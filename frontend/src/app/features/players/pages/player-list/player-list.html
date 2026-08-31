@@ -15,13 +15,15 @@
       </p>
     </div>
 
-    <button
-      type="button"
-      class="btn btn-danger"
-      (click)="goToCreate()"
-    >
-      Nuevo jugador
-    </button>
+    @if (isAdministrativeUser()) {
+      <button
+        type="button"
+        class="btn btn-danger"
+        (click)="goToCreate()"
+      >
+        Nuevo jugador
+      </button>
+    }
 
   </div>
 
@@ -117,9 +119,11 @@
                 <th>Email</th>
                 <th>Teléfono</th>
 
-                <th class="text-end">
-                  Acciones
-                </th>
+                @if (isAdministrativeUser()) {
+                  <th class="text-end">
+                    Acciones
+                  </th>
+                }
               </tr>
 
             </thead>
@@ -186,8 +190,9 @@
 
                   </td>
 
-                  <!-- Acciones -->
-                  <td class="text-end">
+                  @if (isAdministrativeUser()) {
+                    <!-- Acciones -->
+                    <td class="text-end">
 
                     <div
                       class="d-flex justify-content-end gap-2"
@@ -217,7 +222,8 @@
 
                     </div>
 
-                  </td>
+                    </td>
+                  }
 
                 </tr>
 

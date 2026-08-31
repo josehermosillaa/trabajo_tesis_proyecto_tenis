@@ -8,6 +8,7 @@ import {
 
 import {
   Router,
+  RouterLink,
   RouterOutlet,
 } from '@angular/router';
 
@@ -16,7 +17,7 @@ import { TokenService } from './core/services/token';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterLink, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -47,6 +48,10 @@ export class App implements OnInit, OnDestroy {
       this.tokenService.isAuthenticated() &&
       !this.router.url.startsWith('/login')
     );
+  }
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
   }
 
   logout(): void {

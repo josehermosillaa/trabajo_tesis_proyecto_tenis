@@ -10,6 +10,14 @@ export type MatchResolutionType =
   | 'WALKOVER'
   | 'RETIREMENT';
 
+export interface MatchSetSummary {
+  id: number;
+  set_number: number;
+  games_player1: number;
+  games_player2: number;
+  is_super_tie_break: boolean;
+}
+
 
 export interface Match {
 
@@ -36,6 +44,8 @@ export interface Match {
 
   resolution_type:
     MatchResolutionType;
+
+  sets?: MatchSetSummary[];
 }
 
 

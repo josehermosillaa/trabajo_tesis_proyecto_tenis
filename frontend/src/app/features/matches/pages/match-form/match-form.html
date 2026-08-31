@@ -535,10 +535,11 @@
                   Cancelar
                 </button>
 
-                <button
-                  type="submit"
-                  class="btn btn-danger"
-                >
+                @if (isAdministrativeUser()) {
+                  <button
+                    type="submit"
+                    class="btn btn-danger"
+                  >
 
                   @if (isEditMode) {
 
@@ -550,7 +551,8 @@
 
                   }
 
-                </button>
+                  </button>
+                }
 
               </div>
 

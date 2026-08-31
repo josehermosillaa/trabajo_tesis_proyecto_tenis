@@ -24,6 +24,7 @@ import {
   CreatePlayerRequest,
   UpdatePlayerRequest,
 } from '../../models/player.model';
+import { TokenService } from '../../../../core/services/token';
 
 @Component({
   selector: 'app-player-form',
@@ -44,6 +45,13 @@ export class PlayerFormComponent implements OnInit {
 
   private readonly route =
     inject(ActivatedRoute);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
   loading = false;
   loadingCategories = false;
@@ -325,6 +333,10 @@ isValidRut(rutValue: string): boolean {
 
 
   onSubmit(): void {
+
+    if (!this.isAdministrativeUser()) {
+      return;
+    }
 
     this.errorMessage = '';
 

@@ -13,13 +13,15 @@
       </p>
     </div>
 
-    <button
-      type="button"
-      class="btn btn-danger"
-      (click)="goToCreate()"
-    >
-      Nueva competencia
-    </button>
+    @if (isAdministrativeUser()) {
+      <button
+        type="button"
+        class="btn btn-danger"
+        (click)="goToCreate()"
+      >
+        Nueva competencia
+      </button>
+    }
 
   </div>
 
@@ -202,30 +204,32 @@
                       class="d-flex justify-content-end gap-2"
                     >
 
-                      <!-- Editar -->
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        (click)="goToEdit(competition.id)"
-                        [disabled]="
-                          deletingId === competition.id
-                        "
-                      >
-                        Editar
-                      </button>
+                      @if (isAdministrativeUser()) {
+                        <!-- Editar -->
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          (click)="goToEdit(competition.id)"
+                          [disabled]="
+                            deletingId === competition.id
+                          "
+                        >
+                          Editar
+                        </button>
 
 
-                      <!-- Eliminar -->
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-danger"
-                        (click)="openDeleteModal(competition)"
-                        [disabled]="
-                          deletingId === competition.id
-                        "
-                      >
-                        Eliminar
-                      </button>
+                        <!-- Eliminar -->
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          (click)="openDeleteModal(competition)"
+                          [disabled]="
+                            deletingId === competition.id
+                          "
+                        >
+                          Eliminar
+                        </button>
+                      }
 
 
                       <!-- Categorías -->

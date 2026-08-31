@@ -264,11 +264,12 @@
               Cancelar
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-danger"
-              [disabled]="loading"
-            >
+            @if (isAdministrativeUser()) {
+              <button
+                type="submit"
+                class="btn btn-danger"
+                [disabled]="loading"
+              >
 
               @if (loading) {
 
@@ -288,7 +289,8 @@
 
               }
 
-            </button>
+              </button>
+            }
 
           </div>
 

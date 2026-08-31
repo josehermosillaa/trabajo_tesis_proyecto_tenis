@@ -40,6 +40,7 @@ import {
 import {
   Player,
 } from '../../../players/models/player.model';
+import { TokenService } from '../../../../core/services/token';
 
 
 @Component({
@@ -72,8 +73,21 @@ export class MatchResultComponent
   private readonly router =
     inject(Router);
 
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
+
 
   matchId:
+    number | null = null;
+
+  private returnCompetitionId:
+    number | null = null;
+
+  private returnCompetitionCategoryId:
     number | null = null;
 
   match:
@@ -185,7 +199,53 @@ export class MatchResultComponent
     this.matchId =
       Number(id);
 
+    this.loadReturnContext();
+
     this.loadData();
+  }
+
+
+  private loadReturnContext(): void {
+
+    const queryParams =
+      this.route.snapshot.queryParamMap;
+
+    if (
+      queryParams.get('returnTo') !==
+      'bracket'
+    ) {
+      return;
+    }
+
+    const competitionId = Number(
+      queryParams.get('competitionId')
+    );
+
+    const competitionCategoryId = Number(
+      queryParams.get(
+        'competitionCategoryId'
+      )
+    );
+
+    if (
+      !Number.isInteger(competitionId)
+      ||
+      competitionId <= 0
+      ||
+      !Number.isInteger(
+        competitionCategoryId
+      )
+      ||
+      competitionCategoryId <= 0
+    ) {
+      return;
+    }
+
+    this.returnCompetitionId =
+      competitionId;
+
+    this.returnCompetitionCategoryId =
+      competitionCategoryId;
   }
 
 
@@ -1403,6 +1463,22 @@ openResolutionModal(
   // =====================================================
 
   goBack(): void {
+
+    if (
+      this.returnCompetitionId !== null
+      &&
+      this.returnCompetitionCategoryId !== null
+    ) {
+
+      this.router.navigate([
+        '/competitions',
+        this.returnCompetitionId,
+        'categories',
+        this.returnCompetitionCategoryId,
+      ]);
+
+      return;
+    }
 
     this.router.navigate([
       '/matches',

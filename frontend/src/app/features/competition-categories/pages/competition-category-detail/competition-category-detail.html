@@ -144,12 +144,13 @@
         </p>
 
 
-        <button
-          type="button"
-          class="btn btn-danger"
-          (click)="generateBracket()"
-          [disabled]="generating"
-        >
+        @if (isAdministrativeUser()) {
+          <button
+            type="button"
+            class="btn btn-danger"
+            (click)="generateBracket()"
+            [disabled]="generating"
+          >
 
           @if (generating) {
 
@@ -165,7 +166,8 @@
 
           }
 
-        </button>
+          </button>
+        }
 
       </div>
 
@@ -381,6 +383,45 @@
                     </div>
 
 
+                    <!-- PROGRAMACIÓN -->
+
+                    @if (
+                      hasSchedule(
+                        match
+                      )
+                    ) {
+
+                      <div
+                        class="match-schedule"
+                      >
+
+                        @if (
+                          match.scheduled_date_time
+                        ) {
+
+                          <div>
+                            {{ match.scheduled_date_time | date:'dd/MM/yyyy' }}
+                            ·
+                            {{ match.scheduled_date_time | date:'HH:mm' }}
+                          </div>
+
+                        }
+
+                        @if (
+                          match.court !== null
+                        ) {
+
+                          <div>
+                            {{ getCourtName(match.court) }}
+                          </div>
+
+                        }
+
+                      </div>
+
+                    }
+
+
                     <!-- FOOTER -->
 
                     <div
@@ -442,38 +483,61 @@
                       </div>
 
 
-                      @if (
-                        canPlayMatch(
-                          match
-                        )
-                      ) {
+                      <div
+                        class="match-actions"
+                      >
 
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-outline-danger"
-                          (click)="
-                            goToResult(
-                              match
-                            )
-                          "
-                        >
+                        @if (
+                          canScheduleMatch(
+                            match
+                          )
+                        ) {
 
-                          @if (
-                            match.status ===
-                            'FINALIZADO'
-                          ) {
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-primary"
+                            (click)="openScheduleModal(match)"
+                          >
+                            {{
+                              hasSchedule(match)
+                                ? 'Editar programación'
+                                : 'Programar partido'
+                            }}
+                          </button>
 
-                            Editar resultado
+                        }
 
-                          } @else {
+                        @if (
+                          isAdministrativeUser()
+                          && canPlayMatch(
+                            match
+                          )
+                        ) {
 
-                            Resultado
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-danger"
+                            (click)="goToResult(match)"
+                          >
 
-                          }
+                            @if (
+                              match.status ===
+                              'FINALIZADO'
+                            ) {
 
-                        </button>
+                              Editar resultado
 
-                      }
+                            } @else {
+
+                              Ingresar resultado
+
+                            }
+
+                          </button>
+
+                        }
+
+                      </div>
 
                     </div>
 
@@ -596,6 +660,212 @@
       </div>
 
     </div>
+
+  }
+
+
+  <!-- ================================================= -->
+  <!-- MODAL PROGRAMACIÓN -->
+  <!-- ================================================= -->
+
+  @if (
+    schedulingMatch !== null
+  ) {
+
+    <div
+      class="modal fade show d-block"
+      tabindex="-1"
+      role="dialog"
+      aria-modal="true"
+    >
+
+      <div
+        class="modal-dialog modal-dialog-centered"
+      >
+
+        <div class="modal-content shadow">
+
+          <form
+            [formGroup]="scheduleForm"
+            (ngSubmit)="saveSchedule()"
+          >
+
+            <div class="modal-header">
+
+              <h5 class="modal-title">
+                {{
+                  hasSchedule(schedulingMatch)
+                    ? 'Editar programación'
+                    : 'Programar partido'
+                }}
+              </h5>
+
+              <button
+                type="button"
+                class="btn-close"
+                aria-label="Cerrar"
+                [disabled]="savingSchedule"
+                (click)="closeScheduleModal()"
+              >
+              </button>
+
+            </div>
+
+            <div class="modal-body">
+
+              <div class="schedule-players mb-3">
+                <div>
+                  <span>Jugador 1</span>
+                  <strong>
+                    {{ getPlayerName(schedulingMatch.player1, schedulingMatch) }}
+                  </strong>
+                </div>
+                <div>
+                  <span>Jugador 2</span>
+                  <strong>
+                    {{ getPlayerName(schedulingMatch.player2, schedulingMatch) }}
+                  </strong>
+                </div>
+              </div>
+
+              @if (scheduleErrorMessage) {
+                <div class="alert alert-danger">
+                  {{ scheduleErrorMessage }}
+                </div>
+              }
+
+              <div class="row g-3">
+
+                <div class="col-sm-6">
+                  <label for="scheduleDate" class="form-label">
+                    Fecha
+                  </label>
+                  <input
+                    id="scheduleDate"
+                    type="date"
+                    class="form-control"
+                    formControlName="date"
+                    [class.is-invalid]="
+                      scheduleForm.controls.date.touched
+                      && scheduleForm.controls.date.invalid
+                    "
+                  />
+                  <div class="invalid-feedback">
+                    La fecha es obligatoria.
+                  </div>
+                </div>
+
+                <div class="col-sm-6">
+                  <label for="scheduleTime" class="form-label">
+                    Hora
+                  </label>
+                  <input
+                    id="scheduleTime"
+                    type="time"
+                    class="form-control"
+                    formControlName="time"
+                    [class.is-invalid]="
+                      scheduleForm.controls.time.touched
+                      && scheduleForm.controls.time.invalid
+                    "
+                  />
+                  <div class="invalid-feedback">
+                    La hora es obligatoria.
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <label for="scheduleCourt" class="form-label">
+                    Cancha
+                  </label>
+                  <select
+                    id="scheduleCourt"
+                    class="form-select"
+                    formControlName="court"
+                    [class.is-invalid]="
+                      scheduleForm.controls.court.touched
+                      && scheduleForm.controls.court.invalid
+                    "
+                  >
+                    <option [ngValue]="null">
+                      Seleccione una cancha
+                    </option>
+                    @for (
+                      court of courts;
+                      track court.id
+                    ) {
+                      <option [ngValue]="court.id">
+                        {{ court.name }}
+                        @if (court.status === 'MAINTENANCE') {
+                          - Mantención
+                        }
+                      </option>
+                    }
+                  </select>
+                  <div class="invalid-feedback">
+                    La cancha es obligatoria.
+                  </div>
+                </div>
+
+              </div>
+
+              @if (
+                isScheduleOutsideCompetitionPeriod()
+                && competition
+              ) {
+                <div class="alert alert-warning mt-3 mb-0">
+                  La fecha seleccionada está fuera del período de la competencia
+                  ({{ competition.start_date | date:'dd/MM/yyyy':'UTC' }} al
+                  {{ competition.end_date | date:'dd/MM/yyyy':'UTC' }}).
+                  Puedes continuar si esta programación es intencional.
+                </div>
+              }
+
+              @if (isScheduleInPast()) {
+                <div class="alert alert-warning mt-3 mb-0 schedule-past-warning">
+                  La fecha seleccionada es anterior a la fecha actual.
+                  Puedes continuar si estás registrando o corrigiendo una
+                  programación pasada.
+                </div>
+              }
+
+            </div>
+
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                [disabled]="savingSchedule"
+                (click)="closeScheduleModal()"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="
+                  savingSchedule
+                  || !!courtsErrorMessage
+                "
+              >
+                @if (savingSchedule) {
+                  <span class="spinner-border spinner-border-sm me-2"></span>
+                  Guardando...
+                } @else {
+                  Guardar programación
+                }
+              </button>
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="modal-backdrop fade show"></div>
 
   }
 

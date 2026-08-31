@@ -161,7 +161,7 @@
       </button>
 
 
-      @if (!isPlayerUser()) {
+      @if (isAdministrativeUser()) {
 
         <button
           type="button"
@@ -705,7 +705,9 @@
                 <!-- ADMIN / ORGANIZADOR -->
                 <!-- ===================================== -->
 
-                @else {
+                @else if (
+                  isAdministrativeUser()
+                ) {
 
 
                   @if (

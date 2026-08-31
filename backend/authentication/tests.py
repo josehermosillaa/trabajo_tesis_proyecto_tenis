@@ -1,5 +1,9 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import (
+    AccessToken,
+    RefreshToken,
+)
 
 from authentication.models import Role, User
 
@@ -45,6 +49,48 @@ class AuthenticationAPITest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_access_token_contains_user_role(self):
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": "testuser",
+                "password": "testpassword",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        access_token = AccessToken(
+            response.data["access"]
+        )
+
+        self.assertEqual(
+            access_token["role"],
+            "Administrador",
+        )
+
+    def test_refresh_token_contains_user_role(self):
+        response = self.client.post(
+            "/api/token/",
+            {
+                "username": "testuser",
+                "password": "testpassword",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        refresh_token = RefreshToken(
+            response.data["refresh"]
+        )
+
+        self.assertEqual(
+            refresh_token["role"],
+            "Administrador",
+        )
 
     def test_refresh_access_token(self):
         login_response = self.client.post(

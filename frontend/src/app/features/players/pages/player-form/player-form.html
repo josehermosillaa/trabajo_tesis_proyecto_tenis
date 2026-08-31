@@ -437,14 +437,15 @@
               Cancelar
             </button>
 
-            <button
-              type="submit"
-              class="btn btn-danger"
-              [disabled]="
-                loading ||
-                loadingCategories
-              "
-            >
+            @if (isAdministrativeUser()) {
+              <button
+                type="submit"
+                class="btn btn-danger"
+                [disabled]="
+                  loading ||
+                  loadingCategories
+                "
+              >
 
               @if (loading) {
 
@@ -464,7 +465,8 @@
 
               }
 
-            </button>
+              </button>
+            }
 
           </div>
 

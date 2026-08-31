@@ -1166,6 +1166,12 @@ class MatchSerializer(serializers.ModelSerializer):
             ),
         )
 
+        scheduling_fields_present = (
+            "scheduled_date_time" in data
+            or
+            "court" in data
+        )
+
         # ---------------------------------
         # Datos mínimos
         # ---------------------------------
@@ -1180,6 +1186,42 @@ class MatchSerializer(serializers.ModelSerializer):
                     )
                 }
             )
+
+        # ---------------------------------
+        # Programación de partidos
+        # ---------------------------------
+
+        if scheduling_fields_present:
+
+            if (
+                player1 is None
+                or
+                player2 is None
+            ):
+
+                raise serializers.ValidationError(
+                    {
+                        "scheduled_date_time": (
+                            "No se puede programar un partido "
+                            "con BYE o participantes por definir."
+                        )
+                    }
+                )
+
+            if status in [
+                Match.Status.EN_JUEGO,
+                Match.Status.FINALIZADO,
+                Match.Status.CANCELADO,
+            ]:
+
+                raise serializers.ValidationError(
+                    {
+                        "scheduled_date_time": (
+                            "Solo se puede modificar la programación "
+                            "de un partido en estado PROGRAMADO."
+                        )
+                    }
+                )
 
         # /*
         #  * IMPORTANTE:

@@ -1,4 +1,10 @@
 import { Injectable } from '@angular/core';
+
+export type UserRole =
+  | 'Administrador'
+  | 'Organizador'
+  | 'Jugador';
+
 //gestion de tokens
 @Injectable({
   providedIn: 'root'
@@ -80,5 +86,65 @@ getCurrentUserId(): number | null {
 
     return null;
   }
+}
+
+getCurrentUserRole(): UserRole | null {
+
+  const token =
+    this.getAccessToken();
+
+  if (!token) {
+    return null;
+  }
+
+  try {
+
+    const payloadPart =
+      token.split('.')[1];
+
+    if (!payloadPart) {
+      return null;
+    }
+
+    const normalizedPayload =
+      payloadPart
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    const payload =
+      JSON.parse(
+        atob(normalizedPayload)
+      );
+
+    const role = payload.role;
+
+    if (
+      role === 'Administrador'
+      || role === 'Organizador'
+      || role === 'Jugador'
+    ) {
+      return role;
+    }
+
+    return null;
+
+  } catch (error) {
+
+    console.error(
+      'No fue posible leer el rol del JWT:',
+      error
+    );
+
+    return null;
+  }
+}
+
+isAdministrativeUser(): boolean {
+  const role = this.getCurrentUserRole();
+
+  return (
+    role === 'Administrador'
+    || role === 'Organizador'
+  );
 }
 }

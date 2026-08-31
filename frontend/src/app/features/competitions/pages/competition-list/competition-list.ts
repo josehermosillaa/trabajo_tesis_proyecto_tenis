@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { CompetitionService } from '../../services/competition';
 import { Competition } from '../../models/competition.model';
 import { Router } from '@angular/router';
+import { TokenService } from '../../../../core/services/token';
 
 @Component({
   selector: 'app-competition-list',
@@ -14,6 +15,11 @@ import { Router } from '@angular/router';
 export class CompetitionListComponent implements OnInit {
   private readonly competitionService = inject(CompetitionService);
   private readonly router = inject(Router);
+  private readonly tokenService = inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
   competitions: Competition[] = [];
 

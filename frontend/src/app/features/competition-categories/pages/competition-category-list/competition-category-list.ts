@@ -441,11 +441,15 @@ export class CompetitionCategoryListComponent
 
   isPlayerUser():
     boolean {
-
     return (
-      this.currentPlayer !==
-      null
+      this.tokenService
+        .getCurrentUserRole() ===
+      'Jugador'
     );
+  }
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
   }
 
 

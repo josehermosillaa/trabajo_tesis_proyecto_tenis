@@ -16,6 +16,7 @@ import {
 } from '../../../competition-categories/services/competition-category';
 
 import { CompetitionCategory } from '../../../competition-categories/models/competition-category.model';
+import { TokenService } from '../../../../core/services/token';
 
 @Component({
   selector: 'app-competition-form',
@@ -37,6 +38,11 @@ export class CompetitionFormComponent implements OnInit {
   private readonly router = inject(Router);
 
   private readonly route = inject(ActivatedRoute);
+  private readonly tokenService = inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
   loading = false;
 
@@ -351,6 +357,10 @@ toggleCategory(
    */
 
   onSubmit(): void {
+    if (!this.isAdministrativeUser()) {
+      return;
+    }
+
     if (this.competitionForm.invalid) {
       this.competitionForm.markAllAsTouched();
 
@@ -754,7 +764,11 @@ private saveSelectedCategories(
   ): void {
     if (index >= requests.length) {
       this.router.navigate(
-        ['/competitions'],
+        [
+          '/competitions',
+          this.competitionId,
+          'categories',
+        ],
         {
           state: {
             successMessage:
@@ -824,6 +838,22 @@ private saveSelectedCategories(
    */
 
   cancel(): void {
+
+    if (
+      this.isEditMode
+      &&
+      this.competitionId !== null
+    ) {
+
+      this.router.navigate([
+        '/competitions',
+        this.competitionId,
+        'categories',
+      ]);
+
+      return;
+    }
+
     this.router.navigate([
       '/competitions',
     ]);

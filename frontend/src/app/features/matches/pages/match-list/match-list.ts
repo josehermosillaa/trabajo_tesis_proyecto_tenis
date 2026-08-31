@@ -37,6 +37,7 @@ import {
 import {
   Category,
 } from '../../../competition-categories/services/competition-category';
+import { TokenService } from '../../../../core/services/token';
 
 
 @Component({
@@ -63,6 +64,13 @@ export class MatchListComponent
 
   private readonly route =
     inject(ActivatedRoute);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
 
   matches:

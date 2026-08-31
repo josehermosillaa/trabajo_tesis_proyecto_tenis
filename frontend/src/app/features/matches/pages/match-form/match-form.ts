@@ -46,6 +46,7 @@ import {
   MatchStatus,
   UpdateMatchRequest,
 } from '../../models/match.model';
+import { TokenService } from '../../../../core/services/token';
 
 
 @Component({
@@ -76,6 +77,13 @@ export class MatchFormComponent
 
   private readonly route =
     inject(ActivatedRoute);
+
+  private readonly tokenService =
+    inject(TokenService);
+
+  isAdministrativeUser(): boolean {
+    return this.tokenService.isAdministrativeUser();
+  }
 
 
   loading = false;
@@ -985,6 +993,10 @@ export class MatchFormComponent
   // =====================================================
 
   onSubmit(): void {
+
+    if (!this.isAdministrativeUser()) {
+      return;
+    }
 
     this.errorMessage = '';
 
