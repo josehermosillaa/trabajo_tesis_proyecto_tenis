@@ -122,8 +122,8 @@ export class MatchListComponent
       .filter((match) => {
         if (!term) return true;
         const searchable = [
-          this.getPlayerName(match.player1),
-          this.getPlayerName(match.player2),
+          this.getMatchPlayerName(match, match.player1),
+          this.getMatchPlayerName(match, match.player2),
           this.getCompetitionName(match.competition_category),
           this.getCategoryName(match.competition_category),
           this.getCourtName(match.court),
@@ -595,7 +595,7 @@ export class MatchListComponent
     if (
       playerId === null
     ) {
-      return 'BYE';
+      return 'Por definir';
     }
 
     const player =
@@ -640,6 +640,22 @@ export class MatchListComponent
       court?.name ??
       `Cancha ${courtId}`
     );
+  }
+
+  getMatchPlayerName(match: Match, playerId: number | null): string {
+    if (playerId !== null) {
+      return this.getPlayerName(playerId);
+    }
+
+    return match.round === 1 && match.bracket_position !== null
+      ? 'BYE'
+      : 'Por definir';
+  }
+
+  canOpenResult(match: Match): boolean {
+    return !match.is_walkover
+      && match.player1 !== null
+      && match.player2 !== null;
   }
 
   getStatusLabel(status: Match['status']): string {

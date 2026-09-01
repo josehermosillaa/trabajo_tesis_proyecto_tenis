@@ -8,13 +8,14 @@ import { CompetitionCategory } from '../../../competition-categories/models/comp
 import { Category, CompetitionCategoryService } from '../../../competition-categories/services/competition-category';
 import { Competition } from '../../../competitions/models/competition.model';
 import { CompetitionService } from '../../../competitions/services/competition';
-import { Match, MatchSetSummary } from '../../../matches/models/match.model';
+import { Match } from '../../../matches/models/match.model';
 import { Court, MatchService } from '../../../matches/services/match';
 import { Player } from '../../../players/models/player.model';
 import { PlayerService } from '../../../players/services/player';
 import { Registration } from '../../../registrations/models/registration.model';
 import { RegistrationService } from '../../../registrations/services/registration';
 import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
+import { formatMatchScore } from '../../../matches/utils/match-score.utils';
 
 interface PlayerMatchView {
   match: Match;
@@ -38,7 +39,7 @@ interface AvailableTournamentView {
 
 interface PlayerResultView extends PlayerMatchView {
   result: 'Victoria' | 'Derrota';
-  sets: string[];
+  score: string;
 }
 
 @Component({
@@ -107,6 +108,10 @@ export class HomeComponent implements OnInit {
 
   isAdministrativeUser(): boolean {
     return this.tokenService.isAdministrativeUser();
+  }
+
+  isAdminUser(): boolean {
+    return this.tokenService.isAdminUser();
   }
 
   navigateTo(route: string): void {
@@ -315,7 +320,7 @@ export class HomeComponent implements OnInit {
         return {
           ...view,
           result: match.winner_player === player.id ? 'Victoria' : 'Derrota',
-          sets: (match.sets ?? []).map((set) => this.formatSet(set, match, player)),
+          score: formatMatchScore(match, match.player2 === player.id),
         };
       });
 
@@ -358,12 +363,6 @@ export class HomeComponent implements OnInit {
         : 'Sin categoría',
       court: match.court === null ? 'Por definir' : courtsById.get(match.court) ?? 'Por definir',
     };
-  }
-
-  private formatSet(set: MatchSetSummary, match: Match, player: Player): string {
-    return match.player1 === player.id
-      ? `${set.games_player1}-${set.games_player2}`
-      : `${set.games_player2}-${set.games_player1}`;
   }
 
   private matchTimestamp(match: Match): number {

@@ -697,26 +697,6 @@
                       </span>
 
 
-                      @if (
-                        getPlayer1Score(
-                          match
-                        )
-                      ) {
-
-                        <span
-                          class="player-score"
-                        >
-
-                          {{
-                            getPlayer1Score(
-                              match
-                            )
-                          }}
-
-                        </span>
-
-                      }
-
                     </div>
 
 
@@ -751,27 +731,13 @@
                       </span>
 
 
-                      @if (
-                        getPlayer2Score(
-                          match
-                        )
-                      ) {
-
-                        <span
-                          class="player-score"
-                        >
-
-                          {{
-                            getPlayer2Score(
-                              match
-                            )
-                          }}
-
-                        </span>
-
-                      }
-
                     </div>
+
+                    @if (getReadableScore(match)) {
+                      <div class="match-result-score">
+                        {{ getReadableScore(match) }}
+                      </div>
+                    }
 
 
                     <!-- PROGRAMACIÓN -->

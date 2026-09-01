@@ -54,6 +54,25 @@ describe('Home', () => {
     expect(component.ongoingCompetitions.map((item) => item.id)).toEqual([3]);
   });
 
+  it('keeps global administration shortcuts only for Administrador', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 1, role: 'Administrador' }));
+    createComponent();
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Gestionar inscripciones');
+    expect(fixture.nativeElement.textContent).toContain('Ver partidos');
+
+    fixture.destroy();
+    tokenService.saveAccessToken(createToken({ user_id: 2, role: 'Organizador' }));
+    createComponent();
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('Gestionar inscripciones');
+    expect(fixture.nativeElement.textContent).not.toContain('Ver partidos');
+    expect(fixture.nativeElement.textContent).toContain('Ver competencias');
+    expect(fixture.nativeElement.textContent).toContain('Gestionar jugadores');
+  });
+
   it('should load and relate the player dashboard data', () => {
     tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
     createComponent();
@@ -103,7 +122,7 @@ describe('Home', () => {
     expect(component.myTournaments.map((item) => item.competition.id)).toEqual([1]);
     expect(component.availableTournaments.map((item) => item.competition.id)).toEqual([2]);
     expect(component.previousResults[0].result).toBe('Victoria');
-    expect(component.previousResults[0].sets).toEqual(['6-4', '6-3']);
+    expect(component.previousResults[0].score).toBe('6–4 | 6–3');
     expect(component.wins).toBe(1);
     expect(component.losses).toBe(0);
     expect(component.totalPlayed).toBe(1);
@@ -153,6 +172,28 @@ describe('Home', () => {
     expect(fixture.nativeElement.querySelectorAll('tr.result-row').length).toBe(
       component.totalPlayed
     );
+  });
+
+  it('shows retirement and Super Tie-Break with the shared score format', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
+    createComponent();
+    const playedAt = new Date(Date.now() - 86_400_000).toISOString();
+    const retirement = {
+      ...match(6, 'FINALIZADO', playedAt, 1, []),
+      resolution_type: 'RETIREMENT',
+    };
+    const superTieBreak = match(7, 'FINALIZADO', playedAt, 1, [
+      set(1, 4, 6),
+      set(2, 6, 3),
+      set(3, 10, 8, true),
+    ]);
+
+    flushPlayerDashboard([retirement, superTieBreak]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('RET');
+    expect(fixture.nativeElement.textContent).toContain('[10–8]');
+    expect(fixture.nativeElement.textContent).not.toContain('Sin sets');
   });
 
   it('should show neutral zero statistics when there are no countable results', () => {
@@ -333,10 +374,15 @@ describe('Home', () => {
     };
   }
 
-  function set(id: number, gamesPlayer1: number, gamesPlayer2: number) {
+  function set(
+    id: number,
+    gamesPlayer1: number,
+    gamesPlayer2: number,
+    isSuperTieBreak = false
+  ) {
     return {
       id, set_number: id, games_player1: gamesPlayer1,
-      games_player2: gamesPlayer2, is_super_tie_break: false,
+      games_player2: gamesPlayer2, is_super_tie_break: isSuperTieBreak,
     };
   }
 });

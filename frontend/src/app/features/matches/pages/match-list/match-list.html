@@ -220,8 +220,9 @@
                   <td>
 
                     {{
-                      getPlayerName(
-                        match.player1
+                        getMatchPlayerName(
+                          match,
+                          match.player1
                       )
                     }}
 
@@ -231,8 +232,9 @@
                   <td>
 
                     {{
-                      getPlayerName(
-                        match.player2
+                        getMatchPlayerName(
+                          match,
+                          match.player2
                       )
                     }}
 
@@ -356,8 +358,7 @@
 
                       <!-- Resultado -->
                       @if (
-                        !match.is_walkover &&
-                        match.player2 !== null
+                        canOpenResult(match)
                       ) {
 
                         <button

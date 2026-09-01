@@ -51,6 +51,7 @@ import {
 } from '../../../competitions/models/competition.model';
 import { TemporalInputComponent } from '../../../../shared/date-time/temporal-input.component';
 import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
+import { formatMatchScore } from '../../../matches/utils/match-score.utils';
 import { RegistrationService } from '../../../registrations/services/registration';
 
 
@@ -1199,7 +1200,7 @@ export class CompetitionCategoryDetailComponent
   get filteredLadderMatches(): Match[] {
     const search = this.matchSearch.trim().toLocaleLowerCase();
     return (this.ladder?.matches ?? []).filter((match) => {
-      const names = `${this.getLadderPlayerName(match.player1)} ${
+      const names = `${match.player1 === null ? '' : this.getLadderPlayerName(match.player1)} ${
         match.player2 === null ? '' : this.getLadderPlayerName(match.player2)
       }`.toLocaleLowerCase();
       const matchesSearch = !search || names.includes(search);
@@ -1251,25 +1252,8 @@ export class CompetitionCategoryDetailComponent
     );
   }
 
-  getReadableScore(match: Match): string {
-    if (
-      match.resolution_type === 'WALKOVER'
-      || match.is_walkover
-    ) {
-      return 'WO';
-    }
-
-    const score = [...(match.sets ?? [])]
-      .sort((left, right) => left.set_number - right.set_number)
-      .map((set) => {
-        const value = `${set.games_player1}–${set.games_player2}`;
-        return set.is_super_tie_break ? `[${value}]` : value;
-      })
-      .join(' | ');
-
-    return match.resolution_type === 'RETIREMENT'
-      ? `${score}${score ? ' ' : ''}RET`
-      : score;
+  getReadableScore(match: CategoryMatch): string {
+    return formatMatchScore(match);
   }
 
   getOpponentName(match: Match): string {

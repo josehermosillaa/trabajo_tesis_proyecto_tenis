@@ -1,0 +1,14 @@
+.navbar-brand {
+  max-width: calc(100% - 4rem);
+  white-space: normal;
+}
+
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    padding-top: 0.75rem;
+  }
+
+  .navbar-nav {
+    margin-bottom: 0.5rem;
+  }
+}

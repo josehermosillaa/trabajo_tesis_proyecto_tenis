@@ -1320,7 +1320,8 @@
 
 
               <!-- JUGADOR 1 -->
-              <button
+              @if (match.player1 !== null) {
+                <button
                 type="button"
                 class="btn"
                 [class.btn-danger]="
@@ -1343,7 +1344,8 @@
                   )
                 }}
 
-              </button>
+                </button>
+              }
 
 
               <!-- JUGADOR 2 -->

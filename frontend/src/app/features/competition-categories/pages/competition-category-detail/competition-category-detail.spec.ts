@@ -743,6 +743,40 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
     })).toBe('2–1 RET');
   });
 
+  it('renders the shared readable score inside a bracket card', () => {
+    const finished = match(1, 'FINALIZADO');
+    finished.sets = [
+      { id: 1, set_number: 1, games_player1: 4, games_player2: 6, is_super_tie_break: false },
+      { id: 2, set_number: 2, games_player1: 6, games_player2: 3, is_super_tie_break: false },
+      { id: 3, set_number: 3, games_player1: 10, games_player2: 8, is_super_tie_break: true },
+    ];
+    createWithMatches([finished]);
+
+    expect(fixture.nativeElement.querySelector('.match-result-score').textContent.trim())
+      .toBe('4–6 | 6–3 | [10–8]');
+  });
+
+  it('identifies walkover and retirement inside bracket cards without inventing sets', () => {
+    const walkover = match(1, 'FINALIZADO');
+    walkover.resolution_type = 'WALKOVER';
+    walkover.is_walkover = true;
+    const retirement = match(2, 'FINALIZADO');
+    retirement.resolution_type = 'RETIREMENT';
+    retirement.sets = [{
+      id: 1,
+      set_number: 1,
+      games_player1: 2,
+      games_player2: 1,
+      is_super_tie_break: false,
+      is_incomplete: true,
+    }];
+    createWithMatches([walkover, retirement]);
+
+    const scores = Array.from(fixture.nativeElement.querySelectorAll('.match-result-score'))
+      .map((element: unknown) => (element as HTMLElement).textContent?.trim());
+    expect(scores).toEqual(['WO', '2–1 RET']);
+  });
+
   it('shows a player only own scheduled and finished matches, never unscheduled or third-party matches', () => {
     tokenService.isAdministrativeUser.and.returnValue(false);
     const response = ladder();
@@ -950,6 +984,7 @@ describe('CompetitionCategoryDetailComponent scheduling', () => {
       next_match: null,
       next_match_slot: null,
       is_walkover: false,
+      resolution_type: 'NORMAL',
       sets: [],
     };
   }

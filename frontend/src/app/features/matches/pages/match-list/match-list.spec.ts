@@ -33,7 +33,8 @@ describe('MatchListComponent stable order and search', () => {
     service.getCourts.and.returnValue(of([{ id: 3, name: 'Cancha Central', status: 'AVAILABLE' }]));
     service.getMatches.and.returnValue(of([
       match(2, 1, 2, 'FINALIZADO', 3),
-      match(5, 1, null, 'PROGRAMADO', null),
+      match(5, 1, null, 'PROGRAMADO', null, 2, 5),
+      match(6, 1, null, 'PROGRAMADO', null, 1, 6),
     ]));
     service.deleteMatch.and.returnValue(of(undefined));
     const token = jasmine.createSpyObj<TokenService>('TokenService', ['isAdministrativeUser']);
@@ -57,7 +58,7 @@ describe('MatchListComponent stable order and search', () => {
   });
 
   it('uses id descending because Match has no creation timestamp', () => {
-    expect(component.filteredMatches.map((item) => item.id)).toEqual([5, 2]);
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([6, 5, 2]);
   });
 
   it('searches by player, status and court', () => {
@@ -69,11 +70,22 @@ describe('MatchListComponent stable order and search', () => {
     expect(component.filteredMatches.map((item) => item.id)).toEqual([2]);
   });
 
-  it('handles a missing second player and empty/no-result searches', () => {
+  it('distinguishes a real first-round BYE from a future participant', () => {
     component.searchTerm = 'bye';
+    expect(component.filteredMatches.map((item) => item.id)).toEqual([6]);
+    component.searchTerm = 'por definir';
     expect(component.filteredMatches.map((item) => item.id)).toEqual([5]);
+  });
+
+  it('requires both real participants before opening a result', () => {
+    expect(component.canOpenResult(component.matches.find((item) => item.id === 2)!)).toBeTrue();
+    expect(component.canOpenResult(component.matches.find((item) => item.id === 5)!)).toBeFalse();
+    expect(component.canOpenResult(component.matches.find((item) => item.id === 6)!)).toBeFalse();
+  });
+
+  it('handles empty and no-result searches', () => {
     component.searchTerm = '';
-    expect(component.filteredMatches.length).toBe(2);
+    expect(component.filteredMatches.length).toBe(3);
     component.searchTerm = 'nadie';
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No se encontraron partidos.');
@@ -84,12 +96,14 @@ describe('MatchListComponent stable order and search', () => {
     player1: number,
     player2: number | null,
     status: 'PROGRAMADO' | 'FINALIZADO',
-    court: number | null
+    court: number | null,
+    round: number | null = null,
+    bracketPosition: number | null = null
   ) {
     return {
       id, competition_category: 10, court, player1, player2,
       winner_player: status === 'FINALIZADO' ? player1 : null,
-      scheduled_date_time: null, status, round: null, bracket_position: null,
+      scheduled_date_time: null, status, round, bracket_position: bracketPosition,
       next_match: null, next_match_slot: null, is_walkover: false,
       resolution_type: 'NORMAL' as const, sets: [],
     };

@@ -42,6 +42,21 @@ describe('App navigation by role', () => {
     expect(navText()).not.toContain('Organizadores');
   });
 
+  it('opens and closes the responsive navigation without Bootstrap JavaScript', () => {
+    createForRole('Administrador');
+    const component = fixture.componentInstance;
+    const toggler = fixture.nativeElement.querySelector('.navbar-toggler') as HTMLButtonElement;
+
+    toggler.click();
+    fixture.detectChanges();
+    expect(component.navigationOpen).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.navbar-collapse').classList).toContain('show');
+
+    (fixture.nativeElement.querySelector('a.nav-link') as HTMLAnchorElement).click();
+    fixture.detectChanges();
+    expect(component.navigationOpen).toBeFalse();
+  });
+
   function createForRole(role: UserRole): void {
     tokenService.isAdministrativeUser.and.returnValue(
       role === 'Administrador' || role === 'Organizador'

@@ -12,6 +12,7 @@ import {
   authGuard
 } from './core/guards/auth-guard';
 import { adminGuard } from './core/guards/admin-guard';
+import { managementGuard } from './core/guards/management-guard';
 import { OrganizerListComponent } from './features/organizers/pages/organizer-list/organizer-list';
 import { OrganizerFormComponent } from './features/organizers/pages/organizer-form/organizer-form';
 
@@ -106,9 +107,7 @@ export const routes: Routes = [
   {
     path: 'competitions/new',
     component: CompetitionFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {
@@ -144,9 +143,7 @@ export const routes: Routes = [
     data: {
       ladderMatchManagement: true,
     },
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   // =====================================================
@@ -197,17 +194,13 @@ export const routes: Routes = [
   {
     path: 'players/new',
     component: PlayerFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {
     path: 'players/:id/edit',
     component: PlayerFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
 
@@ -226,17 +219,13 @@ export const routes: Routes = [
   {
     path: 'registrations/new',
     component: RegistrationFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {
     path: 'registrations/:id/edit',
     component: RegistrationFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
 
@@ -255,25 +244,19 @@ export const routes: Routes = [
   {
     path: 'matches/new',
     component: MatchFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {
     path: 'matches/:id/edit',
     component: MatchFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {
     path: 'matches/:id/result',
     component: MatchResultComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
 ];

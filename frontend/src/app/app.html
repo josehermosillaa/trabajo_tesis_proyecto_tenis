@@ -1,44 +1,61 @@
 @if (isAuthenticated()) {
 
-  <nav class="navbar navbar-expand navbar-dark bg-dark px-3">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
 
     <span class="navbar-brand mb-0 h1">
       Sistema de Gestión de Torneos
     </span>
 
-    <div class="navbar-nav me-auto">
-      <a class="nav-link" routerLink="/dashboard">
-        Dashboard
-      </a>
-      <a class="nav-link" routerLink="/competitions">
-        Competencias
-      </a>
-
-      @if (isAdministrativeUser()) {
-        <a class="nav-link" routerLink="/players">
-          Jugadores
-        </a>
-      }
-      @if (isAdminUser()) {
-        <a class="nav-link" routerLink="/registrations">
-          Inscripciones
-        </a>
-        <a class="nav-link" routerLink="/matches">
-          Partidos
-        </a>
-        <a class="nav-link" routerLink="/organizers">
-          Organizadores
-        </a>
-      }
-    </div>
-
     <button
       type="button"
-      class="btn btn-outline-light"
-      (click)="logout()"
+      class="navbar-toggler"
+      aria-controls="mainNavigation"
+      aria-label="Mostrar u ocultar navegación"
+      [attr.aria-expanded]="navigationOpen"
+      (click)="toggleNavigation()"
     >
-      Cerrar sesión
+      <span class="navbar-toggler-icon"></span>
     </button>
+
+    <div
+      id="mainNavigation"
+      class="collapse navbar-collapse"
+      [class.show]="navigationOpen"
+    >
+      <div class="navbar-nav me-auto">
+        <a class="nav-link" routerLink="/dashboard" (click)="closeNavigation()">
+          Dashboard
+        </a>
+        <a class="nav-link" routerLink="/competitions" (click)="closeNavigation()">
+          Competencias
+        </a>
+
+        @if (isAdministrativeUser()) {
+          <a class="nav-link" routerLink="/players" (click)="closeNavigation()">
+            Jugadores
+          </a>
+        }
+        @if (isAdminUser()) {
+          <a class="nav-link" routerLink="/registrations" (click)="closeNavigation()">
+            Inscripciones
+          </a>
+          <a class="nav-link" routerLink="/matches" (click)="closeNavigation()">
+            Partidos
+          </a>
+          <a class="nav-link" routerLink="/organizers" (click)="closeNavigation()">
+            Organizadores
+          </a>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-outline-light my-2 my-lg-0"
+        (click)="logout()"
+      >
+        Cerrar sesión
+      </button>
+    </div>
 
   </nav>
 

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { OrganizerService } from '../../services/organizer';
 import { OrganizerFormComponent } from './organizer-form';
@@ -84,7 +84,42 @@ describe('OrganizerFormComponent', () => {
     component.save();
 
     expect(service.createOrganizer).not.toHaveBeenCalled();
-    expect(component.errorMessage).toBe('Las contraseñas no coinciden.');
+    expect(component.errorFor('password_confirmation')).toBe('Las contraseñas no coinciden.');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Las contraseñas no coinciden.');
+  });
+
+  it('shows required and invalid email errors after submit', () => {
+    createComponent(null);
+    component.organizerForm.controls.email.setValue('correo-invalido');
+
+    component.save();
+    fixture.detectChanges();
+
+    expect(service.createOrganizer).not.toHaveBeenCalled();
+    expect(component.hasError('first_name')).toBeTrue();
+    expect(component.errorFor('email')).toBe('Ingresa un correo electrónico válido.');
+    expect(component.hasError('password')).toBeTrue();
+    expect(fixture.nativeElement.querySelectorAll('.is-invalid').length).toBeGreaterThan(0);
+  });
+
+  it('associates backend validation errors with their field', () => {
+    service.createOrganizer.and.returnValue(throwError(() => ({
+      error: { username: ['Este nombre de usuario ya existe.'] },
+    })));
+    createComponent(null);
+    component.organizerForm.setValue({
+      first_name: 'Nuevo', last_name: 'Organizador', username: 'duplicado',
+      email: 'new@example.com', password: 'SecurePassword-2026',
+      password_confirmation: 'SecurePassword-2026',
+    });
+
+    component.save();
+    fixture.detectChanges();
+
+    expect(component.errorFor('username')).toBe('Este nombre de usuario ya existe.');
+    const username = fixture.nativeElement.querySelector('#organizer-username');
+    expect(username.classList).toContain('is-invalid');
   });
 
   it('edits only basic fields and does not render passwords', () => {

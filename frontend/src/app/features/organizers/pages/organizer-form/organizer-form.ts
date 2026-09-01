@@ -1,5 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import {
@@ -7,6 +14,22 @@ import {
   UpdateOrganizerRequest,
 } from '../../models/organizer.model';
 import { OrganizerService } from '../../services/organizer';
+
+type OrganizerField =
+  | 'first_name'
+  | 'last_name'
+  | 'username'
+  | 'email'
+  | 'password'
+  | 'password_confirmation';
+
+const matchingPasswordsValidator: ValidatorFn = (
+  control: AbstractControl
+): ValidationErrors | null => {
+  const password = control.get('password')?.value;
+  const confirmation = control.get('password_confirmation')?.value;
+  return password === confirmation ? null : { passwordMismatch: true };
+};
 
 @Component({
   selector: 'app-organizer-form',
@@ -24,15 +47,20 @@ export class OrganizerFormComponent implements OnInit {
   loading = false;
   saving = false;
   errorMessage = '';
+  submitted = false;
+  fieldErrors: Partial<Record<OrganizerField, string>> = {};
 
-  readonly organizerForm = this.fb.nonNullable.group({
-    first_name: ['', Validators.required],
-    last_name: ['', Validators.required],
-    username: ['', Validators.required],
-    email: ['', [Validators.required, Validators.email]],
-    password: [''],
-    password_confirmation: [''],
-  });
+  readonly organizerForm = this.fb.nonNullable.group(
+    {
+      first_name: ['', Validators.required],
+      last_name: ['', Validators.required],
+      username: ['', Validators.required],
+      email: ['', [Validators.required, Validators.email]],
+      password: [''],
+      password_confirmation: [''],
+    },
+    { validators: matchingPasswordsValidator }
+  );
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -49,17 +77,14 @@ export class OrganizerFormComponent implements OnInit {
 
   save(): void {
     this.errorMessage = '';
+    this.fieldErrors = {};
+    this.submitted = true;
     this.organizerForm.markAllAsTouched();
     if (this.organizerForm.invalid) {
       return;
     }
 
     const values = this.organizerForm.getRawValue();
-    if (!this.isEditMode && values.password !== values.password_confirmation) {
-      this.errorMessage = 'Las contraseñas no coinciden.';
-      return;
-    }
-
     this.saving = true;
     if (this.isEditMode && this.organizerId !== null) {
       const request: UpdateOrganizerRequest = {
@@ -120,8 +145,61 @@ export class OrganizerFormComponent implements OnInit {
   }
 
   private fail(error: unknown): void {
-    this.errorMessage = this.getBackendError(error);
+    this.fieldErrors = this.getBackendFieldErrors(error);
+    this.errorMessage = Object.keys(this.fieldErrors).length > 0
+      ? ''
+      : this.getBackendError(error);
     this.saving = false;
+  }
+
+  hasError(field: OrganizerField): boolean {
+    const control = this.organizerForm.controls[field];
+    const passwordMismatch = field === 'password_confirmation'
+      && this.organizerForm.hasError('passwordMismatch');
+    return !!this.fieldErrors[field]
+      || ((this.submitted || control.touched) && (control.invalid || passwordMismatch));
+  }
+
+  errorFor(field: OrganizerField): string {
+    const backendError = this.fieldErrors[field];
+    if (backendError) return backendError;
+
+    const control = this.organizerForm.controls[field];
+    if (control.hasError('required')) return 'Este campo es obligatorio.';
+    if (field === 'email' && control.hasError('email')) {
+      return 'Ingresa un correo electrónico válido.';
+    }
+    if (
+      field === 'password_confirmation'
+      && this.organizerForm.hasError('passwordMismatch')
+    ) {
+      return 'Las contraseñas no coinciden.';
+    }
+    return '';
+  }
+
+  private getBackendFieldErrors(
+    error: unknown
+  ): Partial<Record<OrganizerField, string>> {
+    const body = (error as { error?: unknown })?.error;
+    if (!body || typeof body !== 'object') return {};
+
+    const fields: OrganizerField[] = [
+      'first_name',
+      'last_name',
+      'username',
+      'email',
+      'password',
+      'password_confirmation',
+    ];
+    const record = body as Record<string, unknown>;
+    const result: Partial<Record<OrganizerField, string>> = {};
+    for (const field of fields) {
+      const value = record[field];
+      if (typeof value === 'string') result[field] = value;
+      if (Array.isArray(value) && typeof value[0] === 'string') result[field] = value[0];
+    }
+    return result;
   }
 
   private getBackendError(error: unknown): string {

@@ -46,6 +46,7 @@ export interface BracketSet {
   games_player1: number;
   games_player2: number;
   is_super_tie_break: boolean;
+  is_incomplete?: boolean;
 }
 
 export interface BracketMatch {
@@ -74,6 +75,11 @@ export interface BracketMatch {
   next_match_slot: number | null;
 
   is_walkover: boolean;
+
+  resolution_type:
+    | 'NORMAL'
+    | 'WALKOVER'
+    | 'RETIREMENT';
 
   sets: BracketSet[];
 }

@@ -30,6 +30,8 @@ export class App implements OnInit, OnDestroy {
   private inactivityTimer:
     ReturnType<typeof setTimeout> | null = null;
 
+  navigationOpen = false;
+
   // 1 minuto solamente para probar
   private readonly inactivityTime = 20*60 * 1000;
 
@@ -59,11 +61,20 @@ export class App implements OnInit, OnDestroy {
   }
 
   logout(): void {
+    this.navigationOpen = false;
     this.clearInactivityTimer();
 
     this.authService.logout();
 
     this.router.navigate(['/login']);
+  }
+
+  toggleNavigation(): void {
+    this.navigationOpen = !this.navigationOpen;
+  }
+
+  closeNavigation(): void {
+    this.navigationOpen = false;
   }
 
   @HostListener('document:mousemove')

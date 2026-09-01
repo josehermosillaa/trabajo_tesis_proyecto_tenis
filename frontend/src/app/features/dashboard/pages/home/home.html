@@ -32,16 +32,18 @@
             Gestionar jugadores
           </button>
         </div>
-        <div class="col-sm-6 col-xl">
-          <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/registrations')">
-            Gestionar inscripciones
-          </button>
-        </div>
-        <div class="col-sm-6 col-xl">
-          <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/matches')">
-            Ver partidos
-          </button>
-        </div>
+        @if (isAdminUser()) {
+          <div class="col-sm-6 col-xl">
+            <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/registrations')">
+              Gestionar inscripciones
+            </button>
+          </div>
+          <div class="col-sm-6 col-xl">
+            <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/matches')">
+              Ver partidos
+            </button>
+          </div>
+        }
       </div>
     </section>
 
@@ -307,13 +309,9 @@
                         <td>{{ item.competition }}</td>
                         <td>{{ item.category }}</td>
                         <td class="fw-semibold pe-4 pe-xl-5">
-                          @if (item.sets.length > 0) {
-                            {{ item.sets.join(', ') }}
-                          } @else {
-                            <span class="text-body-secondary">
-                              {{ item.match.resolution_type === 'WALKOVER' ? 'WO' : 'Sin sets' }}
-                            </span>
-                          }
+                          <span [class.text-body-secondary]="!item.score">
+                            {{ item.score || 'Sin marcador' }}
+                          </span>
                         </td>
                       </tr>
                     }

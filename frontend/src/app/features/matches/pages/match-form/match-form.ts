@@ -504,7 +504,7 @@ export class MatchFormComponent
                 match.court,
 
               player1:
-                match.player1,
+                match.player1 ?? 0,
 
               player2:
                 match.player2,

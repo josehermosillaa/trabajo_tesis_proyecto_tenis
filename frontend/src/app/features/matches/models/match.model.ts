@@ -28,7 +28,7 @@ export interface Match {
 
   court: number | null;
 
-  player1: number;
+  player1: number | null;
 
   player2: number | null;
 
