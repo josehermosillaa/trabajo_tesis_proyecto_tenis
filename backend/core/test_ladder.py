@@ -349,6 +349,43 @@ class LadderBackendTest(TestCase):
         self.assertEqual((winner.sets_won, winner.sets_lost), (2, 1))
         self.assertEqual((winner.games_won, winner.games_lost), (10, 10))
 
+    def test_organizer_deleting_match_set_recalculates_ladder(self):
+        self.register(self.players[0])
+        self.register(self.players[1])
+        match = Match.objects.create(
+            competition_category=self.competition_category,
+            player1=self.players[0],
+            player2=self.players[1],
+            winner_player=self.players[0],
+            status=Match.Status.FINALIZADO,
+        )
+        MatchSet.objects.create(
+            match=match,
+            set_number=1,
+            games_player1=6,
+            games_player2=4,
+        )
+        second_set = MatchSet.objects.create(
+            match=match,
+            set_number=2,
+            games_player1=6,
+            games_player2=2,
+        )
+        LadderService.recalculate_standings(self.competition_category)
+
+        self.client.force_authenticate(self.organizer)
+        response = self.client.delete(f"/api/match-sets/{second_set.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        match.refresh_from_db()
+        self.assertEqual(match.status, Match.Status.EN_JUEGO)
+        self.assertIsNone(match.winner_player)
+        standings = Standing.objects.filter(
+            competition_category=self.competition_category
+        )
+        self.assertTrue(all(standing.matches_played == 0 for standing in standings))
+        self.assertTrue(all(standing.points == 0 for standing in standings))
+
     def test_walkover_and_retirement_rules(self):
         for player in self.players[:4]:
             self.register(player)

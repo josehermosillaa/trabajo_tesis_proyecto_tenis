@@ -1,0 +1,122 @@
+---
+title: Modelo de datos del dominio deportivo
+config:
+  layout: elk
+---
+erDiagram
+    direction TB
+
+    COMPETITION {
+        bigint id PK
+        string name
+        string type
+        date start_date
+        date end_date
+        string status
+        date registration_deadline
+    }
+
+    CATEGORY {
+        bigint id PK
+        string name UK
+    }
+
+    COMPETITION_CATEGORY {
+        bigint id PK
+        bigint competition_id FK
+        bigint category_id FK
+        positive_int max_players
+        positive_int minimum_players
+    }
+
+    REGISTRATION {
+        bigint id PK
+        bigint competition_category_id FK
+        bigint player_id FK
+        datetime registration_date
+        string status
+        positive_int seed "nullable (?)"
+    }
+
+    MATCH {
+        bigint id PK
+        bigint competition_category_id FK
+        bigint court_id FK "nullable (?)"
+        bigint player1_id FK "nullable (?)"
+        bigint player2_id FK "nullable (?)"
+        bigint winner_player_id FK "nullable (?)"
+        datetime scheduled_date_time "nullable (?)"
+        string status
+        positive_int round "nullable (?)"
+        bigint next_match_id FK "self; nullable (?)"
+        small_positive_int next_match_slot "nullable (?)"
+        string resolution_type
+    }
+
+    STANDING {
+        bigint id PK
+        bigint competition_category_id FK
+        bigint player_id FK
+        positive_int matches_played
+        positive_int matches_won
+        positive_int matches_lost
+        positive_int walkovers_won
+        positive_int walkovers_lost
+        positive_int sets_won
+        positive_int sets_lost
+        positive_int games_won
+        positive_int games_lost
+        positive_int points
+        positive_int position "nullable (?)"
+    }
+
+    PLAYER {
+        bigint id PK
+        bigint category_id FK
+        string rut UK
+        string first_name
+        string last_name
+        date birth_date "nullable (?)"
+        string phone
+    }
+
+    MATCH_SET {
+        bigint id PK
+        bigint match_id FK
+        positive_int set_number
+        positive_int games_player1
+        positive_int games_player2
+        boolean is_super_tie_break
+        boolean is_incomplete
+    }
+
+    COURT {
+        bigint id PK
+        string name UK
+        string status
+    }
+
+    COMPETITION ||--o{ COMPETITION_CATEGORY : agrupa
+    CATEGORY ||--o{ COMPETITION_CATEGORY : clasifica
+    COMPETITION_CATEGORY ||--o{ REGISTRATION : recibe
+    COMPETITION_CATEGORY ||--o{ MATCH : programa
+    COMPETITION_CATEGORY ||--o{ STANDING : genera
+    CATEGORY ||--o{ PLAYER : categoria_actual
+    PLAYER ||--o{ REGISTRATION : realiza
+    PLAYER o|--o{ MATCH : player1
+    PLAYER o|--o{ MATCH : player2
+    PLAYER o|--o{ MATCH : winner_player
+    PLAYER ||--o{ STANDING : posee
+    COURT o|--o{ MATCH : se_asigna_a
+    MATCH ||--o{ MATCH_SET : contiene
+
+%% La autorrelacion Match.next_match se expresa mediante la FK dentro de MATCH,
+%% sin arista grafica, para mantener legibilidad. next_match referencia
+%% opcionalmente a otro Match para representar el avance del cuadro.
+%% PLAYER mantiene una relacion 1:1 obligatoria con AUTH_USER_MODEL; la entidad
+%% de autenticacion se omite deliberadamente del dominio deportivo.
+%% Restricciones unicas compuestas implementadas:
+%% COMPETITION_CATEGORY (competition_id, category_id)
+%% REGISTRATION (player_id, competition_category_id)
+%% MATCH_SET (match_id, set_number)
+%% STANDING (competition_category_id, player_id)

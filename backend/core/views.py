@@ -32,6 +32,8 @@ from .serializers import (
 from .permissions import (
     PlayerPermission,
     CompetitionPermission,
+    CompetitionCategoryPermission,
+    MatchSetPermission,
     RegistrationPermission,
 )
 from .services.bracket_service import (
@@ -152,7 +154,7 @@ class CompetitionCategoryViewSet(
     )
 
     permission_classes = [
-        CompetitionPermission
+        CompetitionCategoryPermission
     ]
 
     def get_serializer_class(self):
@@ -1348,7 +1350,7 @@ class MatchSetViewSet(
     )
 
     permission_classes = [
-        CompetitionPermission
+        MatchSetPermission
     ]
 
     def get_queryset(self):

@@ -58,6 +58,36 @@ class CompetitionPermission(BasePermission):
             return role == "Administrador"
 
         return False
+
+
+class MatchSetPermission(CompetitionPermission):
+    """Permite la gestión operativa de sets a Administrador y Organizador."""
+
+    def has_permission(self, request, view):
+        if request.method == "DELETE":
+            return bool(
+                request.user
+                and request.user.is_authenticated
+                and request.user.role_id
+                and request.user.role.name in ["Administrador", "Organizador"]
+            )
+
+        return super().has_permission(request, view)
+
+
+class CompetitionCategoryPermission(CompetitionPermission):
+    """Permite eliminar categorías a Administrador y Organizador."""
+
+    def has_permission(self, request, view):
+        if request.method == "DELETE":
+            return bool(
+                request.user
+                and request.user.is_authenticated
+                and request.user.role_id
+                and request.user.role.name in ["Administrador", "Organizador"]
+            )
+
+        return super().has_permission(request, view)
     
 class RegistrationPermission(BasePermission):
 

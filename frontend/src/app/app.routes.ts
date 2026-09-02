@@ -113,9 +113,7 @@ export const routes: Routes = [
   {
     path: 'competitions/:id/edit',
     component: CompetitionFormComponent,
-    canActivate: [
-      authGuard,
-    ],
+    canActivate: [managementGuard],
   },
 
   {

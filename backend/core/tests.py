@@ -1226,6 +1226,14 @@ class CompetitionCategoryAPITest(TestCase):
             name="PRIMERA"
         )
 
+        self.player = Player.objects.create(
+            user=self.player_user,
+            category=self.category,
+            rut="12345678-5",
+            first_name="Jugador",
+            last_name="Categoría",
+        )
+
     def authenticate(self, user):
         response = self.client.post(
             "/api/token/",
@@ -1250,6 +1258,31 @@ class CompetitionCategoryAPITest(TestCase):
             minimum_players=4,
         )
 
+    def create_registration(self, competition_category, registration_status):
+        return Registration.objects.create(
+            competition_category=competition_category,
+            player=self.player,
+            status=registration_status,
+        )
+
+    def assert_active_registration_blocks_deletion(self, user, registration_status):
+        competition_category = self.create_competition_category()
+        self.create_registration(competition_category, registration_status)
+        self.authenticate(user)
+
+        response = self.client.delete(
+            f"/api/competition-categories/{competition_category.id}/"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            "No se puede eliminar la categoría porque tiene jugadores inscritos.",
+        )
+        self.assertTrue(
+            CompetitionCategory.objects.filter(id=competition_category.id).exists()
+        )
+
     # -----------------------------
     # AUTENTICACIÓN
     # -----------------------------
@@ -1260,6 +1293,18 @@ class CompetitionCategoryAPITest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_unauthenticated_user_cannot_delete_competition_category(self):
+        competition_category = self.create_competition_category()
+
+        response = self.client.delete(
+            f"/api/competition-categories/{competition_category.id}/"
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(
+            CompetitionCategory.objects.filter(id=competition_category.id).exists()
+        )
 
     # -----------------------------
     # ADMINISTRADOR
@@ -1334,6 +1379,29 @@ class CompetitionCategoryAPITest(TestCase):
 
         self.assertEqual(response.status_code, 204)
 
+    def test_admin_cannot_delete_category_with_pending_registration(self):
+        self.assert_active_registration_blocks_deletion(
+            self.admin_user,
+            "PENDIENTE",
+        )
+
+    def test_admin_cannot_delete_category_with_confirmed_registration(self):
+        self.assert_active_registration_blocks_deletion(
+            self.admin_user,
+            "CONFIRMADA",
+        )
+
+    def test_admin_can_delete_category_with_only_cancelled_registration(self):
+        competition_category = self.create_competition_category()
+        self.create_registration(competition_category, "CANCELADA")
+        self.authenticate(self.admin_user)
+
+        response = self.client.delete(
+            f"/api/competition-categories/{competition_category.id}/"
+        )
+
+        self.assertEqual(response.status_code, 204)
+
     # -----------------------------
     # ORGANIZADOR
     # -----------------------------
@@ -1376,7 +1444,7 @@ class CompetitionCategoryAPITest(TestCase):
             8,
         )
 
-    def test_organizer_cannot_delete_competition_category(self):
+    def test_organizer_can_delete_competition_category(self):
         competition_category = (
             self.create_competition_category()
         )
@@ -1388,7 +1456,30 @@ class CompetitionCategoryAPITest(TestCase):
             f"{competition_category.id}/"
         )
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 204)
+
+    def test_organizer_cannot_delete_category_with_pending_registration(self):
+        self.assert_active_registration_blocks_deletion(
+            self.organizer_user,
+            "PENDIENTE",
+        )
+
+    def test_organizer_cannot_delete_category_with_confirmed_registration(self):
+        self.assert_active_registration_blocks_deletion(
+            self.organizer_user,
+            "CONFIRMADA",
+        )
+
+    def test_organizer_can_delete_category_with_only_cancelled_registration(self):
+        competition_category = self.create_competition_category()
+        self.create_registration(competition_category, "CANCELADA")
+        self.authenticate(self.organizer_user)
+
+        response = self.client.delete(
+            f"/api/competition-categories/{competition_category.id}/"
+        )
+
+        self.assertEqual(response.status_code, 204)
 
     # -----------------------------
     # JUGADOR
@@ -5173,6 +5264,17 @@ class MatchSetAPITest(TestCase):
             401
         )
 
+    def test_unauthenticated_user_cannot_delete_match_set(self):
+
+        match_set = self.create_set_1()
+
+        response = self.client.delete(
+            f"/api/match-sets/{match_set.id}/"
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(MatchSet.objects.filter(pk=match_set.id).exists())
+
     # =====================================================
     # ADMINISTRADOR
     # =====================================================
@@ -5353,13 +5455,15 @@ class MatchSetAPITest(TestCase):
             200
         )
 
-    def test_organizer_cannot_delete_match_set(
+    def test_organizer_can_delete_match_set_and_recalculate_match(
         self
     ):
 
-        match_set = (
-            self.create_set_1()
-        )
+        self.create_set_1()
+        match_set = self.create_set_2(games1=6, games2=3)
+        self.match.status = Match.Status.FINALIZADO
+        self.match.winner_player = self.player1
+        self.match.save(update_fields=["status", "winner_player"])
 
         self.authenticate(
             self.organizer_user
@@ -5374,8 +5478,13 @@ class MatchSetAPITest(TestCase):
 
         self.assertEqual(
             response.status_code,
-            403
+            204
         )
+
+        self.assertFalse(MatchSet.objects.filter(pk=match_set.id).exists())
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.status, Match.Status.EN_JUEGO)
+        self.assertIsNone(self.match.winner_player)
 
     # =====================================================
     # JUGADOR
