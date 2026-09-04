@@ -55,6 +55,16 @@ describe('CompetitionListComponent role actions', () => {
     expect(fixture.componentInstance.competitions[0].status).toBe('ABIERTA');
   });
 
+  it('links the new competition action to the configured creation route', () => {
+    createForRole('Administrador');
+    const link = fixture.nativeElement.querySelector(
+      'a[routerlink="/competitions/new"]'
+    ) as HTMLAnchorElement;
+
+    expect(link).not.toBeNull();
+    expect(link.getAttribute('href')).toBe('/competitions/new');
+  });
+
   it('keeps row, edit, delete and categories actions independent', () => {
     createForRole('Administrador');
     const row = fixture.nativeElement.querySelector('.competition-row') as HTMLTableRowElement;

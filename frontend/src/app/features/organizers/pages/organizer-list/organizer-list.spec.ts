@@ -51,6 +51,44 @@ describe('OrganizerListComponent', () => {
     expect(text).not.toContain('password');
   });
 
+  it('searches organizers by name, username and email', () => {
+    const secondOrganizer = {
+      ...organizer,
+      id: 8,
+      username: 'mlopez',
+      first_name: 'María',
+      last_name: 'López',
+      email: 'maria@example.com',
+    };
+    component.organizers = [organizer, secondOrganizer];
+
+    component.searchTerm = 'maría';
+    expect(component.filteredOrganizers).toEqual([secondOrganizer]);
+
+    component.searchTerm = 'organizer';
+    expect(component.filteredOrganizers).toEqual([organizer]);
+
+    component.searchTerm = 'maria@example.com';
+    expect(component.filteredOrganizers).toEqual([secondOrganizer]);
+  });
+
+  it('keeps the total, search and table inside the list surface', () => {
+    const card = fixture.nativeElement.querySelector('.organizer-list-card') as HTMLElement;
+
+    expect(card.textContent).toContain('1 organizador registrado');
+    expect(card.querySelector('#organizer-search')).not.toBeNull();
+    expect(card.querySelector('table')).not.toBeNull();
+  });
+
+  it('shows a dash when name or email is empty', () => {
+    component.organizers = [{ ...organizer, first_name: '', last_name: '', email: '' }];
+    fixture.detectChanges();
+
+    const cells = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('tbody td'));
+    expect(cells[0].textContent?.trim()).toBe('—');
+    expect(cells[2].textContent?.trim()).toBe('—');
+  });
+
   it('opens the state modal and deactivates through the explicit endpoint', () => {
     component.openStateModal(organizer);
     fixture.detectChanges();

@@ -14,13 +14,12 @@
     </div>
 
     @if (isAdministrativeUser()) {
-      <button
-        type="button"
+      <a
         class="btn btn-danger"
-        (click)="goToCreate()"
+        routerLink="/competitions/new"
       >
         Nueva competencia
-      </button>
+      </a>
     }
 
   </div>

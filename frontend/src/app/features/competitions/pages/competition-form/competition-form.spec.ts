@@ -115,6 +115,21 @@ describe('CompetitionFormComponent navigation', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/competitions']);
   });
 
+  it('uses the compact responsive competition form layout', () => {
+    createComponent(null);
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.competition-form-shell')).not.toBeNull();
+    expect(element.querySelector('.competition-form-header')).not.toBeNull();
+    expect(element.querySelector('.competition-form-card')).not.toBeNull();
+    expect(element.querySelector('#type')?.closest('.col-md-6')).not.toBeNull();
+    expect(element.querySelector('#status')?.closest('.col-md-6')).not.toBeNull();
+    expect(element.querySelector('#start_date')?.closest('.col-md-4')).not.toBeNull();
+    expect(element.querySelector('#end_date')?.closest('.col-md-4')).not.toBeNull();
+    expect(element.querySelector('#registration_deadline')?.closest('.col-md-4')).not.toBeNull();
+    expect(element.querySelector('.competition-form-actions')).not.toBeNull();
+  });
+
   function createComponent(id: string | null): void {
     routeId = id;
     fixture = TestBed.createComponent(CompetitionFormComponent);

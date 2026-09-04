@@ -1,463 +1,245 @@
 <div class="container-fluid py-4">
+  <div class="competition-form-shell">
+    <div class="competition-form-header mb-4">
+      <h1 class="h3 mb-1">
+        {{ isEditMode ? 'Editar competencia' : 'Nueva competencia' }}
+      </h1>
 
-  <!-- Encabezado -->
-  <div class="mb-4">
-
-    <h1 class="h3 mb-1">
-      {{ isEditMode ? 'Editar competencia' : 'Nueva competencia' }}
-    </h1>
-
-    <p class="text-muted mb-0">
-      {{
-        isEditMode
-          ? 'Modifica los datos de la competencia.'
-          : 'Registra una nueva competencia de tenis.'
-      }}
-    </p>
-
-  </div>
-
-
-  <!-- Error general -->
-  @if (errorMessage) {
-
-    <div class="alert alert-danger">
-      {{ errorMessage }}
+      <p class="text-muted mb-0">
+        {{
+          isEditMode
+            ? 'Modifica los datos de la competencia.'
+            : 'Registra una nueva competencia de tenis.'
+        }}
+      </p>
     </div>
 
-  }
+    @if (errorMessage) {
+      <div class="alert alert-danger">
+        {{ errorMessage }}
+      </div>
+    }
 
+    <div class="card competition-form-card">
+      <div class="card-body p-3 p-md-4">
+        <form [formGroup]="competitionForm" (ngSubmit)="onSubmit()">
+          <section aria-labelledby="competition-data-title">
+            <h2 id="competition-data-title" class="h5 mb-3">
+              Datos de la competencia
+            </h2>
 
-  <!-- Formulario -->
-  <div class="card shadow-sm border-0">
+            <div class="mb-3">
+              <label for="name" class="form-label">Nombre</label>
+              <input
+                id="name"
+                type="text"
+                class="form-control"
+                formControlName="name"
+                placeholder="Ej. Torneo Estadio Español 2026"
+              >
 
-    <div class="card-body">
-
-      <form
-        [formGroup]="competitionForm"
-        (ngSubmit)="onSubmit()"
-      >
-
-        <!-- ============================== -->
-        <!-- DATOS DE LA COMPETENCIA -->
-        <!-- ============================== -->
-
-        <h2 class="h5 mb-3">
-          Datos de la competencia
-        </h2>
-
-
-        <!-- Nombre -->
-        <div class="mb-3">
-
-          <label
-            for="name"
-            class="form-label"
-          >
-            Nombre
-          </label>
-
-          <input
-            id="name"
-            type="text"
-            class="form-control"
-            formControlName="name"
-            placeholder="Ej. Torneo Estadio Español 2026"
-          >
-
-          @if (
-            competitionForm.controls.name.touched &&
-            competitionForm.controls.name.invalid
-          ) {
-
-            <div class="text-danger small mt-1">
-              El nombre es obligatorio.
+              @if (
+                competitionForm.controls.name.touched &&
+                competitionForm.controls.name.invalid
+              ) {
+                <div class="text-danger small mt-1">
+                  El nombre es obligatorio.
+                </div>
+              }
             </div>
 
-          }
-
-        </div>
-
-
-        <!-- Tipo -->
-        <div class="mb-3">
-
-          <label
-            for="type"
-            class="form-label"
-          >
-            Tipo de competencia
-          </label>
-
-          <select
-            id="type"
-            class="form-select"
-            formControlName="type"
-          >
-
-            <option value="ELIMINACION_DIRECTA">
-              Eliminación directa
-            </option>
-
-            <option value="ESCALERILLA">
-              Escalerilla
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- Fechas -->
-        <div class="row">
-
-          <!-- Fecha inicio -->
-          <div class="col-md-6 mb-3">
-
-            <label
-              for="start_date"
-              class="form-label"
-            >
-              Fecha de inicio
-            </label>
-
-            <app-temporal-input
-              inputId="start_date"
-              format="date"
-              placeholder="DD/MM/YYYY"
-              formControlName="start_date"
-            />
-
-          </div>
-
-
-          <!-- Fecha término -->
-          <div class="col-md-6 mb-3">
-
-            <label
-              for="end_date"
-              class="form-label"
-            >
-              Fecha de término
-            </label>
-
-            <app-temporal-input
-              inputId="end_date"
-              format="date"
-              placeholder="DD/MM/YYYY"
-              formControlName="end_date"
-            />
-
-          </div>
-
-        </div>
-
-
-        <!-- Estado -->
-        <div class="mb-3">
-
-          <label
-            for="status"
-            class="form-label"
-          >
-            Estado
-          </label>
-
-          <select
-            id="status"
-            class="form-select"
-            formControlName="status"
-          >
-
-            <option value="PENDIENTE">
-              Pendiente
-            </option>
-
-            <option value="ABIERTA">
-              Abierta
-            </option>
-
-            <option value="EN_CURSO">
-              En curso
-            </option>
-
-            <option value="FINALIZADA">
-              Finalizada
-            </option>
-
-            <option value="CANCELADA">
-              Cancelada
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- Fecha límite -->
-        <div class="mb-4">
-
-          <label
-            for="registration_deadline"
-            class="form-label"
-          >
-            Fecha límite de inscripción
-          </label>
-
-          <app-temporal-input
-            inputId="registration_deadline"
-            format="date"
-            placeholder="DD/MM/YYYY"
-            formControlName="registration_deadline"
-          />
-
-        </div>
-
-
-        <!-- Separador -->
-        <hr class="my-4">
-
-
-        <!-- ============================== -->
-        <!-- CATEGORÍAS -->
-        <!-- ============================== -->
-
-        <div class="mb-4">
-
-          <h2 class="h5 mb-1">
-            Categorías
-          </h2>
-
-          <p class="text-muted small mb-3">
-            Selecciona las categorías que estarán disponibles
-            para esta competencia.
-          </p>
-
-
-          <!-- Cargando categorías -->
-          @if (loadingCategories) {
-
-            <div class="text-center py-4">
-
-              <div
-                class="spinner-border spinner-border-sm text-danger"
-                role="status"
-              >
-                <span class="visually-hidden">
-                  Cargando categorías...
-                </span>
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-6">
+                <label for="type" class="form-label">Tipo de competencia</label>
+                <select id="type" class="form-select" formControlName="type">
+                  <option value="ELIMINACION_DIRECTA">Eliminación directa</option>
+                  <option value="ESCALERILLA">Escalerilla</option>
+                </select>
               </div>
 
-              <span class="ms-2 text-muted">
-                Cargando categorías...
-              </span>
-
+              <div class="col-12 col-md-6">
+                <label for="status" class="form-label">Estado</label>
+                <select id="status" class="form-select" formControlName="status">
+                  <option value="PENDIENTE">Pendiente</option>
+                  <option value="ABIERTA">Abierta</option>
+                  <option value="EN_CURSO">En curso</option>
+                  <option value="FINALIZADA">Finalizada</option>
+                  <option value="CANCELADA">Cancelada</option>
+                </select>
+              </div>
             </div>
-
-          }
-
-
-          <!-- Error categorías -->
-          @if (categoriesErrorMessage) {
-
-            <div class="alert alert-danger">
-              {{ categoriesErrorMessage }}
-            </div>
-
-          }
-
-
-          <!-- Categorías disponibles -->
-          @if (
-            !loadingCategories &&
-            !categoriesErrorMessage &&
-            categories.length > 0
-          ) {
 
             <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label for="start_date" class="form-label">Fecha de inicio</label>
+                <app-temporal-input
+                  inputId="start_date"
+                  format="date"
+                  placeholder="DD/MM/YYYY"
+                  formControlName="start_date"
+                />
+              </div>
 
-              @for (
-                category of categories;
-                track category.id
-              ) {
+              <div class="col-12 col-md-4">
+                <label for="end_date" class="form-label">Fecha de término</label>
+                <app-temporal-input
+                  inputId="end_date"
+                  format="date"
+                  placeholder="DD/MM/YYYY"
+                  formControlName="end_date"
+                />
+              </div>
 
-                <div class="col-12">
+              <div class="col-12 col-md-4">
+                <label for="registration_deadline" class="form-label">
+                  Fecha límite de inscripción
+                </label>
+                <app-temporal-input
+                  inputId="registration_deadline"
+                  format="date"
+                  placeholder="DD/MM/YYYY"
+                  formControlName="registration_deadline"
+                />
+              </div>
+            </div>
+          </section>
 
-                  <div class="card border">
+          <hr class="my-4">
 
-                    <div class="card-body">
+          <section aria-labelledby="competition-categories-title">
+            <div class="mb-3">
+              <h2 id="competition-categories-title" class="h5 mb-1">Categorías</h2>
+              <p class="text-muted small mb-0">
+                Selecciona las categorías que estarán disponibles para esta competencia.
+              </p>
+            </div>
 
-                      <!-- Checkbox -->
-                      <div class="form-check">
+            @if (loadingCategories) {
+              <div class="text-center py-4">
+                <div
+                  class="spinner-border spinner-border-sm text-danger"
+                  role="status"
+                >
+                  <span class="visually-hidden">Cargando categorías...</span>
+                </div>
+                <span class="ms-2 text-muted">Cargando categorías...</span>
+              </div>
+            }
 
+            @if (categoriesErrorMessage) {
+              <div class="alert alert-danger">{{ categoriesErrorMessage }}</div>
+            }
+
+            @if (
+              !loadingCategories &&
+              !categoriesErrorMessage &&
+              categories.length > 0
+            ) {
+              <div class="row g-3 competition-category-grid">
+                @for (category of categories; track category.id) {
+                  <div class="col-12 col-md-6 col-xl-4">
+                    <div
+                      class="competition-category-option"
+                      [class.is-selected]="isCategorySelected(category.id)"
+                    >
+                      <div class="form-check mb-0">
                         <input
                           class="form-check-input"
                           type="checkbox"
                           [id]="'category-' + category.id"
-                          [checked]="
-                            isCategorySelected(category.id)
-                          "
-                          (change)="
-                            toggleCategory(category.id)
-                          "
+                          [checked]="isCategorySelected(category.id)"
+                          (change)="toggleCategory(category.id)"
                         >
-
                         <label
                           class="form-check-label fw-semibold"
                           [for]="'category-' + category.id"
                         >
                           {{ category.name }}
                         </label>
-
                       </div>
 
-
-                      <!-- Configuración -->
-                      @if (
-                        isCategorySelected(category.id)
-                      ) {
-
-                        <div class="row mt-3">
-
-                          <!-- Mínimo -->
-                          <div class="col-md-6">
-
+                      @if (isCategorySelected(category.id)) {
+                        <div class="row g-3 mt-1 competition-category-settings">
+                          <div class="col-12 col-sm-6">
                             <label
-                              class="form-label"
+                              class="form-label small"
                               [for]="'minimum-' + category.id"
                             >
                               Mínimo de jugadores
                             </label>
-
                             <input
                               type="number"
                               class="form-control"
                               [id]="'minimum-' + category.id"
-                              [(ngModel)]="
-                                categorySettings[
-                                  category.id
-                                ].minimum_players
-                              "
-                              [ngModelOptions]="{
-                                standalone: true
-                              }"
+                              [(ngModel)]="categorySettings[category.id].minimum_players"
+                              [ngModelOptions]="{ standalone: true }"
                               min="1"
                             >
-
                           </div>
 
-
-                          <!-- Máximo -->
-                          <div class="col-md-6">
-
+                          <div class="col-12 col-sm-6">
                             <label
-                              class="form-label"
+                              class="form-label small"
                               [for]="'maximum-' + category.id"
                             >
                               Máximo de jugadores
                             </label>
-
                             <input
                               type="number"
                               class="form-control"
                               [id]="'maximum-' + category.id"
-                              [(ngModel)]="
-                                categorySettings[
-                                  category.id
-                                ].max_players
-                              "
-                              [ngModelOptions]="{
-                                standalone: true
-                              }"
+                              [(ngModel)]="categorySettings[category.id].max_players"
+                              [ngModelOptions]="{ standalone: true }"
                               min="1"
                             >
-
                           </div>
-
                         </div>
-
                       }
-
                     </div>
-
                   </div>
-
-                </div>
-
-              }
-
-            </div>
-
-          }
-
-
-          <!-- No hay categorías -->
-          @if (
-            !loadingCategories &&
-            !categoriesErrorMessage &&
-            categories.length === 0
-          ) {
-
-            <div class="alert alert-info">
-              No existen categorías disponibles.
-            </div>
-
-          }
-
-        </div>
-
-
-        <!-- ============================== -->
-        <!-- BOTONES -->
-        <!-- ============================== -->
-
-        <div class="d-flex gap-2">
-
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            (click)="cancel()"
-            [disabled]="loading"
-          >
-            Cancelar
-          </button>
-
-
-          @if (isAdministrativeUser()) {
-            <button
-              type="submit"
-              class="btn btn-danger"
-              [disabled]="loading"
-            >
-
-            @if (loading) {
-
-              <span
-                class="spinner-border spinner-border-sm me-2"
-                aria-hidden="true"
-              ></span>
-
-              Guardando...
-
-            } @else {
-
-              {{
-                isEditMode
-                  ? 'Actualizar competencia'
-                  : 'Guardar competencia'
-              }}
-
+                }
+              </div>
             }
 
+            @if (
+              !loadingCategories &&
+              !categoriesErrorMessage &&
+              categories.length === 0
+            ) {
+              <div class="alert alert-info mb-0">No existen categorías disponibles.</div>
+            }
+          </section>
+
+          <div class="competition-form-actions d-flex flex-wrap justify-content-end gap-2 mt-4 pt-4">
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="cancel()"
+              [disabled]="loading"
+            >
+              Cancelar
             </button>
-          }
 
-        </div>
-
-      </form>
-
+            @if (isAdministrativeUser()) {
+              <button
+                type="submit"
+                class="btn btn-danger"
+                [disabled]="loading"
+              >
+                @if (loading) {
+                  <span
+                    class="spinner-border spinner-border-sm me-2"
+                    aria-hidden="true"
+                  ></span>
+                  Guardando...
+                } @else {
+                  {{ isEditMode ? 'Actualizar competencia' : 'Guardar competencia' }}
+                }
+              </button>
+            }
+          </div>
+        </form>
+      </div>
     </div>
-
   </div>
-
 </div>

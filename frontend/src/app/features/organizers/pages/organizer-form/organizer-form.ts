@@ -35,6 +35,7 @@ const matchingPasswordsValidator: ValidatorFn = (
   selector: 'app-organizer-form',
   imports: [ReactiveFormsModule],
   templateUrl: './organizer-form.html',
+  styleUrl: './organizer-form.scss',
 })
 export class OrganizerFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

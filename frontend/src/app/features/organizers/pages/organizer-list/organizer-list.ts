@@ -9,6 +9,7 @@ import { OrganizerService } from '../../services/organizer';
   selector: 'app-organizer-list',
   imports: [CommonModule],
   templateUrl: './organizer-list.html',
+  styleUrl: './organizer-list.scss',
 })
 export class OrganizerListComponent implements OnInit {
   private readonly organizerService = inject(OrganizerService);
@@ -19,7 +20,29 @@ export class OrganizerListComponent implements OnInit {
   changingState = false;
   errorMessage = '';
   successMessage = '';
+  searchTerm = '';
   organizerToChange: Organizer | null = null;
+
+  get filteredOrganizers(): Organizer[] {
+    const term = this.searchTerm.trim().toLocaleLowerCase();
+
+    return this.organizers.filter((organizer) => {
+      if (!term) return true;
+
+      const searchable = [
+        organizer.first_name,
+        organizer.last_name,
+        organizer.username,
+        organizer.email,
+      ].join(' ').toLocaleLowerCase();
+
+      return searchable.includes(term);
+    });
+  }
+
+  getOrganizerName(organizer: Organizer): string {
+    return `${organizer.first_name} ${organizer.last_name}`.trim() || '—';
+  }
 
   ngOnInit(): void {
     const navigationMessage = history.state?.successMessage;

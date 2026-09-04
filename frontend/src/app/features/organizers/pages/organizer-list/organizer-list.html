@@ -1,5 +1,5 @@
 <div class="container-fluid py-4">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div class="organizer-list-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
     <div>
       <h1 class="h3 mb-1">Organizadores</h1>
       <p class="text-body-secondary mb-0">Gestión de cuentas con rol Organizador</p>
@@ -26,45 +26,73 @@
   } @else if (!errorMessage && organizers.length === 0) {
     <div class="alert alert-info">No hay organizadores registrados.</div>
   } @else if (organizers.length > 0) {
-    <div class="card border-0 shadow-sm">
+    <div class="card organizer-list-card app-table-surface">
       <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Nombre</th><th>Usuario</th><th>Email</th><th>Estado</th>
-                <th class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (organizer of organizers; track organizer.id) {
-                <tr>
-                  <td><strong>{{ organizer.first_name }} {{ organizer.last_name }}</strong></td>
-                  <td>{{ organizer.username }}</td>
-                  <td>{{ organizer.email }}</td>
-                  <td>
-                    <span class="badge" [class.text-bg-success]="organizer.is_active"
-                      [class.text-bg-secondary]="!organizer.is_active">
-                      {{ organizer.is_active ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-                  <td class="text-end">
-                    <div class="d-flex flex-wrap justify-content-end gap-2">
-                      <button type="button" class="btn btn-sm btn-outline-secondary"
-                        (click)="goToEdit(organizer.id)">Editar</button>
-                      <button type="button" class="btn btn-sm"
-                        [class.btn-outline-danger]="organizer.is_active"
-                        [class.btn-outline-success]="!organizer.is_active"
-                        (click)="openStateModal(organizer)">
-                        {{ organizer.is_active ? 'Desactivar' : 'Activar' }}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+        <div class="organizer-list-toolbar d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-4">
+          <div>
+            <h2 class="h5 mb-1">Listado de organizadores</h2>
+            <p class="small text-body-secondary mb-0">
+              {{ organizers.length }}
+              {{ organizers.length === 1 ? 'organizador registrado' : 'organizadores registrados' }}
+            </p>
+          </div>
+
+          <div class="organizer-search">
+            <label for="organizer-search" class="visually-hidden">Buscar organizador</label>
+            <input
+              id="organizer-search"
+              type="search"
+              class="form-control"
+              placeholder="Buscar organizador..."
+              [value]="searchTerm"
+              (input)="searchTerm = $any($event.target).value"
+            >
+          </div>
         </div>
+
+        @if (filteredOrganizers.length === 0) {
+          <div class="p-4 pt-0">
+            <div class="alert alert-info mb-0">No se encontraron organizadores.</div>
+          </div>
+        } @else {
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Nombre</th><th>Usuario</th><th>Email</th><th>Estado</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (organizer of filteredOrganizers; track organizer.id) {
+                  <tr>
+                    <td><strong>{{ getOrganizerName(organizer) }}</strong></td>
+                    <td>{{ organizer.username }}</td>
+                    <td>{{ organizer.email.trim() || '—' }}</td>
+                    <td>
+                      <span class="badge" [class.text-bg-success]="organizer.is_active"
+                        [class.text-bg-secondary]="!organizer.is_active">
+                        {{ organizer.is_active ? 'Activo' : 'Inactivo' }}
+                      </span>
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex flex-wrap justify-content-end gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                          (click)="goToEdit(organizer.id)">Editar</button>
+                        <button type="button" class="btn btn-sm"
+                          [class.btn-outline-danger]="organizer.is_active"
+                          [class.btn-outline-success]="!organizer.is_active"
+                          (click)="openStateModal(organizer)">
+                          {{ organizer.is_active ? 'Desactivar' : 'Activar' }}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     </div>
   }

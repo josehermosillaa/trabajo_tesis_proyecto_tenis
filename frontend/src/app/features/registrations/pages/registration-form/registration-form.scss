@@ -1,3 +1,14 @@
+.registration-form-shell {
+  width: 100%;
+  max-width: 77.5rem;
+  margin-inline: auto;
+}
+
+.registration-form-header {
+  padding-left: 0.85rem;
+  border-left: 0.25rem solid var(--app-brand);
+}
+
 .player-search-results {
   position: absolute;
   z-index: 1050;
@@ -14,4 +25,8 @@
 
 .selected-player {
   background-color: var(--bs-light-bg-subtle);
+}
+
+.registration-form-actions {
+  border-top: 1px solid var(--bs-border-color);
 }

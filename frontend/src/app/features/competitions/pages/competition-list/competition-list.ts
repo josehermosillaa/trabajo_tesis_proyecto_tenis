@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 
 import { CompetitionService } from '../../services/competition';
 import { Competition } from '../../models/competition.model';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TokenService } from '../../../../core/services/token';
 import { UiDateTimePipe } from '../../../../shared/date-time/ui-date-time.pipe';
 
 @Component({
   selector: 'app-competition-list',
-  imports: [CommonModule, UiDateTimePipe],
+  imports: [CommonModule, RouterLink, UiDateTimePipe],
   templateUrl: './competition-list.html',
   styleUrl: './competition-list.scss',
 })
