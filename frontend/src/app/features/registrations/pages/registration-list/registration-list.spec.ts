@@ -69,4 +69,13 @@ describe('RegistrationListComponent order and search', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No se encontraron inscripciones.');
   });
+
+  it('shows the loaded total and keeps search and table inside the list surface', () => {
+    const card = fixture.nativeElement.querySelector('.registration-list-card') as HTMLElement;
+
+    expect(card.textContent).toContain('2 inscripciones registradas');
+    expect(card.querySelector('#registration-search')).not.toBeNull();
+    expect(card.querySelector('table')).not.toBeNull();
+    expect(card.querySelector('tbody .badge.text-bg-secondary')?.textContent).toContain('HONOR');
+  });
 });

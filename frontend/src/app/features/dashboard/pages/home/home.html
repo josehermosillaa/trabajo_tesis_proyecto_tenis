@@ -5,42 +5,72 @@
   [class.player-dashboard-shell]="isPlayerUser()"
 >
   @if (isAdministrativeUser()) {
-    <div class="mb-4">
+    <header class="admin-dashboard-header mb-4">
       <h1 class="h2 mb-1">Dashboard administrativo</h1>
       <p class="text-body-secondary mb-0">Gestión general de torneos de tenis.</p>
-    </div>
+    </header>
 
     @if (errorMessage) {
       <div class="alert alert-danger" role="alert">{{ errorMessage }}</div>
     }
 
     <section class="mb-4" aria-labelledby="quick-actions-title">
-      <h2 id="quick-actions-title" class="h4 mb-3">Acciones rápidas</h2>
-      <div class="row g-3">
-        <div class="col-sm-6 col-xl">
-          <button class="btn btn-success w-100 h-100 py-3" (click)="navigateTo('/competitions/new')">
-            Nueva competencia
+      <h2 id="quick-actions-title" class="h5 mb-3">Acciones rápidas</h2>
+      <div class="row g-2 g-md-3">
+        <div class="col-12 col-sm-6 col-xl">
+          <button
+            type="button"
+            class="quick-action quick-action-primary w-100 h-100"
+            data-testid="quick-action-new-competition"
+            (click)="navigateTo('/competitions/new')"
+          >
+            <span>Nueva competencia</span>
+            <span class="quick-action-arrow" aria-hidden="true">›</span>
           </button>
         </div>
-        <div class="col-sm-6 col-xl">
-          <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/competitions')">
-            Ver competencias
+        <div class="col-12 col-sm-6 col-xl">
+          <button
+            type="button"
+            class="quick-action w-100 h-100"
+            data-testid="quick-action-competitions"
+            (click)="navigateTo('/competitions')"
+          >
+            <span>Ver competencias</span>
+            <span class="quick-action-arrow" aria-hidden="true">›</span>
           </button>
         </div>
-        <div class="col-sm-6 col-xl">
-          <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/players')">
-            Gestionar jugadores
+        <div class="col-12 col-sm-6 col-xl">
+          <button
+            type="button"
+            class="quick-action w-100 h-100"
+            data-testid="quick-action-players"
+            (click)="navigateTo('/players')"
+          >
+            <span>Gestionar jugadores</span>
+            <span class="quick-action-arrow" aria-hidden="true">›</span>
           </button>
         </div>
         @if (isAdminUser()) {
-          <div class="col-sm-6 col-xl">
-            <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/registrations')">
-              Gestionar inscripciones
+          <div class="col-12 col-sm-6 col-xl">
+            <button
+              type="button"
+              class="quick-action w-100 h-100"
+              data-testid="quick-action-registrations"
+              (click)="navigateTo('/registrations')"
+            >
+              <span>Gestionar inscripciones</span>
+              <span class="quick-action-arrow" aria-hidden="true">›</span>
             </button>
           </div>
-          <div class="col-sm-6 col-xl">
-            <button class="btn btn-outline-success w-100 h-100 py-3" (click)="navigateTo('/matches')">
-              Ver partidos
+          <div class="col-12 col-sm-6 col-xl">
+            <button
+              type="button"
+              class="quick-action w-100 h-100"
+              data-testid="quick-action-matches"
+              (click)="navigateTo('/matches')"
+            >
+              <span>Ver partidos</span>
+              <span class="quick-action-arrow" aria-hidden="true">›</span>
             </button>
           </div>
         }
@@ -49,36 +79,44 @@
 
     @if (loading) {
       <div class="d-flex align-items-center gap-2 py-5 justify-content-center">
-        <div class="spinner-border text-success" role="status" aria-hidden="true"></div>
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
         <span>Cargando competencias...</span>
       </div>
     } @else {
-      <div class="row g-4">
+      <div class="row g-4 align-items-stretch">
         <section class="col-lg-6" aria-labelledby="upcoming-competitions-title">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-              <h2 id="upcoming-competitions-title" class="h4 mb-3">Próximas competencias</h2>
+          <div class="card admin-competition-card h-100 border-0 shadow-sm overflow-hidden">
+            <div class="card-body p-0 d-flex flex-column">
+              <div class="admin-card-header px-4 pt-4 pb-3">
+                <h2 id="upcoming-competitions-title" class="h4 mb-1">Próximas competencias</h2>
+                <p class="small text-body-secondary mb-0">Torneos pendientes o con inscripción abierta.</p>
+              </div>
               @if (upcomingCompetitions.length === 0) {
-                <div class="empty-state">No hay próximas competencias.</div>
+                <div class="empty-state mx-4 mb-4">No hay próximas competencias.</div>
               } @else {
                 <div class="list-group list-group-flush">
                   @for (item of upcomingCompetitions; track item.id) {
-                    <div class="list-group-item px-0 py-3">
-                      <div class="d-flex justify-content-between gap-3">
-                        <div>
-                          <h3 class="h6 mb-1">{{ item.name }}</h3>
-                          <div class="small text-body-secondary">
+                    <button
+                      type="button"
+                      class="list-group-item admin-competition-row px-4 py-3 text-start"
+                      data-testid="admin-competition-row"
+                      (click)="viewCompetitionCategories(item.id)"
+                    >
+                      <span class="d-flex justify-content-between align-items-start gap-3">
+                        <span class="flex-grow-1">
+                          <span class="d-block h5 mb-1">{{ item.name }}</span>
+                          <span class="d-block small text-body-secondary">
                             {{ item.start_date | uiDateTime:'date' }} –
                             {{ item.end_date | uiDateTime:'date' }}
-                          </div>
-                        </div>
+                          </span>
+                        </span>
                         <span
-                          class="badge align-self-start"
+                          class="badge flex-shrink-0"
                           [class.text-bg-warning]="item.status === 'PENDIENTE'"
                           [class.text-bg-success]="item.status === 'ABIERTA'"
                         >{{ item.status === 'ABIERTA' ? 'Abierta' : 'Pendiente' }}</span>
-                      </div>
-                    </div>
+                      </span>
+                    </button>
                   }
                 </div>
               }
@@ -87,26 +125,34 @@
         </section>
 
         <section class="col-lg-6" aria-labelledby="ongoing-competitions-title">
-          <div class="card h-100 border-0 shadow-sm">
-            <div class="card-body">
-              <h2 id="ongoing-competitions-title" class="h4 mb-3">Competencias en curso</h2>
+          <div class="card admin-competition-card h-100 border-0 shadow-sm overflow-hidden">
+            <div class="card-body p-0 d-flex flex-column">
+              <div class="admin-card-header px-4 pt-4 pb-3">
+                <h2 id="ongoing-competitions-title" class="h4 mb-1">Competencias en curso</h2>
+                <p class="small text-body-secondary mb-0">Torneos que se están disputando actualmente.</p>
+              </div>
               @if (ongoingCompetitions.length === 0) {
-                <div class="empty-state">No hay competencias en curso.</div>
+                <div class="empty-state mx-4 mb-4">No hay competencias en curso.</div>
               } @else {
                 <div class="list-group list-group-flush">
                   @for (item of ongoingCompetitions; track item.id) {
-                    <div class="list-group-item px-0 py-3">
-                      <div class="d-flex justify-content-between gap-3">
-                        <div>
-                          <h3 class="h6 mb-1">{{ item.name }}</h3>
-                          <div class="small text-body-secondary">
+                    <button
+                      type="button"
+                      class="list-group-item admin-competition-row px-4 py-3 text-start"
+                      data-testid="admin-competition-row"
+                      (click)="viewCompetitionCategories(item.id)"
+                    >
+                      <span class="d-flex justify-content-between align-items-start gap-3">
+                        <span class="flex-grow-1">
+                          <span class="d-block h5 mb-1">{{ item.name }}</span>
+                          <span class="d-block small text-body-secondary">
                             {{ item.start_date | uiDateTime:'date' }} –
                             {{ item.end_date | uiDateTime:'date' }}
-                          </div>
-                        </div>
-                        <span class="badge text-bg-primary align-self-start">En curso</span>
-                      </div>
-                    </div>
+                          </span>
+                        </span>
+                        <span class="badge text-bg-primary flex-shrink-0">En curso</span>
+                      </span>
+                    </button>
                   }
                 </div>
               }
@@ -136,7 +182,7 @@
 
     @if (loading) {
       <div class="d-flex align-items-center gap-2 py-5 justify-content-center">
-        <div class="spinner-border text-success" role="status" aria-hidden="true"></div>
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
         <span>Cargando dashboard...</span>
       </div>
     } @else {
@@ -350,7 +396,7 @@
                       </div>
                       <button
                         type="button"
-                        class="btn btn-success px-4 py-2 flex-shrink-0 align-self-sm-center align-self-start"
+                        class="btn btn-danger px-4 py-2 flex-shrink-0 align-self-sm-center align-self-start"
                         [disabled]="registeringCategoryId !== null"
                         (click)="register(item)"
                       >

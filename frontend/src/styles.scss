@@ -1,1 +1,177 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --bs-danger: #b4232f;
+  --bs-danger-rgb: 180, 35, 47;
+  --bs-success: #198754;
+  --bs-success-rgb: 25, 135, 84;
+  --bs-link-color: #a61f2b;
+  --bs-link-hover-color: #7f1720;
+  --bs-body-color: #27313d;
+  --bs-body-bg: #f4f5f7;
+  --bs-border-color: #dfe3e8;
+  --bs-border-radius: 0.5rem;
+  --bs-border-radius-sm: 0.375rem;
+  --bs-border-radius-lg: 0.75rem;
+  --app-surface: #ffffff;
+  --app-structural: #111827;
+  --app-brand: #b4232f;
+  --app-heading-color: #172033;
+  --app-shadow-sm: 0 0.125rem 0.5rem rgba(17, 24, 39, 0.08);
+}
+
+html {
+  background-color: var(--bs-body-bg);
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--app-heading-color);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.text-muted,
+.text-body-secondary {
+  color: #687180 !important;
+}
+
+.card {
+  border-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+  background-color: var(--app-surface);
+  box-shadow: var(--app-shadow-sm);
+}
+
+.card.shadow,
+.card.shadow-sm {
+  box-shadow: var(--app-shadow-sm) !important;
+}
+
+.card-header {
+  border-bottom-color: var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg) var(--bs-border-radius-lg) 0 0 !important;
+}
+
+.btn {
+  border-radius: var(--bs-border-radius);
+  font-weight: 600;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.btn-danger {
+  --bs-btn-bg: var(--app-brand);
+  --bs-btn-border-color: var(--app-brand);
+  --bs-btn-hover-bg: #991e28;
+  --bs-btn-hover-border-color: #8e1b25;
+  --bs-btn-active-bg: #861923;
+  --bs-btn-active-border-color: #7f1720;
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--app-brand);
+  --bs-btn-border-color: var(--app-brand);
+  --bs-btn-hover-bg: var(--app-brand);
+  --bs-btn-hover-border-color: var(--app-brand);
+  --bs-btn-active-bg: #991e28;
+  --bs-btn-active-border-color: #991e28;
+}
+
+.form-control,
+.form-select,
+.input-group-text {
+  border-color: #cfdad5;
+  border-radius: var(--bs-border-radius);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(var(--bs-danger-rgb), 0.55);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-danger-rgb), 0.12);
+}
+
+.form-label {
+  color: #374151;
+  font-weight: 600;
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: rgba(17, 24, 39, 0.035);
+  color: var(--bs-body-color);
+}
+
+.table > :not(caption) > * > * {
+  padding: 0.75rem 0.8rem;
+  border-bottom-color: #e7e9ed;
+}
+
+.table thead th,
+.table-light th {
+  background-color: #f5f6f8;
+  color: #596273;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table-responsive {
+  border-radius: inherit;
+}
+
+.app-table-surface {
+  border: 1px solid var(--bs-border-color) !important;
+  box-shadow: 0 0.25rem 0.85rem rgba(17, 24, 39, 0.09) !important;
+}
+
+.badge {
+  border-radius: 50rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  padding: 0.42em 0.68em;
+}
+
+.alert {
+  border-radius: var(--bs-border-radius-lg);
+  border-width: 1px;
+}
+
+.modal-content {
+  border: 0;
+  border-radius: var(--bs-border-radius-lg);
+  box-shadow: 0 1rem 3rem rgba(20, 42, 35, 0.2);
+}
+
+@media (max-width: 575.98px) {
+  .container,
+  .container-fluid {
+    --bs-gutter-x: 1.5rem;
+  }
+
+  .table > :not(caption) > * > * {
+    padding: 0.65rem 0.7rem;
+  }
+}

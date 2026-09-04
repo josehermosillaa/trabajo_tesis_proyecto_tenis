@@ -538,6 +538,29 @@ export class MatchListComponent
   }
 
 
+  isLadderMatch(
+    match: Match
+  ): boolean {
+
+    const competitionCategory =
+      this.getCompetitionCategory(
+        match.competition_category
+      );
+
+    const competition =
+      this.competitions.find(
+        (item) =>
+          item.id ===
+          competitionCategory?.competition
+      );
+
+    return (
+      competition?.type ===
+        'ESCALERILLA'
+    );
+  }
+
+
   goToBracket(match: Match): void {
 
     const competitionCategory =

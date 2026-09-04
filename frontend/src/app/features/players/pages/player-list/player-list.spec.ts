@@ -67,6 +67,15 @@ describe('PlayerListComponent role and search', () => {
     expect(fixture.nativeElement.textContent).toContain('No se encontraron jugadores.');
   });
 
+  it('shows the loaded total and keeps the search inside the list surface', () => {
+    createForRole('Administrador');
+
+    const card = fixture.nativeElement.querySelector('.player-list-card') as HTMLElement;
+    expect(card.textContent).toContain('2 jugadores registrados');
+    expect(card.querySelector('#player-search')).not.toBeNull();
+    expect(card.querySelector('table')).not.toBeNull();
+  });
+
   function createForRole(role: UserRole): void {
     tokenService.isAdministrativeUser.and.returnValue(true);
     tokenService.isAdminUser.and.returnValue(role === 'Administrador');

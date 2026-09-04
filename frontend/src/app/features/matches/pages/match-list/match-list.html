@@ -2,7 +2,7 @@
 
   <!-- Encabezado -->
   <div
-    class="d-flex justify-content-between align-items-center mb-4"
+    class="match-list-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4"
   >
 
     <div>
@@ -57,30 +57,13 @@
 
   }
 
-  @if (!loading && matches.length > 0) {
-    <div class="row mb-3">
-      <div class="col-12 col-md-6 col-lg-4">
-        <label for="match-search" class="visually-hidden">Buscar partido</label>
-        <input
-          id="match-search"
-          type="search"
-          class="form-control"
-          placeholder="Buscar partido..."
-          [value]="searchTerm"
-          (input)="searchTerm = $any($event.target).value"
-        >
-      </div>
-    </div>
-  }
-
-
   <!-- Cargando -->
   @if (loading) {
 
     <div class="text-center py-5">
 
       <div
-        class="spinner-border text-danger"
+        class="spinner-border text-primary"
         role="status"
       >
 
@@ -98,11 +81,6 @@
 
   }
 
-  @if (!loading && matches.length > 0 && filteredMatches.length === 0) {
-    <div class="alert alert-info">No se encontraron partidos.</div>
-  }
-
-
   <!-- Sin partidos -->
   @if (
     !loading &&
@@ -118,21 +96,48 @@
 
 
   <!-- Listado -->
-  @if (
-    !loading &&
-    filteredMatches.length > 0
-  ) {
+  @if (!loading && matches.length > 0) {
 
     <div
-      class="card shadow-sm border-0"
+      class="card match-list-card app-table-surface"
     >
 
       <div class="card-body p-0">
 
+        <div
+          class="match-list-toolbar d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 p-4"
+        >
+          <div>
+            <h2 class="h5 mb-1">Listado de partidos</h2>
+            <p class="small text-body-secondary mb-0">
+              {{ matches.length }}
+              {{ matches.length === 1 ? 'partido registrado' : 'partidos registrados' }}
+            </p>
+          </div>
+
+          <div class="match-search">
+            <label for="match-search" class="visually-hidden">Buscar partido</label>
+            <input
+              id="match-search"
+              type="search"
+              class="form-control"
+              placeholder="Buscar partido..."
+              [value]="searchTerm"
+              (input)="searchTerm = $any($event.target).value"
+            >
+          </div>
+        </div>
+
+        @if (filteredMatches.length === 0) {
+          <div class="p-4 pt-0">
+            <div class="alert alert-info mb-0">No se encontraron partidos.</div>
+          </div>
+        } @else {
+
         <div class="table-responsive">
 
           <table
-            class="table table-hover mb-0 align-middle"
+            class="table match-list-table table-hover mb-0 align-middle"
           >
 
             <thead class="table-light">
@@ -208,11 +213,13 @@
 
                   <td>
 
-                    {{
-                      getCategoryName(
-                        match.competition_category
-                      )
-                    }}
+                    <span class="badge text-bg-secondary">
+                      {{
+                        getCategoryName(
+                          match.competition_category
+                        )
+                      }}
+                    </span>
 
                   </td>
 
@@ -260,11 +267,13 @@
 
                   <td>
 
-                    {{
-                      getCourtName(
-                        match.court
-                      )
-                    }}
+                    <span [class.text-body-secondary]="match.court === null">
+                      {{
+                        getCourtName(
+                          match.court
+                        )
+                      }}
+                    </span>
 
                   </td>
 
@@ -282,7 +291,9 @@
 
                     } @else {
 
-                      Sin programación
+                      <span class="text-body-secondary">
+                        Sin programación
+                      </span>
 
                     }
 
@@ -346,12 +357,16 @@
                     <td class="text-end">
 
                     <div
-                      class="d-flex justify-content-end gap-2"
+                      class="match-actions d-flex flex-wrap justify-content-end gap-2"
                     >
 
                       @if (isGeneratedBracketMatch(match)) {
-                        <span class="badge text-bg-light align-self-center">
+                        <span class="badge text-bg-light border align-self-center">
                           Partido de cuadro
+                        </span>
+                      } @else if (isLadderMatch(match)) {
+                        <span class="badge text-bg-light border align-self-center">
+                          Partido de escalerilla
                         </span>
                       }
 
@@ -420,6 +435,8 @@
           </table>
 
         </div>
+
+        }
 
       </div>
 
@@ -530,7 +547,7 @@
 
             <button
               type="button"
-              class="btn btn-danger"
+              class="btn btn-outline-danger"
               [disabled]="
                 deletingId !== null
               "

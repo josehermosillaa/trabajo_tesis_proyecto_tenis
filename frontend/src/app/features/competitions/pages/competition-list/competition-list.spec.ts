@@ -9,6 +9,7 @@ import { CompetitionListComponent } from './competition-list';
 describe('CompetitionListComponent role actions', () => {
   let fixture: ComponentFixture<CompetitionListComponent>;
   let token: jasmine.SpyObj<TokenService>;
+  let router: jasmine.SpyObj<Router>;
 
   beforeEach(async () => {
     const service = jasmine.createSpyObj<CompetitionService>(
@@ -22,7 +23,7 @@ describe('CompetitionListComponent role actions', () => {
     token = jasmine.createSpyObj<TokenService>(
       'TokenService', ['isAdministrativeUser', 'isAdminUser']
     );
-    const router = jasmine.createSpyObj<Router>('Router', ['navigate']);
+    router = jasmine.createSpyObj<Router>('Router', ['navigate']);
     await TestBed.configureTestingModule({
       imports: [CompetitionListComponent],
       providers: [
@@ -44,6 +45,37 @@ describe('CompetitionListComponent role actions', () => {
     expect(buttonTexts()).toContain('Categorías');
   });
 
+  it('shows friendly competition values without changing the source data', () => {
+    createForRole('Administrador');
+    const rowText = fixture.nativeElement.querySelector('.competition-row').textContent;
+
+    expect(rowText).toContain('Escalerilla');
+    expect(rowText).toContain('Abierta');
+    expect(fixture.componentInstance.competitions[0].type).toBe('ESCALERILLA');
+    expect(fixture.componentInstance.competitions[0].status).toBe('ABIERTA');
+  });
+
+  it('keeps row, edit, delete and categories actions independent', () => {
+    createForRole('Administrador');
+    const row = fixture.nativeElement.querySelector('.competition-row') as HTMLTableRowElement;
+
+    row.querySelector('td')?.click();
+    expect(router.navigate).toHaveBeenCalledOnceWith(['/competitions', 1, 'categories']);
+
+    router.navigate.calls.reset();
+    buttonNamed('Editar').click();
+    expect(router.navigate).toHaveBeenCalledOnceWith(['/competitions', 1, 'edit']);
+
+    router.navigate.calls.reset();
+    buttonNamed('Categorías').click();
+    expect(router.navigate).toHaveBeenCalledOnceWith(['/competitions', 1, 'categories']);
+
+    router.navigate.calls.reset();
+    buttonNamed('Eliminar').click();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.showDeleteModal).toBeTrue();
+  });
+
   function createForRole(role: UserRole): void {
     token.isAdministrativeUser.and.returnValue(true);
     token.isAdminUser.and.returnValue(role === 'Administrador');
@@ -54,5 +86,10 @@ describe('CompetitionListComponent role actions', () => {
   function buttonTexts(): string[] {
     return Array.from(fixture.nativeElement.querySelectorAll('button'))
       .map((item: unknown) => (item as HTMLButtonElement).textContent?.trim() ?? '');
+  }
+
+  function buttonNamed(label: string): HTMLButtonElement {
+    return Array.from<HTMLButtonElement>(fixture.nativeElement.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === label) as HTMLButtonElement;
   }
 });

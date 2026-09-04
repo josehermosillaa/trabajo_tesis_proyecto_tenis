@@ -1,8 +1,9 @@
 @if (isAuthenticated()) {
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+  <nav class="navbar navbar-expand-lg navbar-dark app-navbar px-3 px-xl-4">
 
-    <span class="navbar-brand mb-0 h1">
+    <span class="navbar-brand d-flex align-items-center gap-2 mb-0 h1">
+      <span class="brand-accent" aria-hidden="true"></span>
       Sistema de Gestión de Torneos
     </span>
 
@@ -23,26 +24,26 @@
       [class.show]="navigationOpen"
     >
       <div class="navbar-nav me-auto">
-        <a class="nav-link" routerLink="/dashboard" (click)="closeNavigation()">
+        <a class="nav-link" routerLink="/dashboard" routerLinkActive="active" (click)="closeNavigation()">
           Dashboard
         </a>
-        <a class="nav-link" routerLink="/competitions" (click)="closeNavigation()">
+        <a class="nav-link" routerLink="/competitions" routerLinkActive="active" (click)="closeNavigation()">
           Competencias
         </a>
 
         @if (isAdministrativeUser()) {
-          <a class="nav-link" routerLink="/players" (click)="closeNavigation()">
+          <a class="nav-link" routerLink="/players" routerLinkActive="active" (click)="closeNavigation()">
             Jugadores
           </a>
         }
         @if (isAdminUser()) {
-          <a class="nav-link" routerLink="/registrations" (click)="closeNavigation()">
+          <a class="nav-link" routerLink="/registrations" routerLinkActive="active" (click)="closeNavigation()">
             Inscripciones
           </a>
-          <a class="nav-link" routerLink="/matches" (click)="closeNavigation()">
+          <a class="nav-link" routerLink="/matches" routerLinkActive="active" (click)="closeNavigation()">
             Partidos
           </a>
-          <a class="nav-link" routerLink="/organizers" (click)="closeNavigation()">
+          <a class="nav-link" routerLink="/organizers" routerLinkActive="active" (click)="closeNavigation()">
             Organizadores
           </a>
         }
@@ -61,4 +62,6 @@
 
 }
 
-<router-outlet></router-outlet>
+<main class="app-main">
+  <router-outlet></router-outlet>
+</main>

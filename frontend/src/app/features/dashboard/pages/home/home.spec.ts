@@ -73,6 +73,47 @@ describe('Home', () => {
     expect(fixture.nativeElement.textContent).toContain('Gestionar jugadores');
   });
 
+  it('keeps every administrative shortcut destination unchanged', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 1, role: 'Administrador' }));
+    spyOn(router, 'navigate');
+    createComponent();
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([]);
+    fixture.detectChanges();
+
+    const shortcuts: Array<[string, string]> = [
+      ['quick-action-new-competition', '/competitions/new'],
+      ['quick-action-competitions', '/competitions'],
+      ['quick-action-players', '/players'],
+      ['quick-action-registrations', '/registrations'],
+      ['quick-action-matches', '/matches'],
+    ];
+
+    for (const [testId, route] of shortcuts) {
+      (router.navigate as jasmine.Spy).calls.reset();
+      (fixture.nativeElement.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement).click();
+      expect(router.navigate).toHaveBeenCalledOnceWith([route]);
+    }
+  });
+
+  it('opens categories from administrative competition rows', () => {
+    tokenService.saveAccessToken(createToken({ user_id: 1, role: 'Organizador' }));
+    spyOn(router, 'navigate');
+    createComponent();
+    httpTesting.expectOne(`${environment.apiUrl}/competitions/`).flush([
+      competitionWithStatus(7, 'Copa institucional', 'ABIERTA', '2026-09-10'),
+    ]);
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector(
+      '[data-testid="admin-competition-row"]'
+    ) as HTMLButtonElement;
+    row.click();
+
+    expect(router.navigate).toHaveBeenCalledOnceWith([
+      '/competitions', 7, 'categories',
+    ]);
+  });
+
   it('should load and relate the player dashboard data', () => {
     tokenService.saveAccessToken(createToken({ user_id: 10, role: 'Jugador' }));
     createComponent();

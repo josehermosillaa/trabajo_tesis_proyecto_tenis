@@ -1,0 +1,21 @@
+.player-list-header {
+  padding-left: 0.85rem;
+  border-left: 0.25rem solid var(--app-brand);
+}
+
+.player-list-card {
+  overflow: hidden;
+}
+
+.player-list-toolbar {
+  border-bottom: 1px solid var(--bs-border-color);
+  background: #fafbfc;
+}
+
+.player-search {
+  width: min(100%, 26rem);
+}
+
+.player-list-card tbody tr {
+  transition: background-color 150ms ease;
+}

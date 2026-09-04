@@ -62,6 +62,12 @@ describe('MatchListComponent bracket protection', () => {
     expect(component.isGeneratedBracketMatch(match(11, 1))).toBeFalse();
   });
 
+  it('identifies a ladder match only from its real competition type', () => {
+    expect(component.isLadderMatch(match(11, null))).toBeTrue();
+    expect(component.isLadderMatch(match(10, null))).toBeFalse();
+    expect(component.isLadderMatch(match(10, 1))).toBeFalse();
+  });
+
   function match(
     competitionCategory: number,
     bracketPosition: number | null

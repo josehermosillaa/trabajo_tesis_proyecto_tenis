@@ -91,6 +91,24 @@ describe('MatchListComponent stable order and search', () => {
     expect(fixture.nativeElement.textContent).toContain('No se encontraron partidos.');
   });
 
+  it('keeps the loaded total, search and table inside the list surface', () => {
+    const card = fixture.nativeElement.querySelector('.match-list-card') as HTMLElement;
+
+    expect(card.textContent).toContain('3 partidos registrados');
+    expect(card.querySelector('#match-search')).not.toBeNull();
+    expect(card.querySelector('table')).not.toBeNull();
+    expect(card.querySelector('tbody .badge.text-bg-secondary')?.textContent).toContain('HONOR');
+  });
+
+  it('presents schedule placeholders as secondary information', () => {
+    const secondaryTexts = Array.from<HTMLElement>(
+      fixture.nativeElement.querySelectorAll('tbody .text-body-secondary')
+    ).map((element) => element.textContent?.trim());
+
+    expect(secondaryTexts).toContain('Sin cancha');
+    expect(secondaryTexts).toContain('Sin programación');
+  });
+
   function match(
     id: number,
     player1: number,

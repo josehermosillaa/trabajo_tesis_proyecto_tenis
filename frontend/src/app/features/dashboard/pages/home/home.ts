@@ -118,6 +118,14 @@ export class HomeComponent implements OnInit {
     this.router.navigate([route]);
   }
 
+  viewCompetitionCategories(competitionId: number): void {
+    this.router.navigate([
+      '/competitions',
+      competitionId,
+      'categories',
+    ]);
+  }
+
   viewTournament(item: PlayerTournamentView): void {
     if (item.registration.status !== 'CONFIRMADA') {
       return;

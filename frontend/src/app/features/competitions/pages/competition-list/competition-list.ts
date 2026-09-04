@@ -89,6 +89,39 @@ export class CompetitionListComponent implements OnInit {
     this.router.navigate(['/competitions/new']);
   }
 
+  competitionTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      ELIMINACION_DIRECTA: 'Eliminación directa',
+      ESCALERILLA: 'Escalerilla',
+    };
+
+    return labels[type] ?? type;
+  }
+
+  competitionStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      PENDIENTE: 'Pendiente',
+      ABIERTA: 'Abierta',
+      EN_CURSO: 'En curso',
+      FINALIZADA: 'Finalizada',
+      CANCELADA: 'Cancelada',
+    };
+
+    return labels[status] ?? status;
+  }
+
+  competitionStatusBadgeClass(status: string): string {
+    const classes: Record<string, string> = {
+      PENDIENTE: 'text-bg-warning',
+      ABIERTA: 'text-bg-success',
+      EN_CURSO: 'text-bg-primary',
+      FINALIZADA: 'text-bg-success',
+      CANCELADA: 'text-bg-danger',
+    };
+
+    return classes[status] ?? 'text-bg-secondary';
+  }
+
   goToEdit(id: number): void {
     this.router.navigate(['/competitions', id, 'edit']);
   }
